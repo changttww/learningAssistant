@@ -1,0 +1,2730 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人主页 - 学辅助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: #fafafa;
+            color: #333;
+        }
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        }
+        .header {
+            padding: 15px 30px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .progress-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: #f0f0f0;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: #2D5BFF;
+        }
+        .chart-container {
+            height: 300px;
+            width: 100%;
+        }
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-size: cover;
+            background-position: center;
+        }
+        .notification-dot {
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            width: 8px;
+            height: 8px;
+            background: #FF3B30;
+            border-radius: 50%;
+        }
+        .profile-tab {
+            padding: 12px 20px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .profile-tab:hover {
+            color: #2D5BFF;
+        }
+        .profile-tab.active {
+            color: #2D5BFF;
+            border-bottom-color: #2D5BFF;
+        }
+        .achievement-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+            transition: all 0.2s;
+        }
+        .achievement-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+        .badge-icon {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+        .stat-card {
+            padding: 16px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        .stat-card:hover {
+            transform: translateY(-3px);
+        }
+        .course-card {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+        }
+        .course-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        .activity-item {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: all 0.2s;
+        }
+        .activity-item:hover {
+            background: #f5f7ff;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <div class="header">
+        <div class="flex items-center space-x-10">
+            <div class="text-xl font-bold text-[#2D5BFF] flex items-center">
+                <iconify-icon icon="mdi:brain" width="26" height="26"></iconify-icon>
+                <span class="ml-2">学辅助手</span>
+            </div>
+            <div class="flex space-x-6 font-medium text-gray-700">
+                <div class="py-1 hover:text-[#2D5BFF]"><a href="personal-tasks.html">个人任务</a></div>
+                <div class="py-1 hover:text-[#2D5BFF]"><a href="team-tasks.html">团队任务</a></div>
+                <div class="py-1 hover:text-[#2D5BFF]"><a href="study-room.html">在线自习室</a></div>
+            </div>
+        </div>
+        <div class="flex items-center space-x-5">
+            <div class="relative">
+                <iconify-icon icon="mdi:bell-outline" width="24" height="24" class="text-gray-600">
+                </iconify-icon>
+                <div class="notification-dot"></div>
+            </div>
+            <div class="flex items-center">
+                <a href="profile.html" class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=1');"></div>
+                    <span class="ml-2 font-medium">张同学</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 个人信息顶部卡片 -->
+        <div class="card mb-6">
+            <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
+                <div class="w-32 h-32 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=2');"></div>
+                <div class="flex-1">
+                    <div class="flex flex-col md:flex-row md:items-center gap-4">
+                        <h1 class="text-2xl font-bold">张同学</h1>
+                        <div class="flex items-center gap-2">
+                            <div class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">技术项目经理</div>
+                            <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                                在线
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 mt-2">专注于教育科技领域，热衷于学习新技术，致力于打造高效的学习工具。</p>
+                    <div class="mt-4 flex flex-wrap gap-4">
+                        <div class="flex items-center gap-2">
+                            <iconify-icon icon="mdi:school" width="20" height="20" class="text-gray-600"></iconify-icon>
+                            <span>北京大学 计算机科学与技术</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <iconify-icon icon="mdi:map-marker" width="20" height="20" class="text-gray-600"></iconify-icon>
+                            <span>北京市</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <iconify-icon icon="mdi:account-group" width="20" height="20" class="text-gray-600"></iconify-icon>
+                            <span>已加入3个学习小组</span>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex gap-3">
+                        <button class="bg-[#2D5BFF] text-white font-medium py-2 px-4 rounded-lg text-sm hover:bg-opacity-90 transition-colors flex items-center gap-2">
+                            <iconify-icon icon="mdi:pencil" width="16" height="16"></iconify-icon>
+                            编辑个人资料
+                        </button>
+                        <button class="bg-gray-100 text-gray-700 font-medium py-2 px-4 rounded-lg text-sm hover:bg-gray-200 transition-colors flex items-center gap-2">
+                            <iconify-icon icon="mdi:share" width="16" height="16"></iconify-icon>
+                            分享主页
+                        </button>
+                    </div>
+                </div>
+                <div class="md:text-right">
+                    <div class="flex flex-col items-center md:items-end">
+                        <div class="bg-blue-50 text-blue-800 px-3 py-1 rounded-full text-lg font-medium">
+                            学霸 Lv.4
+                        </div>
+                        <div class="mt-4 text-center md:text-right">
+                            <div class="text-lg font-bold text-[#10B981]">87.5h</div>
+                            <div class="text-xs text-gray-600">学习时长</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- 学习统计内容区 -->
+        <div class="max-w-7xl mx-auto">
+            <!-- 学习数据卡片 -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="stat-card bg-blue-50">
+                    <div class="text-3xl font-bold text-blue-600">87.5h</div>
+                    <div class="text-gray-600 mt-1">总学习时长</div>
+                    <div class="text-xs text-green-600 mt-2 flex items-center">
+                        <iconify-icon icon="mdi:trending-up" width="12" height="12" class="mr-1"></iconify-icon>
+                        较上月增长 15%
+                    </div>
+                </div>
+                <div class="stat-card bg-green-50">
+                    <div class="text-3xl font-bold text-green-600">92%</div>
+                    <div class="text-gray-600 mt-1">任务完成率</div>
+                    <div class="text-xs text-green-600 mt-2 flex items-center">
+                        <iconify-icon icon="mdi:trending-up" width="12" height="12" class="mr-1"></iconify-icon>
+                        较上月增长 8%
+                    </div>
+                </div>
+                <div class="stat-card bg-orange-50">
+                    <div class="text-3xl font-bold text-orange-600">8</div>
+                    <div class="text-gray-600 mt-1">进行中课程</div>
+                    <div class="text-xs text-green-600 mt-2 flex items-center">
+                        <iconify-icon icon="mdi:trending-up" width="12" height="12" class="mr-1"></iconify-icon>
+                        新增 2 门课程
+                    </div>
+                </div>
+                <div class="stat-card bg-purple-50">
+                    <div class="text-3xl font-bold text-purple-600">24</div>
+                    <div class="text-gray-600 mt-1">已获得证书</div>
+                    <div class="text-xs text-green-600 mt-2 flex items-center">
+                        <iconify-icon icon="mdi:trending-up" width="12" height="12" class="mr-1"></iconify-icon>
+                        本月新增 3 个
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主要内容区域：左侧内容 + 右侧图表 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- 左侧内容区域 -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- 学习时长统计图表 -->
+                    <div class="card">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="font-bold text-xl">学习时长趋势</h2>
+                            <div class="flex space-x-2">
+                                <select class="bg-gray-50 border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-blue-500 py-1.5 px-3">
+                                    <option selected="">最近30天</option>
+                                    <option>最近90天</option>
+                                    <option>本年度</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="chart-container" id="studyTimeChart"></div>
+                    </div>
+                </div>
+
+                <!-- 右侧图表区域 -->
+                <div class="space-y-6">
+                    <!-- 技能雷达图 -->
+                    <div class="card">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="font-bold text-xl">技能雷达</h2>
+                            <button class="text-blue-600 hover:underline text-sm">自定义</button>
+                        </div>
+                        <div class="chart-container" id="skillRadarChart"></div>
+                    </div>
+
+                    <!-- 知识点分布 -->
+                    <div class="card">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="font-bold text-xl">知识点分布</h2>
+                            <select class="bg-gray-50 border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-blue-500 py-1.5 px-3">
+                                <option selected="">全部领域</option>
+                                <option>技术类</option>
+                                <option>管理类</option>
+                                <option>设计类</option>
+                            </select>
+                        </div>
+                        <div class="chart-container" id="knowledgeDistributionChart"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // 学习时长统计图表
+        document.addEventListener('DOMContentLoaded', function() {
+            // 学习时长趋势图
+            const studyTimeChart = echarts.init(document.getElementById('studyTimeChart'));
+            const studyTimeOption = {
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: function(params) {
+                        return `${params[0].name}<br/>
+                        学习时长: ${params[0].value}小时`;
+                    }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    boundaryGap: false,
+                    data: ['5/1', '5/3', '5/5', '5/7', '5/9', '5/11', '5/13'],
+                    axisLine: {
+                        lineStyle: {
+                            color: '#ddd'
+                        }
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLine: {
+                        show: false
+                    },
+                    axisLabel: {
+                        formatter: '{value}h'
+                    },
+                    splitLine: {
+                        lineStyle: {
+                            color: '#f0f0f0'
+                        }
+                    }
+                },
+                series: [
+                    {
+                        name: '学习时长',
+                        type: 'line',
+                        data: [3.5, 2.8, 4.2, 3.0, 3.8, 4.5, 3.2],
+                        smooth: true,
+                        symbol: 'circle',
+                        symbolSize: 8,
+                        itemStyle: {
+                            color: '#2D5BFF'
+                        },
+                        lineStyle: {
+                            width: 3,
+                            color: '#2D5BFF'
+                        },
+                        areaStyle: {
+                            color: {
+                                type: 'linear',
+                                x: 0,
+                                y: 0,
+                                x2: 0,
+                                y2: 1,
+                                colorStops: [{
+                                    offset: 0, color: 'rgba(45,91,255,0.2)'
+                                }, {
+                                    offset: 1, color: 'rgba(45,91,255,0.01)'
+                                }]
+                            }
+                        }
+                    }
+                ]
+            };
+            studyTimeChart.setOption(studyTimeOption);
+
+            // 技能雷达图
+            const skillRadarChart = echarts.init(document.getElementById('skillRadarChart'));
+            const skillRadarOption = {
+                tooltip: {
+                    trigger: 'item'
+                },
+                radar: {
+                    indicator: [
+                        { name: '前端开发', max: 100 },
+                        { name: '后端开发', max: 100 },
+                        { name: '数据分析', max: 100 },
+                        { name: '项目管理', max: 100 },
+                        { name: 'UI设计', max: 100 },
+                        { name: '软技能', max: 100 }
+                    ],
+                    radius: '65%',
+                    splitNumber: 4,
+                    axisName: {
+                        color: '#333',
+                        fontSize: 12
+                    },
+                    splitArea: {
+                        areaStyle: {
+                            color: ['#f5f5f5', '#e9e9e9', '#f0f0f0', '#fff']
+                        }
+                    }
+                },
+                series: [
+                    {
+                        type: 'radar',
+                        data: [
+                            {
+                                value: [85, 65, 70, 90, 60, 80],
+                                name: '技能掌握度',
+                                symbol: 'circle',
+                                symbolSize: 6,
+                                lineStyle: {
+                                    width: 2
+                                },
+                                areaStyle: {
+                                    color: 'rgba(45,91,255,0.3)'
+                                },
+                                itemStyle: {
+                                    color: '#2D5BFF'
+                                }
+                            }
+                        ]
+                    }
+                ]
+            };
+            skillRadarChart.setOption(skillRadarOption);
+
+            // 知识点分布图
+            const knowledgeDistributionChart = echarts.init(document.getElementById('knowledgeDistributionChart'));
+            const knowledgeDistributionOption = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c}小时 ({d}%)'
+                },
+                legend: {
+                    bottom: '0%',
+                    left: 'center',
+                    itemWidth: 10,
+                    itemHeight: 10,
+                    textStyle: {
+                        fontSize: 11
+                    }
+                },
+                series: [
+                    {
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        center: ['50%', '45%'],
+                        avoidLabelOverlap: false,
+                        itemStyle: {
+                            borderRadius: 6,
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        },
+                        label: {
+                            show: false
+                        },
+                        emphasis: {
+                            label: {
+                                show: false
+                            }
+                        },
+                        labelLine: {
+                            show: false
+                        },
+                        data: [
+                            { value: 35, name: '前端技术', itemStyle: { color: '#2D5BFF' } },
+                            { value: 20, name: '后端开发', itemStyle: { color: '#34C759' } },
+                            { value: 15, name: '数据分析', itemStyle: { color: '#FF9500' } },
+                            { value: 25, name: '项目管理', itemStyle: { color: '#AF52DE' } },
+                            { value: 10, name: 'UI设计', itemStyle: { color: '#FF3B30' } },
+                            { value: 15, name: '其他技能', itemStyle: { color: '#5AC8FA' } }
+                        ]
+                    }
+                ]
+            };
+            knowledgeDistributionChart.setOption(knowledgeDistributionOption);
+
+            // 窗口调整大小时调整图表大小
+            window.addEventListener('resize', function() {
+                studyTimeChart.resize();
+                skillRadarChart.resize();
+                knowledgeDistributionChart.resize();
+            });
+
+            // 标签页切换
+            document.querySelectorAll('.profile-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelector('.profile-tab.active').classList.remove('active');
+                    this.classList.add('active');
+                    // 这里可以添加内容切换逻辑
+                });
+            });
+        });
+    </script>
+
+
+
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人任务 - 学辅助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: #fafafa;
+            color: #333;
+        }
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        }
+        .header {
+            padding: 15px 30px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .progress-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: #f0f0f0;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: #2D5BFF;
+        }
+        .chart-container {
+            height: 300px;
+            width: 100%;
+        }
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-size: cover;
+            background-position: center;
+        }
+        .online-indicator {
+            width: 10px;
+            height: 10px;
+            background: #4CAF50;
+            border-radius: 50%;
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            border: 2px solid white;
+        }
+        .notification-dot {
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            width: 8px;
+            height: 8px;
+            background: #FF3B30;
+            border-radius: 50%;
+        }
+        .nav-item {
+            padding: 10px 16px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .nav-item:hover {
+            background: #F5F7FA;
+        }
+        .nav-item.active {
+            background: #E6F0FF;
+            color: #2D5BFF;
+            font-weight: 500;
+        }
+        .badge {
+            padding: 2px 8px;
+            background: #FF6B35;
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .task-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: all 0.2s;
+        }
+        .task-item:hover {
+            background: #f5f7ff;
+        }
+        .task-checkbox {
+            min-width: 20px;
+            height: 20px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+        }
+        .task-checkbox.checked {
+            background-color: #2D5BFF;
+            border-color: #2D5BFF;
+        }
+        .task-checkbox.checked:after {
+            content: '';
+            position: absolute;
+            left: 6px;
+            top: 2px;
+            width: 5px;
+            height: 10px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+        .priority-indicator {
+            width: 4px;
+            height: 100%;
+            border-radius: 2px;
+            margin-right: 8px;
+        }
+        .priority-high {
+            background: #FF3B30;
+        }
+        .priority-medium {
+            background: #FF9500;
+        }
+        .priority-low {
+            background: #34C759;
+        }
+        .task-filters button {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s;
+            color: #666;
+        }
+        .task-filters button.active {
+            background: #E6F0FF;
+            color: #2D5BFF;
+            font-weight: 500;
+        }
+        .calendar-day {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .calendar-day:hover {
+            background: #f0f0f0;
+        }
+        .calendar-day.active {
+            background: #2D5BFF;
+            color: white;
+        }
+        .calendar-day.has-tasks::after {
+            content: '';
+            display: block;
+            width: 4px;
+            height: 4px;
+            background: #FF6B35;
+            border-radius: 50%;
+            margin-top: 2px;
+        }
+    </style>
+
+
+    <!-- 顶部导航 -->
+    <div class="header">
+        <div class="flex items-center space-x-10">
+            <div class="text-xl font-bold text-[#2D5BFF] flex items-center">
+                <iconify-icon icon="mdi:brain" width="26" height="26"></iconify-icon>
+                <span class="ml-2">学辅助手</span>
+            </div>
+            <div class="flex space-x-6 font-medium text-gray-700">
+                <div class="py-1 border-b-2 border-[#2D5BFF] text-[#2D5BFF]">个人任务</div>
+                <div class="py-1 hover:text-[#2D5BFF]"><a href="team-tasks.html">团队任务</a></div>
+                <div class="py-1 hover:text-[#2D5BFF]"><a href="study-room.html">在线自习室</a></div>
+            </div>
+        </div>
+        <div class="flex items-center space-x-5">
+            <div class="relative">
+                <iconify-icon icon="mdi:bell-outline" width="24" height="24" class="text-gray-600">
+                </iconify-icon>
+                <div class="notification-dot"></div>
+            </div>
+            <div class="flex items-center">
+                <a href="profile.html" class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=1');"></div>
+                    <span class="ml-2 font-medium">张同学</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 左侧栏 -->
+        <div class="space-y-5">
+            <div class="card">
+                <div class="flex flex-col items-center">
+                    <div class="mb-3">
+                        <div class="w-16 h-16 rounded-full bg-cover mx-auto" style="background-image: url('/mb-potato/image/placeholder.svg?id=2');"></div>
+                    </div>
+                    <h3 class="text-lg font-semibold">张同学</h3>
+                    <p class="text-gray-500 text-sm">技术项目经理</p>
+                    <div class="flex mt-3 items-center justify-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <span class="text-sm text-gray-500">在线</span>
+                    </div>
+                    <a href="profile.html" class="mt-4 bg-gray-50 hover:bg-gray-100 text-gray-600 font-medium py-2 px-4 rounded-full w-full transition-colors text-center">
+                        查看个人主页
+                    </a>
+                </div>
+                <div class="mt-5">
+                    <div class="font-medium text-gray-500 text-sm">任务完成度</div>
+                    <div class="flex mt-1 items-center">
+                        <div class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">8/12 已完成</div>
+                        <div class="ml-auto text-sm font-medium">67%</div>
+                    </div>
+                    <div class="progress-bar mt-2">
+                        <div class="progress-fill" style="width: 67%"></div>
+                    </div>
+                </div>
+                <div class="mt-4 grid grid-cols-2 gap-2">
+                    <div class="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
+                        <div class="text-2xl font-bold text-[#2D5BFF]">12</div>
+                        <div class="text-gray-500 text-sm">今日任务</div>
+                    </div>
+                    <div class="flex flex-col items-center p-3 bg-green-50 rounded-lg">
+                        <div class="text-2xl font-bold text-[#34C759]">8</div>
+                        <div class="text-gray-500 text-sm">已完成</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="font-bold text-lg mb-4">任务导航</h3>
+                <div class="space-y-2">
+                    <div class="nav-item active">
+                        <iconify-icon icon="mdi:format-list-checks" width="20" height="20"></iconify-icon>
+                        <span>今日任务</span>
+                    </div>
+                    <div class="nav-item">
+                        <iconify-icon icon="mdi:clock-outline" width="20" height="20"></iconify-icon>
+                        <span>待办任务</span>
+                    </div>
+                    <div class="nav-item">
+                        <iconify-icon icon="mdi:calendar" width="20" height="20"></iconify-icon>
+                        <span>学习计划</span>
+                    </div>
+                    <div class="nav-item">
+                        <iconify-icon icon="mdi:check-circle" width="20" height="20"></iconify-icon>
+                        <span>已完成</span>
+                    </div>
+                    <div class="nav-item">
+                        <iconify-icon icon="mdi:folder" width="20" height="20"></iconify-icon>
+                        <span>任务文件夹</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-lg">任务标签</h3>
+                    <button class="text-blue-600 hover:underline text-sm">管理</button>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <div class="bg-blue-100 text-blue-800 px-3 py-1.5 rounded-full text-sm font-medium flex items-center">
+                        <span class="w-2 h-2 rounded-full bg-blue-600 mr-1.5"></span>
+                        前端开发
+                    </div>
+                    <div class="bg-green-100 text-green-800 px-3 py-1.5 rounded-full text-sm font-medium flex items-center">
+                        <span class="w-2 h-2 rounded-full bg-green-600 mr-1.5"></span>
+                        后端开发
+                    </div>
+                    <div class="bg-purple-100 text-purple-800 px-3 py-1.5 rounded-full text-sm font-medium flex items-center">
+                        <span class="w-2 h-2 rounded-full bg-purple-600 mr-1.5"></span>
+                        UI设计
+                    </div>
+                    <div class="bg-orange-100 text-orange-800 px-3 py-1.5 rounded-full text-sm font-medium flex items-center">
+                        <span class="w-2 h-2 rounded-full bg-orange-600 mr-1.5"></span>
+                        文档编写
+                    </div>
+                    <div class="bg-red-100 text-red-800 px-3 py-1.5 rounded-full text-sm font-medium flex items-center">
+                        <span class="w-2 h-2 rounded-full bg-red-600 mr-1.5"></span>
+                        紧急
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="font-bold text-lg mb-4">任务统计</h3>
+                <div class="chart-container" id="taskStatsChart"></div>
+            </div>
+        </div>
+
+        <!-- 主内容区 -->
+        <div class="space-y-5">
+            <div class="card">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="font-bold text-xl">今日任务</h2>
+                    <div class="flex space-x-2">
+                        <button class="bg-[#2D5BFF] text-white font-medium py-1.5 px-4 rounded-lg text-sm hover:bg-opacity-90 transition-colors">
+                            <iconify-icon icon="mdi:plus" width="18" height="18" class="mr-1"></iconify-icon>
+                            新建任务
+                        </button>
+                        <select class="bg-gray-50 border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-blue-500 py-1.5 px-3">
+                            <option selected="">全部任务</option>
+                            <option>按优先级排序</option>
+                            <option>按截止日期排序</option>
+                            <option>按创建时间排序</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 日历选择 -->
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center">
+                        <button class="p-2 hover:bg-gray-100 rounded-full">
+                            <iconify-icon icon="mdi:chevron-left" width="18" height="18"></iconify-icon>
+                        </button>
+                        <span class="mx-3 font-medium">2025年5月13日</span>
+                        <button class="p-2 hover:bg-gray-100 rounded-full">
+                            <iconify-icon icon="mdi:chevron-right" width="18" height="18"></iconify-icon>
+                        </button>
+                    </div>
+                    <div class="flex gap-1">
+                        <div class="calendar-day">
+                            <span class="text-xs text-gray-500">一</span>
+                            <span>12</span>
+                        </div>
+                        <div class="calendar-day active">
+                            <span class="text-xs text-gray-300">二</span>
+                            <span>13</span>
+                        </div>
+                        <div class="calendar-day has-tasks">
+                            <span class="text-xs text-gray-500">三</span>
+                            <span>14</span>
+                        </div>
+                        <div class="calendar-day has-tasks">
+                            <span class="text-xs text-gray-500">四</span>
+                            <span>15</span>
+                        </div>
+                        <div class="calendar-day">
+                            <span class="text-xs text-gray-500">五</span>
+                            <span>16</span>
+                        </div>
+                        <div class="calendar-day has-tasks">
+                            <span class="text-xs text-gray-500">六</span>
+                            <span>17</span>
+                        </div>
+                        <div class="calendar-day">
+                            <span class="text-xs text-gray-500">日</span>
+                            <span>18</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 任务过滤器 -->
+                <div class="flex mb-6 task-filters">
+                    <button class="active">全部任务</button>
+                    <button>进行中</button>
+                    <button>已完成</button>
+                    <button>逾期任务</button>
+                </div>
+
+                <!-- 任务列表 -->
+                <div class="space-y-1">
+                    <div class="task-item">
+                        <div class="task-checkbox checked"></div>
+                        <div class="priority-indicator priority-high"></div>
+                        <div class="flex-1">
+                            <div class="line-through text-gray-500">完成项目前端页面设计</div>
+                            <div class="flex items-center mt-1">
+                                <div class="bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-xs">UI设计</div>
+                                <div class="flex items-center text-xs text-gray-500 ml-4">
+                                    <iconify-icon icon="mdi:clock-outline" width="14" height="14" class="mr-1"></iconify-icon>
+                                    今天 09:00
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <button class="p-2 hover:bg-gray-100 rounded-full">
+                                <iconify-icon icon="mdi:star-outline" width="18" height="18" class="text-gray-400"></iconify-icon>
+                            </button>
+                            <button class="p-2 hover:bg-gray-100 rounded-full">
+                                <iconify-icon icon="mdi:dots-vertical" width="18" height="18" class="text-gray-400"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="task-item">
+                        <div class="task-checkbox"></div>
+                        <div class="priority-indicator priority-high"></div>
+                        <div class="flex-1">
+                            <div>提交项目周报</div>
+                            <div class="flex items-center mt-1">
+                                <div class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded text-xs">文档编写</div>
+                                <div class="flex items-center text-xs text-gray-500 ml-4">
+                                    <iconify-icon icon="mdi:clock-outline" width="14" height="14" class="mr-1"></iconify-icon>
+                                    今天 14:00
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <button class="p-2 hover:bg-gray-100 rounded-full">
+                                <iconify-icon icon="mdi:star" width="18" height="18" style="color: #FF9500;"></iconify-icon>
+                            </button>
+                            <button class="p-2 hover:bg-gray-100 rounded-full">
+                                <iconify-icon icon="mdi:dots-vertical" width="18" height="18" class="text-gray-400"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="task-item">
+                        <div class="task-checkbox"></div>
+                        <div class="priority-indicator priority-medium"></div>
+                        <div class="flex-1">
+                            <div>准备明天的团队会议</div>
+                            <div class="flex items-center mt-1">
+                                <div class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">会议准备</div>
+                                <div class="flex items-center text-xs text-gray-500 ml-4">
+                                    <iconify-icon icon="mdi:clock-outline" width="14" height="14" class="mr-1"></iconify-icon>
+                                    今天 16:00
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <button class="p-2 hover:bg-gray-100 rounded-full">
+                                <iconify-icon icon="mdi:star-outline" width="18" height="18" class="text-gray-400"></iconify-icon>
+                            </button>
+                            <button class="p-2 hover:bg-gray-100 rounded-full">
+                                <iconify-icon icon="mdi:dots-vertical" width="18" height="18" class="text-gray-400"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="task-item">
+                        <div class="task-checkbox checked"></div>
+                        <div class="priority-indicator priority-medium"></div>
+                        <div class="flex-1">
+                            <div class="line-through text-gray-500">回复客户邮件</div>
+                            <div class="flex items-center mt-1">
+                                <div class="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs">沟通</div>
+                                <div class="flex items-center text-xs text-gray-500 ml-4">
+                                    <iconify-icon icon="mdi:clock-outline" width="14" height="14" class="mr-1"></iconify-icon>
+                                    今天 11:30
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <button class="p-2 hover:bg-gray-100 rounded-full">
+                                <iconify-icon icon="mdi:star-outline" width="18" height="18" class="text-gray-400"></iconify-icon>
+                            </button>
+                            <button class="p-2 hover:bg-gray-100 rounded-full">
+                                <iconify-icon icon="mdi:dots-vertical" width="18" height="18" class="text-gray-400"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="task-item">
+                        <div class="task-checkbox"></div>
+                        <div class="priority-indicator priority-low"></div>
+                        <div class="flex-1">
+                            <div>整理项目文档资料</div>
+                            <div class="flex items-center mt-1">
+                                <div class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded text-xs">文档编写</div>
+                                <div class="flex items-center text-xs text-gray-500 ml-4">
+                                    <iconify-icon icon="mdi:clock-outline" width="14" height="14" class="mr-1"></iconify-icon>
+                                    今天 17:30
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <button class="p-2 hover:bg-gray-100 rounded-full">
+                                <iconify-icon icon="mdi:star-outline" width="18" height="18" class="text-gray-400"></iconify-icon>
+                            </button>
+                            <button class="p-2 hover:bg-gray-100 rounded-full">
+                                <iconify-icon icon="mdi:dots-vertical" width="18" height="18" class="text-gray-400"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="font-bold text-xl">即将到期的任务</h2>
+                    <span class="text-blue-600 hover:underline cursor-pointer">查看全部</span>
+                </div>
+
+                <div class="space-y-1">
+                    <div class="task-item">
+                        <div class="task-checkbox"></div>
+                        <div class="priority-indicator priority-high"></div>
+                        <div class="flex-1">
+                            <div>完成用户反馈系统开发</div>
+                            <div class="flex items-center mt-1">
+                                <div class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">前端开发</div>
+                                <div class="flex items-center text-xs text-gray-500 ml-4">
+                                    <iconify-icon icon="mdi:clock-outline" width="14" height="14" class="mr-1"></iconify-icon>
+                                    明天截止
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <button class="p-2 hover:bg-gray-100 rounded-full">
+                                <iconify-icon icon="mdi:star" width="18" height="18" style="color: #FF9500;"></iconify-icon>
+                            </button>
+                            <button class="p-2 hover:bg-gray-100 rounded-full">
+                                <iconify-icon icon="mdi:dots-vertical" width="18" height="18" class="text-gray-400"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="task-item">
+                        <div class="task-checkbox"></div>
+                        <div class="priority-indicator priority-medium"></div>
+                        <div class="flex-1">
+                            <div>提交月度工作总结</div>
+                            <div class="flex items-center mt-1">
+                                <div class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded text-xs">文档编写</div>
+                                <div class="flex items-center text-xs text-gray-500 ml-4">
+                                    <iconify-icon icon="mdi:clock-outline" width="14" height="14" class="mr-1"></iconify-icon>
+                                    2天后截止
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <button class="p-2 hover:bg-gray-100 rounded-full">
+                                <iconify-icon icon="mdi:star-outline" width="18" height="18" class="text-gray-400"></iconify-icon>
+                            </button>
+                            <button class="p-2 hover:bg-gray-100 rounded-full">
+                                <iconify-icon icon="mdi:dots-vertical" width="18" height="18" class="text-gray-400"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="task-item">
+                        <div class="task-checkbox"></div>
+                        <div class="priority-indicator priority-high"></div>
+                        <div class="flex-1">
+                            <div>准备项目演示PPT</div>
+                            <div class="flex items-center mt-1">
+                                <div class="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs">演示</div>
+                                <div class="flex items-center text-xs text-gray-500 ml-4">
+                                    <iconify-icon icon="mdi:clock-outline" width="14" height="14" class="mr-1"></iconify-icon>
+                                    3天后截止
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <button class="p-2 hover:bg-gray-100 rounded-full">
+                                <iconify-icon icon="mdi:star" width="18" height="18" style="color: #FF9500;"></iconify-icon>
+                            </button>
+                            <button class="p-2 hover:bg-gray-100 rounded-full">
+                                <iconify-icon icon="mdi:dots-vertical" width="18" height="18" class="text-gray-400"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-5">
+                <div class="card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="font-bold text-lg">任务完成趋势</h2>
+                        <select class="bg-gray-50 border border-gray-300 text-gray-700 text-xs rounded-lg focus:ring-blue-500 p-1">
+                            <option selected="">本周</option>
+                            <option>上周</option>
+                            <option>本月</option>
+                        </select>
+                    </div>
+                    <div class="chart-container" style="height: 220px;" id="taskCompletionChart"></div>
+                </div>
+
+                <div class="card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="font-bold text-lg">任务分布</h2>
+                        <select class="bg-gray-50 border border-gray-300 text-gray-700 text-xs rounded-lg focus:ring-blue-500 p-1">
+                            <option selected="">按类型</option>
+                            <option>按优先级</option>
+                            <option>按状态</option>
+                        </select>
+                    </div>
+                    <div class="chart-container" style="height: 220px;" id="taskDistributionChart"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 任务统计图表
+        document.addEventListener('DOMContentLoaded', function() {
+            // 任务统计饼图
+            const taskStatsChart = echarts.init(document.getElementById('taskStatsChart'));
+            const taskStatsOption = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c} ({d}%)'
+                },
+                legend: {
+                    bottom: '0',
+                    left: 'center',
+                    itemWidth: 12,
+                    itemHeight: 12,
+                    textStyle: {
+                        fontSize: 12
+                    }
+                },
+                series: [
+                    {
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        center: ['50%', '45%'],
+                        itemStyle: {
+                            borderRadius: 4,
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        },
+                        label: {
+                            show: false
+                        },
+                        data: [
+                            { value: 8, name: '已完成', itemStyle: { color: '#2D5BFF' } },
+                            { value: 3, name: '进行中', itemStyle: { color: '#FF9500' } },
+                            { value: 1, name: '逾期', itemStyle: { color: '#FF3B30' } },
+                        ]
+                    }
+                ]
+            };
+            taskStatsChart.setOption(taskStatsOption);
+
+            // 任务完成趋势图
+            const taskCompletionChart = echarts.init(document.getElementById('taskCompletionChart'));
+            const taskCompletionOption = {
+                tooltip: {
+                    trigger: 'axis'
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '10%',
+                    top: '10%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+                    axisLine: {
+                        lineStyle: {
+                            color: '#ddd'
+                        }
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLine: {
+                        show: false
+                    },
+                    axisLabel: {
+                        formatter: '{value}个'
+                    },
+                    splitLine: {
+                        lineStyle: {
+                            color: '#f0f0f0'
+                        }
+                    }
+                },
+                series: [
+                    {
+                        name: '已完成',
+                        type: 'line',
+                        data: [5, 7, 4, 6, 8, 3, 0],
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        itemStyle: {
+                            color: '#2D5BFF'
+                        },
+                        lineStyle: {
+                            width: 3,
+                            color: '#2D5BFF'
+                        },
+                        areaStyle: {
+                            color: {
+                                type: 'linear',
+                                x: 0,
+                                y: 0,
+                                x2: 0,
+                                y2: 1,
+                                colorStops: [{
+                                    offset: 0, color: 'rgba(45,91,255,0.2)'
+                                }, {
+                                    offset: 1, color: 'rgba(45,91,255,0.01)'
+                                }]
+                            }
+                        }
+                    }
+                ]
+            };
+            taskCompletionChart.setOption(taskCompletionOption);
+
+            // 任务分布图
+            const taskDistributionChart = echarts.init(document.getElementById('taskDistributionChart'));
+            const taskDistributionOption = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c}个 ({d}%)'
+                },
+                legend: {
+                    orient: 'vertical',
+                    right: 10,
+                    top: 'center',
+                    itemWidth: 12,
+                    itemHeight: 12,
+                    textStyle: {
+                        fontSize: 12
+                    }
+                },
+                series: [
+                    {
+                        type: 'pie',
+                        radius: '70%',
+                        center: ['40%', '50%'],
+                        itemStyle: {
+                            borderRadius: 4,
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        },
+                        label: {
+                            show: false
+                        },
+                        data: [
+                            { value: 5, name: '前端开发', itemStyle: { color: '#2D5BFF' } },
+                            { value: 4, name: '后端开发', itemStyle: { color: '#34C759' } },
+                            { value: 3, name: 'UI设计', itemStyle: { color: '#9C27B0' } },
+                            { value: 6, name: '文档编写', itemStyle: { color: '#FF9500' } },
+                            { value: 2, name: '会议/沟通', itemStyle: { color: '#607D8B' } }
+                        ]
+                    }
+                ]
+            };
+            taskDistributionChart.setOption(taskDistributionOption);
+
+            // 窗口调整大小时调整图表大小
+            window.addEventListener('resize', function() {
+                taskStatsChart.resize();
+                taskCompletionChart.resize();
+                taskDistributionChart.resize();
+            });
+
+            // 任务勾选事件
+            document.querySelectorAll('.task-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('click', function() {
+                    this.classList.toggle('checked');
+                    const taskText = this.nextElementSibling.nextElementSibling.querySelector('div:first-child');
+                    taskText.classList.toggle('line-through');
+                    taskText.classList.toggle('text-gray-500');
+                });
+            });
+        });
+    </script>
+
+
+
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线自习室 - 学辅助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: #fafafa;
+            color: #333;
+        }
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        }
+        .header {
+            padding: 15px 30px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .progress-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: #f0f0f0;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: #2D5BFF;
+        }
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-size: cover;
+            background-position: center;
+        }
+        .online-indicator {
+            width: 10px;
+            height: 10px;
+            background: #4CAF50;
+            border-radius: 50%;
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            border: 2px solid white;
+        }
+        .notification-dot {
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            width: 8px;
+            height: 8px;
+            background: #FF3B30;
+            border-radius: 50%;
+        }
+        .nav-item {
+            padding: 10px 16px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .nav-item:hover {
+            background: #F5F7FA;
+        }
+        .nav-item.active {
+            background: #E6F0FF;
+            color: #2D5BFF;
+            font-weight: 500;
+        }
+        .badge {
+            padding: 2px 8px;
+            background: #FF6B35;
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .video-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            height: 400px;
+        }
+        .video-frame {
+            background: #111;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 16/9;
+        }
+        .video-frame-controls {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 16px;
+            border-radius: 20px;
+        }
+        .control-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .control-btn.active {
+            background: #2D5BFF;
+        }
+        .video-user-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 400px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .chat-header {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .message {
+            display: flex;
+            gap: 10px;
+            max-width: 80%;
+        }
+        .message.self {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        .message-bubble {
+            background: #f0f0f0;
+            padding: 10px 15px;
+            border-radius: 18px;
+            border-top-left-radius: 4px;
+        }
+        .message.self .message-bubble {
+            background: #E6F0FF;
+            border-radius: 18px;
+            border-top-right-radius: 4px;
+        }
+        .message-time {
+            text-align: center;
+            color: #888;
+            font-size: 12px;
+            margin: 15px 0;
+        }
+        .chat-input {
+            padding: 15px;
+            border-top: 1px solid #f0f0f0;
+            display: flex;
+            gap: 10px;
+        }
+        .chat-input input {
+            flex-grow: 1;
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            padding: 10px 15px;
+        }
+        .chat-input button {
+            background: #2D5BFF;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 0 20px;
+            cursor: pointer;
+        }
+        .room-member {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .room-member:hover {
+            background: #f5f7fa;
+        }
+        .room-member.active {
+            background: #E6F0FF;
+        }
+        .room-member.active .online-dot {
+            background: #2D5BFF;
+        }
+        .online-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4CAF50;
+        }
+        .focus-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        .timer-display {
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+            color: #2D5BFF;
+        }
+    </style>
+
+
+    <!-- 顶部导航 -->
+    <div class="header">
+        <div class="flex items-center space-x-10">
+            <div class="text-xl font-bold text-[#2D5BFF] flex items-center">
+                <iconify-icon icon="mdi:brain" width="26" height="26"></iconify-icon>
+                <span class="ml-2">学辅助手</span>
+            </div>
+            <div class="flex space-x-6 font-medium text-gray-700">
+                <div class="py-1 hover:text-[#2D5BFF]"><a href="personal-tasks.html">个人任务</a></div>
+                <div class="py-1 hover:text-[#2D5BFF]"><a href="team-tasks.html">团队任务</a></div>
+                <div class="py-1 border-b-2 border-[#2D5BFF] text-[#2D5BFF]">在线自习室</div>
+            </div>
+        </div>
+        <div class="flex items-center space-x-5">
+            <div class="relative">
+                <iconify-icon icon="mdi:bell-outline" width="24" height="24" class="text-gray-600">
+                </iconify-icon>
+                <div class="notification-dot"></div>
+            </div>
+            <div class="flex items-center">
+                <a href="profile.html" class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=1');"></div>
+                    <span class="ml-2 font-medium">张同学</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 左侧栏 -->
+        <div class="space-y-5">
+            <div class="card">
+                <div class="flex flex-col items-center">
+                    <div class="mb-3">
+                        <div class="w-16 h-16 rounded-full bg-cover mx-auto" style="background-image: url('/mb-potato/image/placeholder.svg?id=2');"></div>
+                    </div>
+                    <h3 class="text-lg font-semibold">张同学</h3>
+                    <p class="text-gray-500 text-sm">技术项目经理</p>
+                    <div class="flex mt-3 items-center justify-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <span class="text-sm text-gray-500">专注中</span>
+                    </div>
+                </div>
+                <div class="mt-5">
+                    <div class="font-medium text-gray-500 text-sm">今日专注</div>
+                    <div class="flex mt-1 items-center">
+                        <div class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">已专注 2 小时 45 分钟</div>
+                        <div class="ml-auto text-sm font-medium">68%</div>
+                    </div>
+                    <div class="progress-bar mt-2">
+                        <div class="progress-fill" style="width: 68%"></div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="timer-display" id="focusTimer">02:45:00</div>
+                    <button class="w-full py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all">
+                        暂停专注计时
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="font-bold text-lg mb-4">自习室导航</h3>
+                <div class="space-y-2">
+                    <div class="nav-item active">
+                        <iconify-icon icon="mdi:video" width="20" height="20"></iconify-icon>
+                        <span>视频自习</span>
+                    </div>
+                    <div class="nav-item">
+                        <iconify-icon icon="mdi:account-group" width="20" height="20"></iconify-icon>
+                        <span>自习室列表</span>
+                    </div>
+                    <div class="nav-item">
+                        <iconify-icon icon="mdi:chart-timeline" width="20" height="20"></iconify-icon>
+                        <span>专注统计</span>
+                    </div>
+                    <div class="nav-item">
+                        <iconify-icon icon="mdi:timer" width="20" height="20"></iconify-icon>
+                        <span>番茄钟</span>
+                    </div>
+                    <div class="nav-item">
+                        <iconify-icon icon="mdi:cog" width="20" height="20"></iconify-icon>
+                        <span>自习设置</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-lg">自习室成员</h3>
+                    <div class="badge flex items-center">
+                        <iconify-icon icon="mdi:account-group" width="14" height="14"></iconify-icon>
+                        <span>8人</span>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="room-member active">
+                        <div class="online-dot"></div>
+                        <div class="relative">
+                            <div class="avatar w-8 h-8 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=4');"></div>
+                            <div class="online-indicator"></div>
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-medium">李同学</div>
+                            <div class="text-xs text-gray-500">后端开发</div>
+                        </div>
+                    </div>
+                    <div class="room-member">
+                        <div class="online-dot"></div>
+                        <div class="relative">
+                            <div class="avatar w-8 h-8 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=3');"></div>
+                            <div class="online-indicator"></div>
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-medium">王同学</div>
+                            <div class="text-xs text-gray-500">前端开发</div>
+                        </div>
+                    </div>
+                    <div class="room-member">
+                        <div class="online-dot"></div>
+                        <div class="relative">
+                            <div class="avatar w-8 h-8 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=5');"></div>
+                            <div class="online-indicator"></div>
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-medium">陈同学</div>
+                            <div class="text-xs text-gray-500">UI设计</div>
+                        </div>
+                    </div>
+                    <div class="room-member">
+                        <div class="online-dot"></div>
+                        <div class="relative">
+                            <div class="avatar w-8 h-8 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=6');"></div>
+                            <div class="online-indicator"></div>
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-medium">赵同学</div>
+                            <div class="text-xs text-gray-500">测试工程师</div>
+                        </div>
+                    </div>
+                    <div class="room-member">
+                        <div class="online-dot"></div>
+                        <div class="relative">
+                            <div class="avatar w-8 h-8 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=7');"></div>
+                            <div class="online-indicator"></div>
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-medium">钱同学</div>
+                            <div class="text-xs text-gray-500">产品经理</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主内容区 -->
+        <div class="space-y-5">
+            <div class="card">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="font-bold text-xl">高效学习自习室</h2>
+                        <p class="text-gray-500 text-sm mt-1">当前专注人数：8人 | 已运行：4小时28分钟</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-1.5 px-4 rounded-lg text-sm transition-colors flex items-center gap-2">
+                            <iconify-icon icon="mdi:share" width="18" height="18"></iconify-icon>
+                            分享
+                        </button>
+                        <button class="bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium py-1.5 px-4 rounded-lg text-sm transition-colors flex items-center gap-2">
+                            <iconify-icon icon="mdi:cog" width="18" height="18"></iconify-icon>
+                            设置
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="video-container mb-5">
+                    <!-- 自己的视频框 -->
+                    <div class="video-frame">
+                        <img src="https://modao.cc/mb-potato/image/placeholder.svg?id=video1" class="w-full h-full object-cover" alt="视频预览">
+                        <div class="video-user-info">
+                            <div class="w-5 h-5 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=2');"></div>
+                            <span>张同学（我）</span>
+                        </div>
+                        <div class="video-frame-controls">
+                            <div class="control-btn active">
+                                <iconify-icon icon="mdi:video" width="18" height="18"></iconify-icon>
+                            </div>
+                            <div class="control-btn active">
+                                <iconify-icon icon="mdi:microphone" width="18" height="18"></iconify-icon>
+                            </div>
+                            <div class="control-btn">
+                                <iconify-icon icon="mdi:hand-back-right" width="18" height="18"></iconify-icon>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 对方的视频框 -->
+                    <div class="video-frame">
+                        <img src="https://modao.cc/mb-potato/image/placeholder.svg?id=video2" class="w-full h-full object-cover" alt="视频预览">
+                        <div class="video-user-info">
+                            <div class="w-5 h-5 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=4');"></div>
+                            <span>李同学</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 聊天区域 -->
+                <div class="chat-container">
+                    <div class="chat-header">
+                        <h3 class="font-semibold">自习室聊天</h3>
+                        <div class="flex gap-2">
+                            <button class="text-gray-500 hover:text-blue-600">
+                                <iconify-icon icon="mdi:cog" width="18" height="18"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message-time">2025年5月13日 09:15</div>
+                        
+                        <div class="message">
+                            <div class="w-8 h-8 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=4');"></div>
+                            <div>
+                                <div class="text-xs text-gray-500 mb-1">李同学 · 后端开发</div>
+                                <div class="message-bubble">
+                                    大家早上好，今天一起加油！
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="message self">
+                            <div class="w-8 h-8 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=2');"></div>
+                            <div>
+                                <div class="text-xs text-gray-500 mb-1 text-right">我 · 技术项目经理</div>
+                                <div class="message-bubble">
+                                    早上好！今天要完成项目的技术文档。
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="message">
+                            <div class="w-8 h-8 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=3');"></div>
+                            <div>
+                                <div class="text-xs text-gray-500 mb-1">王同学 · 前端开发</div>
+                                <div class="message-bubble">
+                                    早上好，我准备完成前端页面的优化。
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="message-time">2025年5月13日 09:30</div>
+                        
+                        <div class="message">
+                            <div class="w-8 h-8 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=5');"></div>
+                            <div>
+                                <div class="text-xs text-gray-500 mb-1">陈同学 · UI设计</div>
+                                <div class="message-bubble">
+                                    大家有谁知道项目的设计规范在哪里可以找到？
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="message self">
+                            <div class="w-8 h-8 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=2');"></div>
+                            <div>
+                                <div class="text-xs text-gray-500 mb-1 text-right">我 · 技术项目经理</div>
+                                <div class="message-bubble">
+                                    我发你邮箱了，刚才更新了最新版本。
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-input">
+                        <input type="text" placeholder="输入消息..." class="focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        <button>发送</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="font-bold text-xl">专注统计</h2>
+                    <div class="flex space-x-2">
+                        <select class="bg-gray-50 border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-blue-500 py-1.5 px-3">
+                            <option selected="">本周</option>
+                            <option>上周</option>
+                            <option>本月</option>
+                            <option>全年</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="focus-stats mb-4">
+                    <div class="p-4 bg-blue-50 rounded-lg">
+                        <div class="text-sm text-gray-600">本周专注时长</div>
+                        <div class="text-2xl font-bold text-[#2D5BFF] mt-1">12小时48分钟</div>
+                        <div class="text-xs text-green-600 mt-1 flex items-center">
+                            <iconify-icon icon="mdi:trending-up" width="14" height="14"></iconify-icon>
+                            <span class="ml-1">较上周增长 15%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="p-4 bg-orange-50 rounded-lg">
+                        <div class="text-sm text-gray-600">本周专注次数</div>
+                        <div class="text-2xl font-bold text-[#FF6B35] mt-1">18次</div>
+                        <div class="text-xs text-green-600 mt-1 flex items-center">
+                            <iconify-icon icon="mdi:trending-up" width="14" height="14"></iconify-icon>
+                            <span class="ml-1">较上周增长 8%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-container" id="focusChart"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ECharts 图表 - 专注时间统计
+        document.addEventListener('DOMContentLoaded', function() {
+            const chartDom = document.getElementById('focusChart');
+            const chart = echarts.init(chartDom);
+            
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: function(params) {
+                        return `${params[0].name}<br/>
+                        专注时长: ${params[0].value}小时`;
+                    }
+                },
+                legend: {
+                    data: ['专注时长'],
+                    bottom: 0,
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '15%',
+                    top: '10%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: {
+                        formatter: '{value}小时'
+                    }
+                },
+                series: [
+                    {
+                        name: '专注时长',
+                        type: 'bar',
+                        data: [2.5, 1.8, 3.2, 2.1, 2.7, 0.5, 0],
+                        itemStyle: {
+                            color: '#2D5BFF'
+                        },
+                        barWidth: '40%'
+                    }
+                ]
+            };
+            
+            chart.setOption(option);
+            
+            // 窗口调整大小时调整图表大小
+            window.addEventListener('resize', function() {
+                chart.resize();
+            });
+            
+            // 模拟实时聊天功能
+            const chatInput = document.querySelector('.chat-input input');
+            const chatSendBtn = document.querySelector('.chat-input button');
+            const chatMessages = document.getElementById('chatMessages');
+            
+            chatSendBtn.addEventListener('click', function() {
+                sendMessage();
+            });
+            
+            chatInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+            
+            function sendMessage() {
+                const message = chatInput.value.trim();
+                if (message) {
+                    const now = new Date();
+                    const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+                    
+                    const messageHTML = `
+                        <div class="message self">
+                            <div class="w-8 h-8 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=2');"></div>
+                            <div>
+                                <div class="text-xs text-gray-500 mb-1 text-right">我 · 技术项目经理</div>
+                                <div class="message-bubble">
+                                    ${message}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    chatMessages.insertAdjacentHTML('beforeend', messageHTML);
+                    chatInput.value = '';
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                    
+                    // 模拟接收回复
+                    setTimeout(() => {
+                        const replyHTML = `
+                            <div class="message">
+                                <div class="w-8 h-8 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=4');"></div>
+                                <div>
+                                    <div class="text-xs text-gray-500 mb-1">李同学 · 后端开发</div>
+                                    <div class="message-bubble">
+                                        好的，我看到了，谢谢分享！
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        chatMessages.insertAdjacentHTML('beforeend', replyHTML);
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    }, 1500);
+                }
+            }
+            
+            // 专注计时器功能模拟
+            let timerRunning = true;
+            const timerDisplay = document.getElementById('focusTimer');
+            const timerButton = timerDisplay.nextElementSibling;
+            
+            timerButton.addEventListener('click', function() {
+                timerRunning = !timerRunning;
+                if (timerRunning) {
+                    this.textContent = '暂停专注计时';
+                    this.classList.remove('bg-gray-500');
+                    this.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                } else {
+                    this.textContent = '继续专注计时';
+                    this.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                    this.classList.add('bg-gray-500', 'hover:bg-gray-600');
+                }
+            });
+            
+            // 模拟计时器增长
+            let seconds = 2 * 3600 + 45 * 60;
+            setInterval(() => {
+                if (timerRunning) {
+                    seconds++;
+                    const hours = Math.floor(seconds / 3600);
+                    const minutes = Math.floor((seconds % 3600) / 60);
+                    const secs = seconds % 60;
+                    timerDisplay.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                }
+            }, 1000);
+        });
+    </script>
+
+
+
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>团队任务管理 - 完成度与协作可视化</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: #fafafa;
+            color: #333;
+        }
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 280px 1fr 280px;
+            gap: 20px;
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        }
+        .header {
+            padding: 15px 30px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .progress-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: #f0f0f0;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            background: #2D5BFF;
+        }
+        .chart-container {
+            height: 300px;
+            width: 100%;
+        }
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-size: cover;
+            background-position: center;
+        }
+        .online-indicator {
+            width: 10px;
+            height: 10px;
+            background: #4CAF50;
+            border-radius: 50%;
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            border: 2px solid white;
+        }
+        .notification-dot {
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            width: 8px;
+            height: 8px;
+            background: #FF3B30;
+            border-radius: 50%;
+        }
+        .nav-item {
+            padding: 10px 16px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .nav-item:hover {
+            background: #F5F7FA;
+        }
+        .nav-item.active {
+            background: #E6F0FF;
+            color: #2D5BFF;
+            font-weight: 500;
+        }
+        .badge {
+            padding: 2px 8px;
+            background: #FF6B35;
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .interaction-btn {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .interaction-btn:hover {
+            transform: scale(1.1);
+            color: #2D5BFF;
+        }
+        .task-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: all 0.2s;
+        }
+        .task-item:hover {
+            background: #f5f7ff;
+        }
+        .team-member {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .team-member:hover {
+            background: #f5f7fa;
+        }
+        .team-progress {
+            height: 6px;
+            border-radius: 3px;
+            background: #f0f0f0;
+        }
+        .team-progress-fill {
+            height: 100%;
+            border-radius: 3px;
+        }
+        .team-task-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .team-task-card {
+            border-radius: 8px;
+            padding: 15px;
+            background: white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+        }
+        .team-task-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+    </style>
+
+
+    <!-- 顶部导航 -->
+    <div class="header">
+        <div class="flex items-center space-x-10">
+            <div class="text-xl font-bold text-[#2D5BFF] flex items-center">
+                <iconify-icon icon="mdi:brain" width="26" height="26"></iconify-icon>
+                <span class="ml-2">学辅助手</span>
+            </div>
+            <div class="flex space-x-6 font-medium text-gray-700">
+                <div class="py-1 hover:text-[#2D5BFF]"><a href="personal-tasks.html">个人任务</a></div>
+                <div class="py-1 border-b-2 border-[#2D5BFF] text-[#2D5BFF]">团队任务</div>
+                <div class="py-1 hover:text-[#2D5BFF]"><a href="study-room.html">在线自习室</a></div>
+            </div>
+        </div>
+        <div class="flex items-center space-x-5">
+            <div class="relative">
+                <iconify-icon icon="mdi:bell-outline" width="24" height="24" class="text-gray-600">
+                </iconify-icon>
+                <div class="notification-dot"></div>
+            </div>
+            <div class="flex items-center">
+                <div class="w-8 h-8 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=1');"></div>
+                <span class="ml-2 font-medium">张同学</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 左侧栏 -->
+        <div class="space-y-5">
+            <div class="card">
+                <div class="flex flex-col items-center">
+                    <div class="mb-3">
+                        <div class="w-16 h-16 rounded-full bg-cover mx-auto" style="background-image: url('/mb-potato/image/placeholder.svg?id=2');"></div>
+                    </div>
+                    <h3 class="text-lg font-semibold">张同学</h3>
+                    <p class="text-gray-500 text-sm">技术项目经理</p>
+                    <div class="flex mt-3 items-center justify-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <span class="text-sm text-gray-500">在线</span>
+                    </div>
+                    <button class="mt-4 bg-gray-50 hover:bg-gray-100 text-gray-600 font-medium py-2 px-4 rounded-full w-full transition-colors">
+                        团队管理
+                    </button>
+                </div>
+                <div class="mt-5">
+                    <div class="font-medium text-gray-500 text-sm">团队等级</div>
+                    <div class="flex mt-1 items-center">
+                        <div class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">精英 Lv.3</div>
+                        <div class="ml-auto text-sm font-medium">65/100</div>
+                    </div>
+                    <div class="progress-bar mt-2">
+                        <div class="progress-fill" style="width: 65%"></div>
+                    </div>
+                </div>
+                <div class="mt-4 grid grid-cols-3 gap-2">
+                    <div class="flex flex-col items-center">
+                        <div class="text-2xl font-bold text-[#FF6B35]">8,240</div>
+                        <div class="text-gray-500 text-sm">团队积分</div>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div class="text-2xl font-bold text-[#4CAF50]">12</div>
+                        <div class="text-gray-500 text-sm">成员数量</div>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div class="text-2xl font-bold text-[#2D5BFF]">78%</div>
+                        <div class="text-gray-500 text-sm">完成率</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="font-bold text-lg mb-4">团队导航</h3>
+                <div class="space-y-2">
+                    <div class="nav-item">
+                        <iconify-icon icon="mdi:account-group" width="20" height="20"></iconify-icon>
+                        <span>成员管理</span>
+                    </div>
+                    <div class="nav-item active">
+                        <iconify-icon icon="mdi:chart-timeline" width="20" height="20"></iconify-icon>
+                        <span>任务看板</span>
+                    </div>
+                    <div class="nav-item">
+                        <iconify-icon icon="mdi:calendar-check" width="20" height="20"></iconify-icon>
+                        <span>项目日历</span>
+                    </div>
+                    <div class="nav-item">
+                        <iconify-icon icon="mdi:comment-text" width="20" height="20"></iconify-icon>
+                        <span>团队讨论</span>
+                    </div>
+                    <div class="nav-item">
+                        <iconify-icon icon="mdi:file-chart" width="20" height="20"></iconify-icon>
+                        <span>团队报告</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-lg">团队成员</h3>
+                    <div class="badge flex items-center">
+                        <iconify-icon icon="mdi:account-group" width="14" height="14"></iconify-icon>
+                        <span>12人</span>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <div class="team-member">
+                        <div class="relative">
+                            <div class="avatar w-8 h-8 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=3');"></div>
+                            <div class="online-indicator"></div>
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-medium">王同学</div>
+                            <div class="text-xs text-gray-500">前端开发</div>
+                        </div>
+                        <div class="text-sm text-blue-500 font-medium">82%</div>
+                    </div>
+                    <div class="team-member">
+                        <div class="relative">
+                            <div class="avatar w-8 h-8 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=4');"></div>
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-medium">李同学</div>
+                            <div class="text-xs text-gray-500">后端开发</div>
+                        </div>
+                        <div class="text-sm text-blue-500 font-medium">75%</div>
+                    </div>
+                    <div class="team-member">
+                        <div class="relative">
+                            <div class="avatar w-8 h-8 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=5');"></div>
+                            <div class="online-indicator"></div>
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-medium">陈同学</div>
+                            <div class="text-xs text-gray-500">UI设计</div>
+                        </div>
+                        <div class="text-sm text-blue-500 font-medium">90%</div>
+                    </div>
+                    <div class="team-member">
+                        <div class="relative">
+                            <div class="avatar w-8 h-8 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=6');"></div>
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-medium">赵同学</div>
+                            <div class="text-xs text-gray-500">测试工程师</div>
+                        </div>
+                        <div class="text-sm text-blue-500 font-medium">68%</div>
+                    </div>
+                    <div class="team-member">
+                        <div class="relative">
+                            <div class="avatar w-8 h-8 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=7');"></div>
+                            <div class="online-indicator"></div>
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-medium">钱同学</div>
+                            <div class="text-xs text-gray-500">产品经理</div>
+                        </div>
+                        <div class="text-sm text-blue-500 font-medium">88%</div>
+                    </div>
+                </div>
+                <button class="mt-4 w-full py-2 bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                    查看全部成员
+                </button>
+            </div>
+        </div>
+
+        <!-- 中间内容区 -->
+        <div class="space-y-5">
+            <div class="card">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="font-bold text-xl">团队任务进度概览</h2>
+                    <div class="flex gap-2">
+                        <button class="bg-[#2D5BFF] text-white font-medium py-1.5 px-4 rounded-lg text-sm hover:bg-opacity-90 transition-colors">
+                            新建任务
+                        </button>
+                        <select class="bg-gray-50 border border-gray-300 text-gray-700 text-sm rounded-lg focus:ring-blue-500 py-1.5 px-3">
+                            <option selected="">当前项目</option>
+                            <option>所有项目</option>
+                            <option>已完成项目</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-container" id="teamProgressChart"></div>
+            </div>
+
+            <div class="card">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="font-bold text-xl">协作任务看板</h2>
+                    <div class="flex space-x-2">
+                        <button class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                            <iconify-icon icon="mdi:plus" width="20" height="20"></iconify-icon>
+                        </button>
+                        <button class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                            <iconify-icon icon="mdi:filter" width="20" height="20"></iconify-icon>
+                        </button>
+                    </div>
+                </div>
+                <div class="team-task-grid">
+                    <div class="team-task-card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-blue-600">待处理</h3>
+                            <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">5项</span>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="p-3 bg-gray-50 rounded-lg">
+                                <div class="font-medium">用户中心模块设计</div>
+                                <div class="text-xs text-gray-500 mt-1">设计用户个人信息页面</div>
+                                <div class="flex items-center mt-2">
+                                    <div class="avatar w-6 h-6 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=8');"></div>
+                                    <div class="text-xs text-gray-500 ml-2">陈同学 · 今日</div>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-gray-50 rounded-lg">
+                                <div class="font-medium">API文档编写</div>
+                                <div class="text-xs text-gray-500 mt-1">用户登录接口规范</div>
+                                <div class="flex items-center mt-2">
+                                    <div class="avatar w-6 h-6 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=4');"></div>
+                                    <div class="text-xs text-gray-500 ml-2">李同学 · 明天</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="team-task-card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-orange-500">进行中</h3>
+                            <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">7项</span>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="p-3 bg-orange-50 rounded-lg">
+                                <div class="font-medium">登录功能开发</div>
+                                <div class="text-xs text-gray-500 mt-1">实现OAuth2.0登录</div>
+                                <div class="flex items-center mt-2">
+                                    <div class="avatar w-6 h-6 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=4');"></div>
+                                    <div class="text-xs text-gray-500 ml-2">李同学 · 50%</div>
+                                </div>
+                                <div class="team-progress mt-2">
+                                    <div class="team-progress-fill bg-orange-400" style="width: 50%"></div>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-orange-50 rounded-lg">
+                                <div class="font-medium">首页UI设计</div>
+                                <div class="text-xs text-gray-500 mt-1">响应式布局设计</div>
+                                <div class="flex items-center mt-2">
+                                    <div class="avatar w-6 h-6 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=8');"></div>
+                                    <div class="text-xs text-gray-500 ml-2">陈同学 · 30%</div>
+                                </div>
+                                <div class="team-progress mt-2">
+                                    <div class="team-progress-fill bg-orange-400" style="width: 30%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="team-task-card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-green-500">待审核</h3>
+                            <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">3项</span>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="p-3 bg-green-50 rounded-lg">
+                                <div class="font-medium">注册功能测试</div>
+                                <div class="text-xs text-gray-500 mt-1">完成测试用例编写</div>
+                                <div class="flex items-center mt-2">
+                                    <div class="avatar w-6 h-6 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=6');"></div>
+                                    <div class="text-xs text-gray-500 ml-2">赵同学 · 已完成</div>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-green-50 rounded-lg">
+                                <div class="font-medium">数据库设计文档</div>
+                                <div class="text-xs text-gray-500 mt-1">ER图与表结构</div>
+                                <div class="flex items-center mt-2">
+                                    <div class="avatar w-6 h-6 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=5');"></div>
+                                    <div class="text-xs text-gray-500 ml-2">张同学 · 已完成</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="team-task-card">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-purple-500">已完成</h3>
+                            <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">12项</span>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="p-3 bg-purple-50 rounded-lg">
+                                <div class="font-medium">项目需求文档</div>
+                                <div class="text-xs text-gray-500 mt-1">产品功能清单</div>
+                                <div class="flex items-center mt-2">
+                                    <div class="avatar w-6 h-6 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=7');"></div>
+                                    <div class="text-xs text-gray-500 ml-2">钱同学 · 3天前</div>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-purple-50 rounded-lg">
+                                <div class="font-medium">技术选型报告</div>
+                                <div class="text-xs text-gray-500 mt-1">前后端框架对比</div>
+                                <div class="flex items-center mt-2">
+                                    <div class="avatar w-6 h-6 bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=5');"></div>
+                                    <div class="text-xs text-gray-500 ml-2">张同学 · 5天前</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧栏 -->
+        <div class="space-y-5">
+            <div class="card">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-lg">团队动态</h3>
+                    <span class="text-xs text-blue-600">更多</span>
+                </div>
+                
+                <div class="mt-4 space-y-3">
+                    <div class="flex items-start">
+                        <div class="relative">
+                            <div class="w-10 h-10 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=3');"></div>
+                            <div class="online-indicator"></div>
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <div>
+                                <span class="font-medium">王同学</span> 
+                                <span class="text-sm text-gray-500">完成了 登录功能开发</span>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">20分钟前</div>
+                            <div class="flex items-center mt-1">
+                                <iconify-icon icon="mdi:heart-outline" width="16" height="16" class="interaction-btn text-gray-500"></iconify-icon>
+                                <span class="text-xs text-gray-500 ml-1 mr-3">8</span>
+                                <iconify-icon icon="mdi:comment-outline" width="16" height="16" class="interaction-btn text-gray-500"></iconify-icon>
+                                <span class="text-xs text-gray-500 ml-1">2</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start">
+                        <div class="relative">
+                            <div class="w-10 h-10 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=7');"></div>
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <div>
+                                <span class="font-medium">钱同学</span> 
+                                <span class="text-sm text-gray-500">创建了新任务: 支付模块设计</span>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">1小时前</div>
+                            <div class="mt-2 bg-blue-50 rounded-lg p-3 inline-block">
+                                <div class="font-medium">支付模块设计</div>
+                                <div class="text-sm text-gray-500 mt-1">设计支付流程和UI界面</div>
+                                <div class="flex items-center mt-2">
+                                    <iconify-icon icon="mdi:account" width="16" height="16" class="text-gray-500"></iconify-icon>
+                                    <span class="text-xs text-gray-500 ml-1">负责人: 陈同学</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center mt-1">
+                                <iconify-icon icon="mdi:heart" width="16" height="16" class="interaction-btn" style="color: #FF3B30;"></iconify-icon>
+                                <span class="text-xs text-gray-500 ml-1 mr-3">5</span>
+                                <iconify-icon icon="mdi:comment-outline" width="16" height="16" class="interaction-btn text-gray-500"></iconify-icon>
+                                <span class="text-xs text-gray-500 ml-1">3</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start">
+                        <div class="relative">
+                            <div class="w-10 h-10 rounded-full bg-cover" style="background-image: url('/mb-potato/image/placeholder.svg?id=5');"></div>
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <div>
+                                <span class="font-medium">张同学</span> 
+                                <span class="text-sm text-gray-500">更新了项目进度</span>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">2小时前</div>
+                            <div class="mt-2">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-sm">整体项目进度</span>
+                                    <span class="text-sm font-medium">65%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 65%"></div>
+                                </div>
+                            </div>
+                            <div class="flex items-center mt-1">
+                                <iconify-icon icon="mdi:heart-outline" width="16" height="16" class="interaction-btn text-gray-500"></iconify-icon>
+                                <span class="text-xs text-gray-500 ml-1 mr-3">12</span>
+                                <iconify-icon icon="mdi:comment-outline" width="16" height="16" class="interaction-btn text-gray-500"></iconify-icon>
+                                <span class="text-xs text-gray-500 ml-1">4</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-lg">团队积分排名</h3>
+                    <span class="text-xs text-blue-600">详情</span>
+                </div>
+                <div class="mt-4 space-y-3">
+                    <div class="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                        <div class="w-6 text-center font-bold text-[#FF6B35]">1</div>
+                        <div class="w-8 h-8 rounded-full bg-cover ml-2" style="background-image: url('/mb-potato/image/placeholder.svg?id=3');"></div>
+                        <div class="ml-3 flex-1">
+                            <div class="font-medium">王同学</div>
+                            <div class="text-xs text-gray-500">前端开发</div>
+                        </div>
+                        <div class="text-[#FF6B35] font-semibold">1,580</div>
+                    </div>
+                    <div class="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                        <div class="w-6 text-center font-bold text-[#FF9500]">2</div>
+                        <div class="w-8 h-8 rounded-full bg-cover ml-2" style="background-image: url('/mb-potato/image/placeholder.svg?id=4');"></div>
+                        <div class="ml-3 flex-1">
+                            <div class="font-medium">李同学</div>
+                            <div class="text-xs text-gray-500">后端开发</div>
+                        </div>
+                        <div class="text-[#FF9500] font-semibold">1,420</div>
+                    </div>
+                    <div class="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                        <div class="w-6 text-center font-bold text-[#FFC107]">3</div>
+                        <div class="w-8 h-8 rounded-full bg-cover ml-2" style="background-image: url('/mb-potato/image/placeholder.svg?id=5');"></div>
+                        <div class="ml-3 flex-1">
+                            <div class="font-medium">陈同学</div>
+                            <div class="text-xs text-gray-500">UI设计</div>
+                        </div>
+                        <div class="text-[#FFC107] font-semibold">1,350</div>
+                    </div>
+                    <div class="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                        <div class="w-6 text-center font-bold text-gray-600">4</div>
+                        <div class="w-8 h-8 rounded-full bg-cover ml-2" style="background-image: url('/mb-potato/image/placeholder.svg?id=1');"></div>
+                        <div class="ml-3 flex-1">
+                            <div class="font-medium">张同学</div>
+                            <div class="text-xs text-gray-500">技术经理</div>
+                        </div>
+                        <div class="text-gray-700 font-semibold">1,240</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 class="font-bold text-lg mb-4">协作工具</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <button class="py-3 bg-blue-50 hover:bg-blue-100 rounded-lg flex flex-col items-center justify-center transition-colors">
+                        <iconify-icon icon="mdi:video" width="24" height="24" style="color: #2D5BFF;"></iconify-icon>
+                        <span class="mt-2 text-sm text-gray-700">视频会议</span>
+                    </button>
+                    <button class="py-3 bg-orange-50 hover:bg-orange-100 rounded-lg flex flex-col items-center justify-center transition-colors">
+                        <iconify-icon icon="mdi:file-document" width="24" height="24" style="color: #FF9500;"></iconify-icon>
+                        <span class="mt-2 text-sm text-gray-700">协作文档</span>
+                    </button>
+                    <button class="py-3 bg-green-50 hover:bg-green-100 rounded-lg flex flex-col items-center justify-center transition-colors">
+                        <iconify-icon icon="mdi:calendar" width="24" height="24" style="color: #4CAF50;"></iconify-icon>
+                        <span class="mt-2 text-sm text-gray-700">团队日历</span>
+                    </button>
+                    <button class="py-3 bg-purple-50 hover:bg-purple-100 rounded-lg flex flex-col items-center justify-center transition-colors">
+                        <iconify-icon icon="mdi:chart-pie" width="24" height="24" style="color: #9C27B0;"></iconify-icon>
+                        <span class="mt-2 text-sm text-gray-700">数据报告</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ECharts 图表 - 团队任务进度
+        document.addEventListener('DOMContentLoaded', function() {
+            const chartDom = document.getElementById('teamProgressChart');
+            const chart = echarts.init(chartDom);
+            
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: function(params) {
+                        return `${params[0].name}<br/>
+                        进度: ${params[0].value}%<br/>
+                        任务数: ${params[0].data * 12}`;
+                    }
+                },
+                legend: {
+                    data: ['项目进度', '任务完成率'],
+                    bottom: 0,
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '15%',
+                    top: '10%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ['第一周', '第二周', '第三周', '第四周', '当前周']
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: {
+                        formatter: '{value}%'
+                    },
+                    max: 100
+                },
+                series: [
+                    {
+                        name: '项目进度',
+                        type: 'bar',
+                        data: [20, 35, 45, 60, 78],
+                        itemStyle: {
+                            color: '#2D5BFF'
+                        },
+                        barWidth: '40%'
+                    },
+                    {
+                        name: '任务完成率',
+                        type: 'line',
+                        data: [25, 40, 55, 70, 86],
+                        smooth: true,
+                        lineStyle: {
+                            width: 3,
+                            color: '#4CAF50'
+                        },
+                        symbol: 'circle',
+                        symbolSize: 8
+                    }
+                ]
+            };
+            
+            chart.setOption(option);
+            
+            // 窗口调整大小时调整图表大小
+            window.addEventListener('resize', function() {
+                chart.resize();
+            });
+        });
+    </script>
+
+</body></html>
