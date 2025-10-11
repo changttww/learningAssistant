@@ -1,0 +1,795 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学辅助手 - 任务管理平台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Microsoft+YaHei&amp;display=swap" rel="stylesheet">
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            box-sizing: border-box;
+        }
+        body {
+            background-color: #ffffff;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 15px 40px;
+        }
+        .stat-card { transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-3px); }
+        .date-cell {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            height: 75px;
+        }
+        .date-cell:hover { background-color: #f9f9f9; }
+        .today-indicator {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 7px;
+            height: 7px;
+            background-color: #F44336;
+            clip-path: polygon(0 0, 100% 0, 100% 100%);
+        }
+        .task-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin: 0 1px;
+        }
+        .comment-input:focus {
+            border-color: #1E88E5;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(30, 136, 229, 0.2);
+        }
+        .floating-btn {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 100;
+            box-shadow: 0 4px 8px rgba(30, 136, 229, 0.3);
+        }
+        .feature-card:hover {
+            border-color: #1E88E5;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+        }
+        /* 弹窗样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            width: 500px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            padding: 16px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-body {
+            padding: 16px;
+        }
+        .modal-footer {
+            padding: 16px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: flex-end;
+        }
+        /* 笔记本弹窗样式 */
+        .notebook-modal {
+            width: 50%;
+            height: 80vh;
+            transition: all 0.3s ease;
+        }
+        .notebook-modal.fullscreen {
+            width: 90%;
+            height: 90vh;
+        }
+        /* 日历样式改进 */
+        .modern-calendar {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        .modern-date-cell {
+            position: relative;
+            height: 75px;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 6px 0;
+        }
+        .modern-date-cell:hover {
+            background-color: #f0f7ff;
+        }
+        .modern-date-cell.active {
+            background-color: #e3f2fd;
+            border: 2px solid #1E88E5;
+        }
+        .modern-date-cell .date-number {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+        .modern-date-cell.today .date-number {
+            background-color: #1E88E5;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="w-full bg-white h-16 flex items-center justify-between px-6 border-b border-gray-200">
+        <div class="flex items-center">
+            <!-- Logo -->
+            <div class="flex items-center mr-8">
+                <iconify-icon icon="ion:bookmarks" style="color: #1E88E5;" width="24" height="24"></iconify-icon>
+                <span class="ml-2 font-bold text-base text-[#1E88E5]">学辅助手</span>
+            </div>
+            
+            <!-- 导航项 -->
+            <div class="flex items-center space-x-5">
+                <a href="#" class="text-sm text-[#666666]">首页</a>
+                <a href="#" class="text-base text-[#1E88E5] font-medium relative pb-1">
+                    个人任务
+                    <span class="absolute bottom-0 left-0 right-0 h-0.5 bg-[#1E88E5]"></span>
+                </a>
+                <a href="#" class="text-sm text-[#666666]">团队任务</a>
+                <a href="#" class="text-sm text-[#666666]">在线自习室</a>
+                <a href="#" class="text-sm text-[#666666]">任务进度管理</a>
+            </div>
+        </div>
+        
+        <div class="flex items-center">
+            <!-- 通知图标 -->
+            <div class="relative mr-4">
+                <iconify-icon icon="mdi:bell-outline" style="color: #999999;" width="22" height="22"></iconify-icon>
+                <span class="absolute -top-1 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#F44336]"></span>
+            </div>
+            
+            <!-- 用户信息 -->
+            <div class="flex items-center ml-3">
+                <div class="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
+                    <img src="https://modao.cc/ai/uploads/ai_pics/37/370368/aigp_1760073053.jpeg" alt="User profile avatar" id="1">
+                </div>
+                <span class="ml-2 text-sm text-[#666666]">张同学</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- 顶部统计卡片 -->
+        <div class="grid grid-cols-4 gap-5 my-8">
+            <div class="stat-card bg-[#E3F2FD] rounded-lg p-4 flex flex-col items-center justify-center">
+                <span class="text-2xl font-bold text-[#1E88E5]">12</span>
+                <span class="text-[#666666] text-sm mt-1">总任务数</span>
+            </div>
+            <div class="stat-card bg-[#E8F5E9] rounded-lg p-4 flex flex-col items-center justify-center">
+                <span class="text-2xl font-bold text-[#4CAF50]">8</span>
+                <span class="text-[#666666] text-sm mt-1">已完成</span>
+            </div>
+            <div class="stat-card bg-[#FFF3E0] rounded-lg p-4 flex flex-col items-center justify-center">
+                <span class="text-2xl font-bold text-[#FF9800]">3</span>
+                <span class="text-[#666666] text-sm mt-1">进行中</span>
+            </div>
+            <div class="stat-card bg-[#FFEBEE] rounded-lg p-4 flex flex-col items-center justify-center">
+                <span class="text-2xl font-bold text-[#F44336]">1</span>
+                <span class="text-[#666666] text-sm mt-1">已逾期</span>
+            </div>
+        </div>
+
+        <!-- 日历与任务区域 -->
+        <div class="flex gap-5 my-6" style="min-height: 500px;">
+            <!-- 左侧日历 -->
+            <div class="flex-1 bg-white rounded-lg border border-gray-200 overflow-hidden modern-calendar">
+                <!-- 日历头部 -->
+                <div class="flex items-center justify-between px-4 h-14 border-b border-gray-200 bg-[#f9f9f9]">
+                    <button class="text-[#1E88E5] text-xl font-bold hover:bg-[#e3f2fd] w-8 h-8 rounded-full flex items-center justify-center">&lt;</button>
+                    <div class="font-bold text-base text-[#333333]">2024年3月</div>
+                    <button class="text-[#1E88E5] text-xl font-bold hover:bg-[#e3f2fd] w-8 h-8 rounded-full flex items-center justify-center">&gt;</button>
+                </div>
+                
+                <!-- 星期标题 -->
+                <div class="grid grid-cols-7 bg-white py-3 border-b border-gray-100">
+                    <div class="flex items-center justify-center text-sm text-[#F44336] font-medium">日</div>
+                    <div class="flex items-center justify-center text-sm text-[#666666] font-medium">一</div>
+                    <div class="flex items-center justify-center text-sm text-[#666666] font-medium">二</div>
+                    <div class="flex items-center justify-center text-sm text-[#666666] font-medium">三</div>
+                    <div class="flex items-center justify-center text-sm text-[#666666] font-medium">四</div>
+                    <div class="flex items-center justify-center text-sm text-[#666666] font-medium">五</div>
+                    <div class="flex items-center justify-center text-sm text-[#F44336] font-medium">六</div>
+                </div>
+                
+                <!-- 日期网格 -->
+                <div class="grid grid-cols-7 grid-rows-6 gap-0 bg-white">
+                    <!-- 上个月 -->
+                    <div class="modern-date-cell" data-date="2024-02-26" onclick="openTaskModal('2024-02-26')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#CCCCCC]">26</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-02-27" onclick="openTaskModal('2024-02-27')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#CCCCCC]">27</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-02-28" onclick="openTaskModal('2024-02-28')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#CCCCCC]">28</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-02-29" onclick="openTaskModal('2024-02-29')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#CCCCCC]">29</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-01" onclick="openTaskModal('2024-03-01')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">1</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-02" onclick="openTaskModal('2024-03-02')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">2</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-03" onclick="openTaskModal('2024-03-03')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">3</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 本月 -->
+                    <div class="modern-date-cell" data-date="2024-03-04" onclick="openTaskModal('2024-03-04')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">4</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell today active" data-date="2024-03-05" onclick="openTaskModal('2024-03-05')">
+                        <div class="date-number">
+                            <span class="text-xs">5</span>
+                        </div>
+                        <div class="mt-1 flex">
+                            <span class="task-dot bg-[#FF9800]"></span>
+                            <span class="task-dot bg-[#4CAF50]"></span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-06" onclick="openTaskModal('2024-03-06')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">6</span>
+                        </div>
+                        <div class="mt-1">
+                            <span class="task-dot bg-[#F44336]"></span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-07" onclick="openTaskModal('2024-03-07')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">7</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-08" onclick="openTaskModal('2024-03-08')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">8</span>
+                        </div>
+                        <div class="mt-1 flex">
+                            <span class="task-dot bg-[#FF9800]"></span>
+                            <span class="task-dot bg-[#4CAF50]"></span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-09" onclick="openTaskModal('2024-03-09')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">9</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-10" onclick="openTaskModal('2024-03-10')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">10</span>
+                        </div>
+                    </div>
+                    
+                    <div class="modern-date-cell" data-date="2024-03-11" onclick="openTaskModal('2024-03-11')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">11</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-12" onclick="openTaskModal('2024-03-12')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">12</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-13" onclick="openTaskModal('2024-03-13')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">13</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-14" onclick="openTaskModal('2024-03-14')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">14</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-15" onclick="openTaskModal('2024-03-15')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">15</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-16" onclick="openTaskModal('2024-03-16')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">16</span>
+                        </div>
+                        <div class="mt-1 flex">
+                            <span class="task-dot bg-[#FF9800]"></span>
+                            <span class="task-dot bg-[#FF9800]"></span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-17" onclick="openTaskModal('2024-03-17')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">17</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 其余日期单元格类似更新... -->
+                    <div class="modern-date-cell" data-date="2024-03-18" onclick="openTaskModal('2024-03-18')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">18</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-19" onclick="openTaskModal('2024-03-19')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">19</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-20" onclick="openTaskModal('2024-03-20')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">20</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-21" onclick="openTaskModal('2024-03-21')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">21</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-22" onclick="openTaskModal('2024-03-22')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">22</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-23" onclick="openTaskModal('2024-03-23')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">23</span>
+                        </div>
+                        <div class="mt-1">
+                            <span class="task-dot bg-[#4CAF50]"></span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-24" onclick="openTaskModal('2024-03-24')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">24</span>
+                        </div>
+                    </div>
+                    
+                    <div class="modern-date-cell" data-date="2024-03-25" onclick="openTaskModal('2024-03-25')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">25</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-26" onclick="openTaskModal('2024-03-26')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">26</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-27" onclick="openTaskModal('2024-03-27')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">27</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-28" onclick="openTaskModal('2024-03-28')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">28</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-29" onclick="openTaskModal('2024-03-29')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">29</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-30" onclick="openTaskModal('2024-03-30')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">30</span>
+                        </div>
+                    </div>
+                    <div class="modern-date-cell" data-date="2024-03-31" onclick="openTaskModal('2024-03-31')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#333333]">31</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 下个月 -->
+                    <div class="modern-date-cell" data-date="2024-04-01" onclick="openTaskModal('2024-04-01')">
+                        <div class="date-number">
+                            <span class="text-xs text-[#CCCCCC]">1</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧任务区域 -->
+            <div class="w-96 bg-white rounded-lg border border-gray-200 flex flex-col">
+                <!-- 任务头 -->
+                <div class="h-10 flex items-center justify-between px-4 border-b border-gray-200">
+                    <div class="font-bold text-base text-[#333333]">2024年3月5日 任务</div>
+                    <button class="text-sm text-[#1E88E5] py-1 px-2 border border-[#1E88E5] rounded" onclick="openTaskModal()">+ 添加任务</button>
+                </div>
+                
+                <!-- 任务列表 -->
+                <div class="flex-1 bg-[#FAFAFA] rounded-b-lg p-3 overflow-auto">
+                    <!-- 任务项 -->
+                    <div class="bg-white border border-gray-200 rounded p-3 mb-3">
+                        <div class="flex items-start">
+                            <div class="w-4 h-4 rounded border border-gray-300 bg-[#E8F5E9] flex items-center justify-center mr-2">
+                                <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                    <path d="M9 1L3.5 6.5L1 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="flex">
+                                    <span class="text-sm text-[#333333] font-medium">完成数学作业</span>
+                                    <span class="text-xs text-[#999999] ml-2">· 13:30前</span>
+                                </div>
+                                <p class="text-xs text-[#666666] italic mt-1">复习高数第三章知识点</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <div class="text-sm font-bold text-[#1E88E5] mb-1">笔记本</div>
+                            <textarea class="w-full h-20 p-2 text-xs border border-gray-300 rounded text-[#333333] comment-input" placeholder="输入笔记或心得...">今天掌握了导数应用部分，重点练习了极值求法题目。</textarea>
+                            <button class="text-xs text-[#1E88E5] hover:underline mt-2" onclick="openNotebookModal('完成数学作业')">打开笔记本</button>
+                            <button class="text-xs text-[#999999] mt-2 ml-4">评论</button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white border border-gray-200 rounded p-3 mb-3">
+                        <div class="flex items-start">
+                            <div class="w-4 h-4 rounded border border-gray-300 mr-2"></div>
+                            <div>
+                                <div class="flex">
+                                    <span class="text-sm text-[#333333] font-medium">准备英语报告</span>
+                                    <span class="text-xs text-[#999999] ml-2">· 15:00前</span>
+                                </div>
+                                <p class="text-xs text-[#666666] italic mt-1">关于气候变化的影响与应对</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <div class="text-sm font-bold text-[#1E88E5] mb-1">笔记本</div>
+                            <textarea class="w-full h-20 p-2 text-xs border border-gray-300 rounded text-[#333333] comment-input" placeholder="输入笔记或心得..."></textarea>
+                            <button class="text-xs text-[#1E88E5] hover:underline mt-2" onclick="openNotebookModal('准备英语报告')">打开笔记本</button>
+                            <button class="text-xs text-[#999999] mt-2 ml-4">评论</button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white border border-gray-200 rounded p-3">
+                        <div class="flex items-start">
+                            <div class="w-4 h-4 rounded border border-gray-300 mr-2"></div>
+                            <div>
+                                <div class="flex">
+                                    <span class="text-sm text-[#333333] font-medium">物理实验预习</span>
+                                    <span class="text-xs text-[#999999] ml-2">· 17:00前</span>
+                                </div>
+                                <p class="text-xs text-[#666666] italic mt-1">波动光学实验操作流程</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <div class="text-sm font-bold text-[#1E88E5] mb-1">笔记本</div>
+                            <textarea class="w-full h-20 p-2 text-xs border border-gray-300 rounded text-[#333333] comment-input" placeholder="输入笔记或心得..."></textarea>
+                            <button class="text-xs text-[#1E88E5] hover:underline mt-2" onclick="openNotebookModal('物理实验预习')">打开笔记本</button>
+                            <button class="text-xs text-[#999999] mt-2 ml-4">评论</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 笔记列表 -->
+        <div class="mt-4 mb-2">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-[#333333]">我的笔记</h2>
+                <div class="flex space-x-4">
+                    <button class="text-sm text-[#1E88E5] py-1 px-3 border border-[#1E88E5] rounded active:bg-[#e3f2fd]">按主题分类</button>
+                    <button class="text-sm text-[#666666] py-1 px-3 border border-[#EEEEEE] rounded hover:border-[#1E88E5] hover:text-[#1E88E5]">按时间排序</button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-3 gap-5 mb-0">
+                <div class="bg-white border border-gray-200 rounded-lg p-4 hover:border-[#1E88E5] hover:shadow-md transition-all">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="font-medium">数学笔记</div>
+                        <span class="text-xs text-[#999999]">3月5日</span>
+                    </div>
+                    <p class="text-xs text-[#666666] mb-2 line-clamp-2">今天掌握了导数应用部分，重点练习了极值求法题目。</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs px-2 py-0.5 bg-[#E3F2FD] text-[#1E88E5] rounded-full">数学</span>
+                        <button class="text-xs text-[#1E88E5]" onclick="openNotebookModal('完成数学作业')">查看详情</button>
+                    </div>
+                </div>
+                
+                <div class="bg-white border border-gray-200 rounded-lg p-4 hover:border-[#1E88E5] hover:shadow-md transition-all">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="font-medium">英语演讲准备</div>
+                        <span class="text-xs text-[#999999]">3月3日</span>
+                    </div>
+                    <p class="text-xs text-[#666666] mb-2 line-clamp-2">气候变化报告的关键论点和数据整理。需要补充更多实例。</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs px-2 py-0.5 bg-[#FFF3E0] text-[#FF9800] rounded-full">英语</span>
+                        <button class="text-xs text-[#1E88E5]" onclick="openNotebookModal('英语演讲准备')">查看详情</button>
+                    </div>
+                </div>
+                
+                <div class="bg-white border border-gray-200 rounded-lg p-4 hover:border-[#1E88E5] hover:shadow-md transition-all">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="font-medium">物理实验记录</div>
+                        <span class="text-xs text-[#999999]">2月28日</span>
+                    </div>
+                    <p class="text-xs text-[#666666] mb-2 line-clamp-2">波动光学实验的预习材料和关键步骤记录。需要注意的实验误差来源。</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs px-2 py-0.5 bg-[#FFEBEE] text-[#F44336] rounded-full">物理</span>
+                        <button class="text-xs text-[#1E88E5]" onclick="openNotebookModal('物理实验记录')">查看详情</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        
+    </div>
+
+    <!-- 新建任务按钮 -->
+    <button class="floating-btn bg-[#1E88E5] text-white text-sm px-4 py-2 rounded" onclick="openTaskModal()">+ 新建任务</button>
+    
+    <!-- 任务弹窗 -->
+    <div class="modal-overlay" id="taskModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="text-lg font-bold text-[#333333]">创建新任务</h2>
+                <button onclick="closeTaskModal()" class="text-[#999999] hover:text-[#666666]">
+                    <iconify-icon icon="mdi:close" width="20" height="20"></iconify-icon>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- 自然语言输入框 -->
+                <div class="mb-4 border border-[#1E88E5] rounded bg-[#F5F9FF] p-3">
+                    <label class="block text-sm text-[#1E88E5] mb-1 font-medium">自然语言输入</label>
+                    <div class="flex">
+                        <input type="text" class="flex-1 border-0 bg-transparent p-1 text-sm outline-none" placeholder="例如：明天下午3点完成数学作业第三章">
+                        <button class="text-white bg-[#1E88E5] px-3 py-1 rounded text-sm">
+                            <iconify-icon icon="mdi:wand" width="16" height="16" inline="true" class="mr-1"></iconify-icon>
+                            解析
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 表单输入 -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-[#666666] mb-1">任务名称 <span class="text-[#F44336]">*</span></label>
+                        <input type="text" class="w-full border border-[#DDDDDD] p-2 rounded text-sm" placeholder="输入任务名称" id="taskTitle">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm text-[#666666] mb-1">任务描述</label>
+                        <textarea class="w-full border border-[#DDDDDD] p-2 rounded text-sm h-20" placeholder="输入任务详情描述" id="taskDescription"></textarea>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-[#666666] mb-1">开始日期 <span class="text-[#F44336]">*</span></label>
+                            <input type="date" class="w-full border border-[#DDDDDD] p-2 rounded text-sm" id="startDate">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-[#666666] mb-1">开始时间</label>
+                            <input type="time" class="w-full border border-[#DDDDDD] p-2 rounded text-sm" id="startTime">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-[#666666] mb-1">结束日期 <span class="text-[#F44336]">*</span></label>
+                            <input type="date" class="w-full border border-[#DDDDDD] p-2 rounded text-sm" id="endDate">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-[#666666] mb-1">结束时间</label>
+                            <input type="time" class="w-full border border-[#DDDDDD] p-2 rounded text-sm" id="endTime">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm text-[#666666] mb-1">任务分类</label>
+                        <select class="w-full border border-[#DDDDDD] p-2 rounded text-sm">
+                            <option value="">请选择分类</option>
+                            <option value="study">学习</option>
+                            <option value="exam">考试</option>
+                            <option value="project">项目</option>
+                            <option value="reading">阅读</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="text-sm text-[#666666] border border-[#DDDDDD] py-1.5 px-4 rounded mr-3" onclick="closeTaskModal()">
+                    取消
+                </button>
+                <button class="text-sm text-white bg-[#1E88E5] py-1.5 px-4 rounded">
+                    保存
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 笔记本弹窗 -->
+    <div class="modal-overlay" id="notebookModal">
+        <div class="modal notebook-modal">
+            <div class="modal-header">
+                <div class="flex items-center">
+                    <h2 class="text-lg font-bold text-[#333333]" id="notebookTitle">笔记本</h2>
+                    <span class="ml-2 text-xs px-2 py-0.5 bg-[#E3F2FD] text-[#1E88E5] rounded-full" id="notebookCategory">学习</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="fullscreenBtn" onclick="toggleFullscreen()" class="text-[#999999] hover:text-[#666666]">
+                        <iconify-icon icon="mdi:fullscreen" width="20" height="20"></iconify-icon>
+                    </button>
+                    <button onclick="closeNotebookModal()" class="text-[#999999] hover:text-[#666666]">
+                        <iconify-icon icon="mdi:close" width="20" height="20"></iconify-icon>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="text-sm text-[#999999]">最后更新: 2024年3月5日 14:35</div>
+                    <div class="flex space-x-2">
+                        <button class="text-xs text-[#1E88E5] py-1 px-2 border border-[#1E88E5] rounded">
+                            <iconify-icon icon="mdi:format-bold" width="16" height="16" inline="true"></iconify-icon>
+                        </button>
+                        <button class="text-xs text-[#1E88E5] py-1 px-2 border border-[#1E88E5] rounded">
+                            <iconify-icon icon="mdi:format-italic" width="16" height="16" inline="true"></iconify-icon>
+                        </button>
+                        <button class="text-xs text-[#1E88E5] py-1 px-2 border border-[#1E88E5] rounded">
+                            <iconify-icon icon="mdi:format-list-bulleted" width="16" height="16" inline="true"></iconify-icon>
+                        </button>
+                    </div>
+                </div>
+                
+                <textarea class="w-full h-80 p-3 border border-[#DDDDDD] rounded text-sm" id="notebookContent">今天掌握了导数应用部分，重点练习了极值求法题目。
+
+1. 导数定义与基本性质
+   - 导数的几何意义：函数在该点的切线斜率
+   - 导数的物理意义：物体运动的瞬时速度
+
+2. 求导法则
+   - 基本初等函数的导数公式
+   - 四则运算法则
+   - 复合函数求导法则
+
+3. 应用
+   - 函数的单调性：f'(x) &gt; 0 时，函数单调递增
+   - 函数的极值：f'(x) = 0 的点可能是极值点
+   - 曲线的凹凸性：二阶导数 f''(x) &gt; 0，图像是凹的
+
+明天计划：
+- 完成习题集 P45-47 的练习题
+- 预习积分部分内容</textarea>
+                
+                <div class="mt-4 flex items-center justify-between">
+                    <div>
+                        <span class="text-sm text-[#666666] mr-2">关联任务:</span>
+                        <span class="text-sm text-[#1E88E5]">完成数学作业</span>
+                    </div>
+                    <div>
+                        <button class="text-sm text-[#1E88E5] py-1 px-3 border border-[#1E88E5] rounded">插入图片</button>
+                        <button class="ml-2 text-sm text-white bg-[#1E88E5] py-1 px-3 rounded">保存笔记</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 任务弹窗功能
+        function openTaskModal(date) {
+            const modal = document.getElementById('taskModal');
+            modal.style.display = 'flex';
+            
+            if (date) {
+                // 设置默认日期为点击的日期
+                document.getElementById('startDate').value = date;
+                document.getElementById('endDate').value = date;
+            } else {
+                // 默认设置为今天
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('startDate').value = today;
+                document.getElementById('endDate').value = today;
+            }
+        }
+        
+        function closeTaskModal() {
+            const modal = document.getElementById('taskModal');
+            modal.style.display = 'none';
+        }
+        
+        // 笔记本弹窗功能
+        function openNotebookModal(title) {
+            const modal = document.getElementById('notebookModal');
+            modal.style.display = 'flex';
+            
+            // 设置笔记本标题
+            if (title) {
+                document.getElementById('notebookTitle').textContent = title;
+            }
+        }
+        
+        function closeNotebookModal() {
+            const modal = document.getElementById('notebookModal');
+            modal.style.display = 'none';
+        }
+        
+        function toggleFullscreen() {
+            const notebookModal = document.querySelector('.notebook-modal');
+            notebookModal.classList.toggle('fullscreen');
+            
+            const icon = document.getElementById('fullscreenBtn').querySelector('iconify-icon');
+            if (notebookModal.classList.contains('fullscreen')) {
+                icon.setAttribute('icon', 'mdi:fullscreen-exit');
+            } else {
+                icon.setAttribute('icon', 'mdi:fullscreen');
+            }
+        }
+        
+        // 点击外部关闭弹窗
+        window.addEventListener('click', function(event) {
+            const taskModal = document.getElementById('taskModal');
+            const notebookModal = document.getElementById('notebookModal');
+            
+            if (event.target === taskModal) {
+                closeTaskModal();
+            }
+            
+            if (event.target === notebookModal) {
+                closeNotebookModal();
+            }
+        });
+    </script>
+
+</body></html>
