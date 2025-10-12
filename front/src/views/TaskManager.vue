@@ -401,7 +401,7 @@
         </main>
         
         <!-- 右侧：学习互动面板 -->
-        <aside class="w-80 flex-shrink-0 sidebar-shadow rounded-2xl bg-white p-6">
+        <aside class="w-80 flex-shrink-0 sidebar-shadow rounded-2xl bg-white p-6 flex flex-col" :class="{ 'h-full': isChatExpanded }">
           <!-- 互动面板标题 -->
           <div class="flex justify-between items-center mb-5">
             <h3 class="text-xl font-bold text-gray-700">学习互动</h3>
@@ -502,7 +502,8 @@
             </div>
             
             <!-- 展开状态的聊天列表 -->
-            <div v-if="isChatExpanded" class="space-y-3">
+            <div v-if="isChatExpanded" class="flex-1 flex flex-col pb-6">
+              <div class="flex-1 space-y-3 overflow-y-auto">
               <!-- 聊天项1 -->
               <div class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors">
                 <div class="relative mr-3">
@@ -560,6 +561,7 @@
                   <div class="w-2 h-2 bg-red-500 rounded-full"></div>
                 </div>
               </div>
+              </div>
               
               <!-- 快速回复输入框 -->
               <div class="mt-4 p-3 bg-blue-50 rounded-lg">
@@ -576,33 +578,59 @@
               </div>
             </div>
             
-            <!-- 折叠状态的简化显示 -->
-            <div v-else class="text-center py-4">
-              <div class="flex justify-center items-center space-x-2 mb-2">
-                <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
-                  <iconify-icon icon="mdi:message-text" class="text-blue-600 text-sm"></iconify-icon>
+            <!-- 折叠状态的部分聊天列表显示 -->
+            <div v-else class="space-y-2">
+              <!-- 显示前2条聊天记录 -->
+              <div class="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors">
+                <div class="relative mr-2">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                    <span class="text-white font-medium text-xs">陈</span>
+                  </div>
+                  <div class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border border-white"></div>
                 </div>
-                <span class="text-sm text-gray-600">3条未读消息</span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex justify-between items-center mb-0.5">
+                    <h5 class="font-medium text-gray-800 text-xs truncate">陈敏</h5>
+                    <span class="text-xs text-gray-500">1小时前</span>
+                  </div>
+                  <p class="text-xs text-gray-600 truncate">你的前端项目太棒了！😄 有时...</p>
+                </div>
+                <div class="ml-1">
+                  <div class="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+                </div>
               </div>
-              <p class="text-xs text-gray-500">点击展开查看详情</p>
+              
+              <div class="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors">
+                <div class="relative mr-2">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
+                    <span class="text-white font-medium text-xs">王</span>
+                  </div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex justify-between items-center mb-0.5">
+                    <h5 class="font-medium text-gray-800 text-xs truncate">王小明</h5>
+                    <span class="text-xs text-gray-500">3小时前</span>
+                  </div>
+                  <p class="text-xs text-gray-600 truncate">学习小组今晚8点开始，记得参...</p>
+                </div>
+                <div class="ml-1">
+                  <div class="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+                </div>
+              </div>
+              
+              <!-- 更多消息提示 -->
+              <div class="text-center py-2">
+                <span class="text-xs text-gray-500">还有1条消息，点击展开查看</span>
+              </div>
             </div>
           </div>
           
           <!-- 励志语录 (仅在聊天折叠时显示) -->
-          <div v-if="!isChatExpanded" class="mt-6 p-4 bg-gradient-to-br from-orange-50 to-yellow-50 rounded-xl border border-orange-100">
+          <div v-if="!isChatExpanded" class="mt-6 flex-1 flex items-end justify-center pb-6">
             <div class="text-center">
-              <iconify-icon icon="mdi:lightbulb" class="text-2xl text-orange-500 mb-2"></iconify-icon>
-              <h5 class="font-medium text-gray-800 mb-2">今日励志</h5>
-              <p class="text-sm text-gray-600 leading-relaxed">{{ currentMotivationalQuote }}</p>
-              <div class="mt-3 flex justify-center">
-                <button 
-                  @click="changeQuote" 
-                  class="text-xs text-orange-600 hover:text-orange-800 flex items-center"
-                >
-                  <iconify-icon icon="mdi:refresh" class="mr-1"></iconify-icon>
-                  换一句
-                </button>
-              </div>
+              <p class="text-2xl font-bold bg-gradient-to-r from-gray-600 to-gray-800 bg-clip-text text-transparent leading-relaxed font-serif italic">
+                {{ currentMotivationalQuote }}
+              </p>
             </div>
           </div>
         </aside>
