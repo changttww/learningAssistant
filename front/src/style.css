@@ -8,7 +8,31 @@ body {
   color: #333;
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto; /* 允许页面垂直滚动以适配内容 */
 }
+
+/* Global responsive layout */
+html, body, #app {
+  height: 100%;
+  width: 100%;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+img, video, canvas, svg {
+  max-width: 100%;
+  height: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* 保持 Tailwind 默认的布局工具行为，避免强制覆盖 */
 
 .card {
   background: white;
@@ -44,7 +68,7 @@ body {
 }
 
 .chart-container {
-  height: 300px;
+  height: clamp(240px, 35vh, 420px);
   width: 100%;
 }
 

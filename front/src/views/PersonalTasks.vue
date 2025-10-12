@@ -1,8 +1,8 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
-    <div class="container max-w-6xl mx-auto px-4 py-8">
+  <div class="min-h-full bg-gray-50">
+    <div class="w-full py-8">
       <!-- 顶部统计卡片 -->
-      <div class="grid grid-cols-4 gap-5 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
         <div class="stat-card bg-blue-50 rounded-lg p-4 flex flex-col items-center justify-center hover:transform hover:-translate-y-1 transition-transform">
           <span class="text-2xl font-bold text-blue-600">{{ stats.total }}</span>
           <span class="text-gray-600 text-sm mt-1">总任务数</span>
@@ -168,7 +168,7 @@
           </div>
         </div>
         
-        <div class="grid grid-cols-3 gap-5">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div 
             v-for="note in sortedNotes" 
             :key="note.id"
@@ -193,7 +193,7 @@
     </div>
 
     <!-- 新建任务按钮 -->
-    <button @click="openTaskModal" class="fixed top-20 right-5 bg-blue-600 text-white text-sm px-4 py-2 rounded shadow-lg hover:bg-blue-700 z-50">+ 新建任务</button>
+    <button @click="openTaskModal" class="fixed top-20 right-[5%] bg-blue-600 text-white text-sm px-4 py-2 rounded shadow-lg hover:bg-blue-700 z-50">+ 新建任务</button>
     
     <!-- 任务弹窗 -->
     <div v-if="showTaskModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click="closeTaskModal">

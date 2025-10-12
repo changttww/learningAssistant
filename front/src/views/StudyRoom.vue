@@ -1,5 +1,5 @@
 <template>
-  <div class="container">
+  <div class="w-full h-full overflow-auto px-4">
     <div class="card">
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold">在线自习室</h1>

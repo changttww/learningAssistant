@@ -1,5 +1,5 @@
 <template>
-  <div class="container">
+  <div class="w-full h-full overflow-auto">
     <!-- 个人信息顶部卡片 -->
     <div class="card mb-4">
       <div class="flex flex-col md:flex-row items-center md:items-start gap-4">
@@ -56,7 +56,7 @@
     </div>
 
     <!-- 学习统计内容区 -->
-    <div class="max-w-7xl mx-auto">
+    <div class="w-full">
       <!-- 学习数据卡片 -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
         <div class="stat-card bg-blue-50 p-4">

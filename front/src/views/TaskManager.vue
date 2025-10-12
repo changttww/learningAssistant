@@ -1,6 +1,6 @@
 <template>
-  <div class="bg-gray-50 min-h-screen py-8">
-    <div class="w-[1440px] mx-auto">
+  <div class="bg-gray-50 min-h-full py-8">
+    <div class="w-full">
       <div class="flex gap-6">
         <!-- 左侧：学习档案卡 -->
         <aside class="w-80 flex-shrink-0 sidebar-shadow rounded-2xl bg-white p-6">
@@ -155,6 +155,90 @@
             <!-- 柱状图容器 -->
             <div class="card col-span-2 p-5">
               <div class="h-64" ref="taskProgressChart"></div>
+            </div>
+          </div>
+          
+          <!-- 学习效率分析入口 -->
+          <div class="grid grid-cols-3 gap-4 mb-6">
+            <!-- 学习效率分析 -->
+            <div class="card p-5 cursor-pointer hover:shadow-lg transition-shadow" @click="showEfficiencyAnalysis">
+              <div class="flex items-center mb-4">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mr-3">
+                  <iconify-icon icon="mdi:chart-line" class="text-2xl text-white"></iconify-icon>
+                </div>
+                <div>
+                  <h4 class="font-bold text-gray-800">学习效率分析</h4>
+                  <p class="text-sm text-gray-500">智能分析学习数据</p>
+                </div>
+              </div>
+              <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600">本周学习时长</span>
+                  <span class="font-medium text-purple-600">28.5小时</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600">专注度评分</span>
+                  <span class="font-medium text-green-600">85分</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600">任务完成率</span>
+                  <span class="font-medium text-blue-600">92%</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 智能总结与复习 -->
+            <div class="card p-5 cursor-pointer hover:shadow-lg transition-shadow" @click="showSmartSummary">
+              <div class="flex items-center mb-4">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mr-3">
+                  <iconify-icon icon="mdi:brain" class="text-2xl text-white"></iconify-icon>
+                </div>
+                <div>
+                  <h4 class="font-bold text-gray-800">智能总结复习</h4>
+                  <p class="text-sm text-gray-500">AI生成复习提纲</p>
+                </div>
+              </div>
+              <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600">待复习内容</span>
+                  <span class="font-medium text-orange-600">5项</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600">复习提醒</span>
+                  <span class="font-medium text-red-600">3条</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600">知识点掌握</span>
+                  <span class="font-medium text-green-600">78%</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 学习打卡分析 -->
+            <div class="card p-5 cursor-pointer hover:shadow-lg transition-shadow" @click="showCheckInAnalysis">
+              <div class="flex items-center mb-4">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center mr-3">
+                  <iconify-icon icon="mdi:calendar-check" class="text-2xl text-white"></iconify-icon>
+                </div>
+                <div>
+                  <h4 class="font-bold text-gray-800">打卡记录分析</h4>
+                  <p class="text-sm text-gray-500">学习习惯与建议</p>
+                </div>
+              </div>
+              <div class="space-y-2">
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600">连续打卡</span>
+                  <span class="font-medium text-green-600">28天</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600">平均打字速度</span>
+                  <span class="font-medium text-blue-600">65WPM</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-600">建议状态</span>
+                  <span class="font-medium text-purple-600">继续保持</span>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -327,63 +411,7 @@
             </div>
           </div>
           
-          <!-- 最近互动 -->
-          <div class="mb-6">
-            <div class="flex justify-between items-center mb-3">
-              <h4 class="font-medium text-gray-700">最近互动</h4>
-              <span class="text-xs text-blue-600 cursor-pointer hover:underline">查看全部</span>
-            </div>
-            <div class="space-y-2">
-              <div class="flex items-center p-2 bg-blue-50 rounded-lg">
-                <div class="w-8 h-8 rounded-full bg-gray-300 mr-2"></div>
-                <div class="flex-1">
-                  <div class="text-sm font-medium">张伟</div>
-                  <div class="text-xs text-gray-500">点赞了你的学习笔记</div>
-                </div>
-                <div class="text-xs text-gray-400">2分钟前</div>
-              </div>
-              <div class="flex items-center p-2 bg-green-50 rounded-lg">
-                <div class="w-8 h-8 rounded-full bg-gray-300 mr-2"></div>
-                <div class="flex-1">
-                  <div class="text-sm font-medium">刘燕</div>
-                  <div class="text-xs text-gray-500">评论了你的项目</div>
-                </div>
-                <div class="text-xs text-gray-400">5分钟前</div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- 点赞排行 -->
-          <div class="mb-6">
-            <div class="flex justify-between items-center mb-3">
-              <h4 class="font-medium text-gray-700">本周点赞排行</h4>
-              <iconify-icon icon="mdi:trophy" class="text-yellow-500"></iconify-icon>
-            </div>
-            <div class="space-y-2">
-              <div class="flex items-center justify-between p-2 bg-yellow-50 rounded-lg">
-                <div class="flex items-center">
-                  <div class="w-6 h-6 bg-yellow-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-2">1</div>
-                  <div class="w-8 h-8 rounded-full bg-gray-300 mr-2"></div>
-                  <span class="text-sm font-medium">王浩</span>
-                </div>
-                <div class="flex items-center text-yellow-600">
-                  <iconify-icon icon="mdi:thumb-up" class="mr-1"></iconify-icon>
-                  <span class="text-sm font-bold">128</span>
-                </div>
-              </div>
-              <div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                <div class="flex items-center">
-                  <div class="w-6 h-6 bg-gray-400 text-white rounded-full flex items-center justify-center text-xs font-bold mr-2">2</div>
-                  <div class="w-8 h-8 rounded-full bg-gray-300 mr-2"></div>
-                  <span class="text-sm font-medium">李明</span>
-                </div>
-                <div class="flex items-center text-gray-600">
-                  <iconify-icon icon="mdi:thumb-up" class="mr-1"></iconify-icon>
-                  <span class="text-sm font-bold">95</span>
-                </div>
-              </div>
-            </div>
-          </div>
+
           
           <!-- 学习伙伴 -->
           <div class="mb-6">
@@ -454,32 +482,125 @@
           </div>
           
           <!-- 互动消息 -->
-          <div>
+          <div class="mb-4">
             <div class="flex justify-between items-center mb-3">
-              <h4 class="font-medium text-gray-700">互动消息</h4>
-              <span class="text-blue-600 hover:text-blue-800 text-xs cursor-pointer">查看全部</span>
+              <h4 class="font-medium text-gray-700 flex items-center">
+                <iconify-icon icon="mdi:chat" class="mr-2 text-blue-600"></iconify-icon>
+                互动消息
+                <span class="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-0.5">3</span>
+              </h4>
+              <button 
+                @click="toggleChatList" 
+                class="text-blue-600 hover:text-blue-800 text-xs cursor-pointer flex items-center"
+              >
+                <span>{{ isChatExpanded ? '收起' : '展开' }}</span>
+                <iconify-icon 
+                  :icon="isChatExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'" 
+                  class="ml-1"
+                ></iconify-icon>
+              </button>
             </div>
             
-            <!-- 消息1 -->
-            <div class="flex mb-3">
-              <div class="mr-2">
-                <div class="w-8 h-8 rounded-full bg-gray-300"></div>
-              </div>
-              <div class="flex-1">
-                <div class="bubble-left bg-gray-100 p-2 rounded-xl rounded-tl-none relative max-w-[80%]">
-                  <div class="font-medium text-sm">陈敏</div>
-                  <p class="text-xs">你的前端项目太棒了！😄</p>
+            <!-- 展开状态的聊天列表 -->
+            <div v-if="isChatExpanded" class="space-y-3">
+              <!-- 聊天项1 -->
+              <div class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors">
+                <div class="relative mr-3">
+                  <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                    <span class="text-white font-medium text-sm">陈</span>
+                  </div>
+                  <div class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                 </div>
-                <div class="text-xs text-gray-500 mt-1">1小时前</div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex justify-between items-center mb-1">
+                    <h5 class="font-medium text-gray-800 text-sm truncate">陈敏</h5>
+                    <span class="text-xs text-gray-500">1小时前</span>
+                  </div>
+                  <p class="text-xs text-gray-600 truncate">你的前端项目太棒了！😄 有时间一起讨论一下吗？</p>
+                </div>
+                <div class="ml-2">
+                  <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                </div>
+              </div>
+              
+              <!-- 聊天项2 -->
+              <div class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors">
+                <div class="relative mr-3">
+                  <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
+                    <span class="text-white font-medium text-sm">王</span>
+                  </div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex justify-between items-center mb-1">
+                    <h5 class="font-medium text-gray-800 text-sm truncate">王小明</h5>
+                    <span class="text-xs text-gray-500">3小时前</span>
+                  </div>
+                  <p class="text-xs text-gray-600 truncate">学习小组今晚8点开始，记得参加哦～</p>
+                </div>
+                <div class="ml-2">
+                  <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                </div>
+              </div>
+              
+              <!-- 聊天项3 -->
+              <div class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors">
+                <div class="relative mr-3">
+                  <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
+                    <span class="text-white font-medium text-sm">李</span>
+                  </div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex justify-between items-center mb-1">
+                    <h5 class="font-medium text-gray-800 text-sm truncate">李老师</h5>
+                    <span class="text-xs text-gray-500">昨天</span>
+                  </div>
+                  <p class="text-xs text-gray-600 truncate">作业完成得很好，继续保持！💪</p>
+                </div>
+                <div class="ml-2">
+                  <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                </div>
+              </div>
+              
+              <!-- 快速回复输入框 -->
+              <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                <div class="flex items-center">
+                  <input 
+                    type="text" 
+                    placeholder="快速回复..." 
+                    class="flex-1 bg-white border border-blue-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent rounded-full py-2 px-4 text-sm"
+                  >
+                  <button class="w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded-full ml-3 hover:bg-blue-700 transition-colors">
+                    <iconify-icon icon="mdi:send" class="text-sm"></iconify-icon>
+                  </button>
+                </div>
               </div>
             </div>
             
-            <!-- 消息输入框 -->
-            <div class="mt-3">
-              <div class="flex items-center">
-                <input type="text" placeholder="回复消息..." class="flex-1 bg-gray-100 border-0 focus:ring-0 rounded-full py-2 px-3 text-sm">
-                <button class="w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded-full ml-2">
-                  <iconify-icon icon="mdi:send" class="text-sm"></iconify-icon>
+            <!-- 折叠状态的简化显示 -->
+            <div v-else class="text-center py-4">
+              <div class="flex justify-center items-center space-x-2 mb-2">
+                <div class="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+                  <iconify-icon icon="mdi:message-text" class="text-blue-600 text-sm"></iconify-icon>
+                </div>
+                <span class="text-sm text-gray-600">3条未读消息</span>
+              </div>
+              <p class="text-xs text-gray-500">点击展开查看详情</p>
+            </div>
+          </div>
+          
+          <!-- 励志语录 (仅在聊天折叠时显示) -->
+          <div v-if="!isChatExpanded" class="mt-6 p-4 bg-gradient-to-br from-orange-50 to-yellow-50 rounded-xl border border-orange-100">
+            <div class="text-center">
+              <iconify-icon icon="mdi:lightbulb" class="text-2xl text-orange-500 mb-2"></iconify-icon>
+              <h5 class="font-medium text-gray-800 mb-2">今日励志</h5>
+              <p class="text-sm text-gray-600 leading-relaxed">{{ currentMotivationalQuote }}</p>
+              <div class="mt-3 flex justify-center">
+                <button 
+                  @click="changeQuote" 
+                  class="text-xs text-orange-600 hover:text-orange-800 flex items-center"
+                >
+                  <iconify-icon icon="mdi:refresh" class="mr-1"></iconify-icon>
+                  换一句
                 </button>
               </div>
             </div>
@@ -728,6 +849,242 @@
       </div>
     </div>
   </div>
+  
+  <!-- 学习效率分析弹窗 -->
+  <div v-if="showEfficiencyModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click="closeEfficiencyModal">
+    <div class="bg-white rounded-2xl p-6 w-[800px] max-h-[80vh] overflow-y-auto" @click.stop>
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-2xl font-bold text-gray-800">学习效率分析报告</h3>
+        <button @click="closeEfficiencyModal" class="text-gray-500 hover:text-gray-700">
+          <iconify-icon icon="mdi:close" class="text-2xl"></iconify-icon>
+        </button>
+      </div>
+      
+      <!-- 效率概览 -->
+      <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-xl">
+          <div class="flex items-center mb-2">
+            <iconify-icon icon="mdi:clock-outline" class="text-purple-600 text-xl mr-2"></iconify-icon>
+            <span class="text-gray-600 text-sm">本周学习时长</span>
+          </div>
+          <div class="text-2xl font-bold text-purple-600">{{ efficiencyData.weeklyStudyTime }}小时</div>
+        </div>
+        <div class="bg-gradient-to-br from-green-50 to-teal-50 p-4 rounded-xl">
+          <div class="flex items-center mb-2">
+            <iconify-icon icon="mdi:target" class="text-green-600 text-xl mr-2"></iconify-icon>
+            <span class="text-gray-600 text-sm">专注度评分</span>
+          </div>
+          <div class="text-2xl font-bold text-green-600">{{ efficiencyData.focusScore }}分</div>
+        </div>
+        <div class="bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-xl">
+          <div class="flex items-center mb-2">
+            <iconify-icon icon="mdi:check-circle-outline" class="text-blue-600 text-xl mr-2"></iconify-icon>
+            <span class="text-gray-600 text-sm">任务完成率</span>
+          </div>
+          <div class="text-2xl font-bold text-blue-600">{{ efficiencyData.taskCompletionRate }}%</div>
+        </div>
+      </div>
+      
+      <!-- 学习趋势图表 -->
+      <div class="mb-6">
+        <h4 class="text-lg font-bold text-gray-800 mb-4">学习趋势分析</h4>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-gray-50 p-4 rounded-xl">
+            <h5 class="text-sm font-medium text-gray-600 mb-3">每日学习时长 (小时)</h5>
+            <div class="h-32" ref="studyTrendChart"></div>
+          </div>
+          <div class="bg-gray-50 p-4 rounded-xl">
+            <h5 class="text-sm font-medium text-gray-600 mb-3">每日专注度评分</h5>
+            <div class="h-32" ref="focusTrendChart"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 智能建议 -->
+      <div class="mb-6">
+        <h4 class="text-lg font-bold text-gray-800 mb-4">智能建议</h4>
+        <div class="space-y-3">
+          <div v-for="(suggestion, index) in efficiencyData.suggestions" :key="index" 
+               class="flex items-start p-3 rounded-lg"
+               :class="{
+                 'bg-green-50 border-l-4 border-green-500': suggestion.type === 'positive',
+                 'bg-yellow-50 border-l-4 border-yellow-500': suggestion.type === 'warning',
+                 'bg-blue-50 border-l-4 border-blue-500': suggestion.type === 'tip'
+               }">
+            <iconify-icon 
+              :icon="suggestion.type === 'positive' ? 'mdi:thumb-up' : suggestion.type === 'warning' ? 'mdi:alert' : 'mdi:lightbulb'"
+              :class="{
+                'text-green-600': suggestion.type === 'positive',
+                'text-yellow-600': suggestion.type === 'warning',
+                'text-blue-600': suggestion.type === 'tip'
+              }"
+              class="text-xl mr-3 mt-0.5">
+            </iconify-icon>
+            <span class="text-gray-700">{{ suggestion.message }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 操作按钮 -->
+      <div class="flex gap-3">
+        <button @click="generateReport" class="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 flex items-center justify-center">
+          <iconify-icon icon="mdi:download" class="mr-2"></iconify-icon>
+          生成详细报告
+        </button>
+        <button @click="closeEfficiencyModal" class="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-300">
+          关闭
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 智能总结与复习弹窗 -->
+  <div v-if="showSummaryModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click="closeSummaryModal">
+    <div class="bg-white rounded-2xl p-6 w-[700px] max-h-[80vh] overflow-y-auto" @click.stop>
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-2xl font-bold text-gray-800">智能总结与复习</h3>
+        <button @click="closeSummaryModal" class="text-gray-500 hover:text-gray-700">
+          <iconify-icon icon="mdi:close" class="text-2xl"></iconify-icon>
+        </button>
+      </div>
+      
+      <!-- 知识掌握概览 -->
+      <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl mb-6">
+        <h4 class="text-lg font-bold text-gray-800 mb-3">知识掌握情况</h4>
+        <div class="grid grid-cols-3 gap-4">
+          <div class="text-center">
+            <div class="text-2xl font-bold text-green-600">{{ summaryData.knowledgeMap.mastered }}%</div>
+            <div class="text-sm text-gray-600">已掌握</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-blue-600">{{ summaryData.knowledgeMap.learning }}%</div>
+            <div class="text-sm text-gray-600">学习中</div>
+          </div>
+          <div class="text-center">
+            <div class="text-2xl font-bold text-orange-600">{{ summaryData.knowledgeMap.toLearn }}%</div>
+            <div class="text-sm text-gray-600">待学习</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 待复习内容 -->
+      <div class="mb-6">
+        <h4 class="text-lg font-bold text-gray-800 mb-4">待复习内容</h4>
+        <div class="space-y-3">
+          <div v-for="(item, index) in summaryData.reviewItems" :key="index" 
+               class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+            <div class="flex items-center">
+              <div class="w-3 h-3 rounded-full mr-3"
+                   :class="{
+                     'bg-red-500': item.priority === 'high',
+                     'bg-yellow-500': item.priority === 'medium',
+                     'bg-green-500': item.priority === 'low'
+                   }">
+              </div>
+              <div>
+                <div class="font-medium text-gray-800">{{ item.subject }}</div>
+                <div class="text-sm text-gray-500">进度: {{ item.progress }}% | 复习时间: {{ item.dueDate }}</div>
+              </div>
+            </div>
+            <button @click="startReview(item)" class="bg-blue-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-700">
+              开始复习
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 复习提醒 -->
+      <div class="mb-6">
+        <h4 class="text-lg font-bold text-gray-800 mb-4">复习提醒</h4>
+        <div class="space-y-3">
+          <div v-for="(reminder, index) in summaryData.reminders" :key="index" 
+               class="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
+            <div class="flex items-center">
+              <iconify-icon icon="mdi:bell-outline" class="text-yellow-600 text-xl mr-3"></iconify-icon>
+              <div>
+                <div class="font-medium text-gray-800">{{ reminder.content }}</div>
+                <div class="text-sm text-gray-500">{{ reminder.time }}</div>
+              </div>
+            </div>
+            <button @click="setReminder(reminder)" class="bg-yellow-600 text-white px-3 py-1 rounded-lg text-sm hover:bg-yellow-700">
+              设置提醒
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 操作按钮 -->
+      <div class="flex gap-3">
+        <button @click="closeSummaryModal" class="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-300">
+          关闭
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 学习打卡分析弹窗 -->
+  <div v-if="showCheckInModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click="closeCheckInModal">
+    <div class="bg-white rounded-2xl p-6 w-[600px] max-h-[80vh] overflow-y-auto" @click.stop>
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-2xl font-bold text-gray-800">学习打卡分析</h3>
+        <button @click="closeCheckInModal" class="text-gray-500 hover:text-gray-700">
+          <iconify-icon icon="mdi:close" class="text-2xl"></iconify-icon>
+        </button>
+      </div>
+      
+      <!-- 打卡统计 -->
+      <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="bg-gradient-to-br from-green-50 to-teal-50 p-4 rounded-xl text-center">
+          <iconify-icon icon="mdi:calendar-check" class="text-3xl text-green-600 mb-2"></iconify-icon>
+          <div class="text-2xl font-bold text-green-600">{{ checkInData.consecutiveDays }}</div>
+          <div class="text-sm text-gray-600">连续打卡天数</div>
+        </div>
+        <div class="bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-xl text-center">
+          <iconify-icon icon="mdi:keyboard" class="text-3xl text-blue-600 mb-2"></iconify-icon>
+          <div class="text-2xl font-bold text-blue-600">{{ checkInData.avgTypingSpeed }}</div>
+          <div class="text-sm text-gray-600">平均打字速度 (WPM)</div>
+        </div>
+      </div>
+      
+      <!-- 学习习惯分析 -->
+      <div class="mb-6">
+        <h4 class="text-lg font-bold text-gray-800 mb-4">学习习惯分析</h4>
+        <div class="bg-gray-50 p-4 rounded-xl space-y-3">
+          <div class="flex justify-between">
+            <span class="text-gray-600">最佳学习时段</span>
+            <span class="font-medium text-blue-600">{{ checkInData.studyHabits.bestTime }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-600">平均学习时长</span>
+            <span class="font-medium text-green-600">{{ checkInData.studyHabits.avgSession }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-600">周学习目标</span>
+            <span class="font-medium text-purple-600">{{ checkInData.studyHabits.weeklyGoal }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 激励建议 -->
+      <div class="mb-6">
+        <h4 class="text-lg font-bold text-gray-800 mb-4">激励建议</h4>
+        <div class="space-y-3">
+          <div v-for="(suggestion, index) in checkInData.suggestions" :key="index" 
+               class="flex items-start p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
+            <iconify-icon icon="mdi:star" class="text-green-600 text-xl mr-3 mt-0.5"></iconify-icon>
+            <span class="text-gray-700">{{ suggestion }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 操作按钮 -->
+      <div class="flex gap-3">
+        <button @click="closeCheckInModal" class="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-300">
+          关闭
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -740,6 +1097,70 @@ export default {
       showAchievements: false,
       showSettings: false,
       activeTab: 'inProgress',
+      // 聊天相关状态
+      isChatExpanded: true, // 聊天列表展开状态
+      currentMotivationalQuote: '每一次努力都是成长的阶梯，坚持下去，你会看到不一样的自己！', // 当前励志语录
+      motivationalQuotes: [
+        '每一次努力都是成长的阶梯，坚持下去，你会看到不一样的自己！',
+        '学习不是为了证明什么，而是为了成为更好的自己。',
+        '今天的努力，是为了明天的从容不迫。',
+        '知识是唯一不会贬值的投资，学习是最好的成长方式。',
+        '不怕慢，只怕停。每天进步一点点，就是成功的开始。',
+        '困难是成长的垫脚石，挑战是能力的试金石。',
+        '相信自己，你比想象中更强大，比昨天更优秀。',
+        '学习的路上没有捷径，但每一步都算数。'
+      ],
+      // 学习效率分析相关状态
+      showEfficiencyModal: false,
+      showSummaryModal: false,
+      showCheckInModal: false,
+      // 学习效率分析数据
+      efficiencyData: {
+        weeklyStudyTime: 28.5,
+        focusScore: 85,
+        taskCompletionRate: 92,
+        studyTrend: [6.2, 4.8, 5.1, 3.9, 4.5, 2.8, 1.2], // 每日学习时长
+        focusTrend: [88, 82, 90, 78, 85, 92, 80], // 每日专注度
+        suggestions: [
+          { type: 'positive', message: '本周学习时长超过目标，继续保持！' },
+          { type: 'warning', message: '周末学习时间较少，建议合理安排' },
+          { type: 'tip', message: '下午2-4点是您的高效学习时段' }
+        ]
+      },
+      // 智能总结数据
+      summaryData: {
+        reviewItems: [
+          { subject: 'JavaScript ES6', priority: 'high', dueDate: '今天', progress: 60 },
+          { subject: 'Vue组件通信', priority: 'medium', dueDate: '明天', progress: 75 },
+          { subject: 'CSS Grid布局', priority: 'low', dueDate: '后天', progress: 40 }
+        ],
+        reminders: [
+          { content: '复习Promise和async/await语法', time: '今天 14:00' },
+          { content: '完成Vue项目实战练习', time: '明天 10:00' },
+          { content: '整理CSS学习笔记', time: '后天 16:00' }
+        ],
+        knowledgeMap: {
+          mastered: 78,
+          learning: 15,
+          toLearn: 7
+        }
+      },
+      // 打卡分析数据
+      checkInData: {
+        consecutiveDays: 28,
+        avgTypingSpeed: 65,
+        studyHabits: {
+          bestTime: '14:00-16:00',
+          avgSession: '2.5小时',
+          weeklyGoal: '30小时'
+        },
+        motivationLevel: 'high',
+        suggestions: [
+          '您的学习习惯很好，建议继续保持',
+          '可以尝试在最佳时段安排重要任务',
+          '打字速度不错，可以提高编程效率'
+        ]
+      },
       activeTimeFilter: 'week', // 修正数据属性名称
       chartInstance: null,
       progressChartInstance: null,
@@ -1060,11 +1481,176 @@ export default {
       // 点击环形图显示任务详情的联动功能
       console.log('显示任务详情')
     },
+    // 显示学习效率分析
+    showEfficiencyAnalysis() {
+      this.showEfficiencyModal = true;
+      this.$nextTick(() => {
+        this.initEfficiencyCharts();
+      });
+    },
+    closeEfficiencyModal() {
+      this.showEfficiencyModal = false;
+    },
+    // 智能总结与复习方法
+    showSmartSummary() {
+      this.showSummaryModal = true;
+    },
+    closeSummaryModal() {
+      this.showSummaryModal = false;
+    },
+    // 学习打卡分析方法
+    showCheckInAnalysis() {
+      this.showCheckInModal = true;
+    },
+    closeCheckInModal() {
+      this.showCheckInModal = false;
+    },
+    // 生成学习报告
+    generateReport() {
+      console.log('生成学习效率报告');
+      // 这里可以添加生成PDF报告的逻辑
+    },
+    // 开始复习
+    startReview(item) {
+      console.log('开始复习:', item.subject);
+      // 这里可以添加跳转到具体复习内容的逻辑
+    },
+    // 设置提醒
+    setReminder(reminder) {
+      console.log('设置提醒:', reminder.content);
+      // 这里可以添加设置系统提醒的逻辑
+    },
+    // 初始化效率分析图表
+    initEfficiencyCharts() {
+      this.$nextTick(() => {
+        // 学习时长趋势图
+        if (this.$refs.studyTrendChart) {
+          const studyChart = echarts.init(this.$refs.studyTrendChart);
+          studyChart.setOption({
+            tooltip: {
+              trigger: 'axis',
+              formatter: '{b}<br/>学习时长: {c}小时'
+            },
+            grid: {
+              left: '10%',
+              right: '10%',
+              bottom: '15%',
+              top: '10%'
+            },
+            xAxis: {
+              type: 'category',
+              data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+              axisLine: { lineStyle: { color: '#E5E7EB' } },
+              axisTick: { show: false },
+              axisLabel: { fontSize: 10 }
+            },
+            yAxis: {
+              type: 'value',
+              axisLine: { show: false },
+              axisTick: { show: false },
+              splitLine: { lineStyle: { color: '#F0F2F5' } },
+              axisLabel: { formatter: '{value}h', fontSize: 10 }
+            },
+            series: [{
+              data: this.efficiencyData.studyTrend,
+              type: 'bar',
+              barWidth: 20,
+              itemStyle: {
+                color: {
+                  type: 'linear',
+                  x: 0, y: 0, x2: 0, y2: 1,
+                  colorStops: [
+                    { offset: 0, color: '#8B5CF6' },
+                    { offset: 1, color: '#A78BFA' }
+                  ]
+                },
+                borderRadius: [4, 4, 0, 0]
+              }
+            }]
+          });
+        }
+        
+        // 专注度趋势图
+        if (this.$refs.focusTrendChart) {
+          const focusChart = echarts.init(this.$refs.focusTrendChart);
+          focusChart.setOption({
+            tooltip: {
+              trigger: 'axis',
+              formatter: '{b}<br/>专注度: {c}分'
+            },
+            grid: {
+              left: '10%',
+              right: '10%',
+              bottom: '15%',
+              top: '10%'
+            },
+            xAxis: {
+              type: 'category',
+              data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+              axisLine: { lineStyle: { color: '#E5E7EB' } },
+              axisTick: { show: false },
+              axisLabel: { fontSize: 10 }
+            },
+            yAxis: {
+              type: 'value',
+              min: 70,
+              max: 100,
+              axisLine: { show: false },
+              axisTick: { show: false },
+              splitLine: { lineStyle: { color: '#F0F2F5' } },
+              axisLabel: { formatter: '{value}', fontSize: 10 }
+            },
+            series: [{
+              data: this.efficiencyData.focusTrend,
+              type: 'line',
+              smooth: true,
+              symbol: 'circle',
+              symbolSize: 6,
+              lineStyle: {
+                width: 3,
+                color: '#10B981'
+              },
+              itemStyle: {
+                color: '#10B981',
+                borderColor: '#fff',
+                borderWidth: 2
+              },
+              areaStyle: {
+                color: {
+                  type: 'linear',
+                  x: 0, y: 0, x2: 0, y2: 1,
+                  colorStops: [
+                    { offset: 0, color: 'rgba(16, 185, 129, 0.3)' },
+                    { offset: 1, color: 'rgba(16, 185, 129, 0.1)' }
+                  ]
+                }
+              }
+            }]
+          });
+        }
+      });
+    },
     saveSettings() {
       // 保存设置逻辑
       console.log('设置已保存');
       this.showSettings = false;
       // 这里可以添加实际的保存逻辑，比如调用API
+    },
+    
+    // 聊天相关方法
+    toggleChatList() {
+      this.isChatExpanded = !this.isChatExpanded;
+    },
+    
+    // 更换励志语录
+    changeQuote() {
+      const currentIndex = this.motivationalQuotes.indexOf(this.currentMotivationalQuote);
+      let newIndex;
+      do {
+        newIndex = Math.floor(Math.random() * this.motivationalQuotes.length);
+      } while (newIndex === currentIndex && this.motivationalQuotes.length > 1);
+      
+      this.currentMotivationalQuote = this.motivationalQuotes[newIndex];
     }
   }
 }

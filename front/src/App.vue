@@ -1,7 +1,7 @@
 <template>
-  <div id="app">
+  <div id="app" class="h-screen w-full flex flex-col overflow-hidden">
     <!-- 顶部导航 -->
-    <div class="header">
+    <div class="header w-full">
       <div class="flex items-center space-x-10">
         <div class="text-xl font-bold text-[#2D5BFF] flex items-center">
           <iconify-icon icon="mdi:brain" width="26" height="26"></iconify-icon>
@@ -40,7 +40,9 @@
     </div>
 
     <!-- 路由视图 -->
-    <router-view />
+    <main class="flex-1 min-h-0 w-full overflow-auto px-[5%]">
+      <router-view />
+    </main>
   </div>
 </template>
 
