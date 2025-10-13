@@ -1,9 +1,9 @@
 <template>
-  <div class="bg-gray-50 min-h-full py-8">
-    <div class="w-full">
-      <div class="flex gap-6">
+  <div class="bg-gray-50 min-h-screen py-8">
+    <div class="w-full h-full">
+      <div class="flex gap-6 h-full items-stretch">
         <!-- 左侧：学习档案卡 -->
-        <aside class="w-80 flex-shrink-0 sidebar-shadow rounded-2xl bg-white p-6">
+        <aside class="w-80 flex-shrink-0 sidebar-shadow rounded-2xl bg-white p-6 flex flex-col">
           <!-- 统一的学习档案卡 -->
           <div class="card mb-6 p-6 text-center bg-gradient-to-br from-blue-50 to-indigo-50">
             <!-- 个人信息区 -->
@@ -101,7 +101,7 @@
         </aside>
         
         <!-- 中间：动态学习看板 -->
-        <main class="flex-1">
+        <main class="flex-1 flex flex-col h-full">
           <!-- 看板标题和时间切换 -->
           <div class="flex items-center justify-between mb-5">
             <h2 class="text-2xl font-bold text-gray-700">动态学习看板</h2>
@@ -502,10 +502,10 @@
             </div>
             
             <!-- 展开状态的聊天列表 -->
-            <div v-if="isChatExpanded" class="flex-1 flex flex-col pb-6">
+            <div v-if="isChatExpanded" class="mt-6 flex-1 flex flex-col pb-6">
               <div class="flex-1 space-y-3 overflow-y-auto">
               <!-- 聊天项1 -->
-              <div class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors">
+              <div class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors" @click="goToChatHistory('陈敏')">
                 <div class="relative mr-3">
                   <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
                     <span class="text-white font-medium text-sm">陈</span>
@@ -525,7 +525,7 @@
               </div>
               
               <!-- 聊天项2 -->
-              <div class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors">
+              <div class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors" @click="goToChatHistory('王小明')">
                 <div class="relative mr-3">
                   <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
                     <span class="text-white font-medium text-sm">王</span>
@@ -544,7 +544,7 @@
               </div>
               
               <!-- 聊天项3 -->
-              <div class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors">
+              <div class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors" @click="goToChatHistory('李老师')">
                 <div class="relative mr-3">
                   <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
                     <span class="text-white font-medium text-sm">李</span>
@@ -561,9 +561,45 @@
                   <div class="w-2 h-2 bg-red-500 rounded-full"></div>
                 </div>
               </div>
+              
+              <!-- 聊天项4 -->
+              <div class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors" @click="goToChatHistory('刘晓雨')">
+                <div class="relative mr-3">
+                  <div class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
+                    <span class="text-white font-medium text-sm">刘</span>
+                  </div>
+                  <div class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex justify-between items-center mb-1">
+                    <h5 class="font-medium text-gray-800 text-sm truncate">刘晓雨</h5>
+                    <span class="text-xs text-gray-500">2天前</span>
+                  </div>
+                  <p class="text-xs text-gray-600 truncate">Vue3的新特性真的很棒，一起学习吧！🚀</p>
+                </div>
+                <div class="ml-2">
+                  <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                </div>
               </div>
               
-              <!-- 快速回复输入框 -->
+              <!-- 聊天项5 -->
+              <div class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors" @click="goToChatHistory('张小花')">
+                <div class="relative mr-3">
+                  <div class="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center">
+                    <span class="text-white font-medium text-sm">张</span>
+                  </div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex justify-between items-center mb-1">
+                    <h5 class="font-medium text-gray-800 text-sm truncate">张小花</h5>
+                    <span class="text-xs text-gray-500">3天前</span>
+                  </div>
+                  <p class="text-xs text-gray-600 truncate">明天的算法课记得带笔记本哦～📚</p>
+                </div>
+              </div>
+              </div>
+              
+              <!-- 快速回复输入框 - 固定在底部 -->
               <div class="mt-4 p-3 bg-blue-50 rounded-lg">
                 <div class="flex items-center">
                   <input 
@@ -580,8 +616,8 @@
             
             <!-- 折叠状态的部分聊天列表显示 -->
             <div v-else class="space-y-2">
-              <!-- 显示前2条聊天记录 -->
-              <div class="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors">
+              <!-- 显示前5条聊天记录 -->
+              <div class="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors" @click="goToChatHistory('陈敏')">
                 <div class="relative mr-2">
                   <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
                     <span class="text-white font-medium text-xs">陈</span>
@@ -600,7 +636,7 @@
                 </div>
               </div>
               
-              <div class="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors">
+              <div class="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors" @click="goToChatHistory('王小明')">
                 <div class="relative mr-2">
                   <div class="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
                     <span class="text-white font-medium text-xs">王</span>
@@ -618,15 +654,73 @@
                 </div>
               </div>
               
-              <!-- 更多消息提示 -->
+              <div class="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors" @click="goToChatHistory('李老师')">
+                <div class="relative mr-2">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
+                    <span class="text-white font-medium text-xs">李</span>
+                  </div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex justify-between items-center mb-0.5">
+                    <h5 class="font-medium text-gray-800 text-xs truncate">李老师</h5>
+                    <span class="text-xs text-gray-500">昨天</span>
+                  </div>
+                  <p class="text-xs text-gray-600 truncate">作业完成得很好，继续保持！💪</p>
+                </div>
+                <div class="ml-1">
+                  <div class="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+                </div>
+              </div>
+              
+              <div class="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors" @click="goToChatHistory('刘晓雨')">
+                <div class="relative mr-2">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
+                    <span class="text-white font-medium text-xs">刘</span>
+                  </div>
+                  <div class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border border-white"></div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex justify-between items-center mb-0.5">
+                    <h5 class="font-medium text-gray-800 text-xs truncate">刘晓雨</h5>
+                    <span class="text-xs text-gray-500">2天前</span>
+                  </div>
+                  <p class="text-xs text-gray-600 truncate">Vue3的新特性真的很棒，一起...</p>
+                </div>
+                <div class="ml-1">
+                  <div class="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
+                </div>
+              </div>
+              
+              <div class="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors" @click="goToChatHistory('张小花')">
+                <div class="relative mr-2">
+                  <div class="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center">
+                    <span class="text-white font-medium text-xs">张</span>
+                  </div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex justify-between items-center mb-0.5">
+                    <h5 class="font-medium text-gray-800 text-xs truncate">张小花</h5>
+                    <span class="text-xs text-gray-500">3天前</span>
+                  </div>
+                  <p class="text-xs text-gray-600 truncate">明天的算法课记得带笔记本哦～📚</p>
+                </div>
+              </div>
+              
+              <!-- 展开回复按钮 -->
               <div class="text-center py-2">
-                <span class="text-xs text-gray-500">还有1条消息，点击展开查看</span>
+                <button 
+                  @click="toggleChatList" 
+                  class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <iconify-icon icon="mdi:reply" class="mr-1"></iconify-icon>
+                  展开回复
+                </button>
               </div>
             </div>
           </div>
           
           <!-- 励志语录 (仅在聊天折叠时显示) -->
-          <div v-if="!isChatExpanded" class="mt-6 flex-1 flex items-end justify-center pb-6">
+          <div v-if="!isChatExpanded" class="mt-6 flex-1 flex items-end justify-center pb-4">
             <div class="text-center">
               <p class="text-2xl font-bold bg-gradient-to-r from-gray-600 to-gray-800 bg-clip-text text-transparent leading-relaxed font-serif italic">
                 {{ currentMotivationalQuote }}
@@ -1668,6 +1762,23 @@ export default {
     // 聊天相关方法
     toggleChatList() {
       this.isChatExpanded = !this.isChatExpanded;
+    },
+    
+    // 跳转到历史聊天界面
+    goToChatHistory(friendName) {
+      // 这里可以使用Vue Router进行页面跳转
+      // 假设有一个聊天页面路由，传递好友名称作为参数
+      console.log(`跳转到与 ${friendName} 的聊天界面`);
+      
+      // 示例：使用Vue Router跳转到聊天页面
+      // this.$router.push({
+      //   name: 'ChatHistory',
+      //   params: { friendName: friendName },
+      //   query: { autoFocus: true } // 自动聚焦到输入框
+      // });
+      
+      // 临时实现：显示提示信息
+      alert(`即将跳转到与 ${friendName} 的聊天界面，并自动聚焦到消息输入框`);
     },
     
     // 更换励志语录
