@@ -91,7 +91,23 @@
           <!-- 任务头 -->
           <div class="h-12 flex items-center justify-between px-4 border-b border-gray-200">
             <div class="font-bold text-base text-gray-800">{{ selectedDateFormatted }} 任务</div>
-            <button @click="openTaskModal" class="text-sm text-blue-600 py-1 px-2 border border-blue-600 rounded hover:bg-blue-50">+ 添加任务</button>
+            <div class="flex items-center gap-2">
+              <button 
+                @click="sortMode = 'time'" 
+                :class="[
+                  'text-sm py-1 px-2 border rounded',
+                  sortMode === 'time' ? 'text-blue-600 border-blue-600 bg-blue-50' : 'text-gray-600 border-gray-300 hover:border-blue-600 hover:text-blue-600'
+                ]"
+              >按开始时间排序</button>
+              <button 
+                @click="sortMode = 'category'" 
+                :class="[
+                  'text-sm py-1 px-2 border rounded',
+                  sortMode === 'category' ? 'text-blue-600 border-blue-600 bg-blue-50' : 'text-gray-600 border-gray-300 hover:border-blue-600 hover:text-blue-600'
+                ]"
+              >按任务类别排序</button>
+              <button @click="openTaskModal" class="text-sm text-blue-600 py-1 px-2 border border-blue-600 rounded hover:bg-blue-50">+ 添加任务</button>
+            </div>
           </div>
           
           <!-- 任务列表 -->
@@ -102,7 +118,7 @@
             
             <!-- 任务项 -->
             <div 
-              v-for="task in selectedDateTasks" 
+              v-for="task in sortedSelectedDateTasks" 
               :key="task.id"
               class="bg-white border border-gray-200 rounded p-3 mb-3"
             >
@@ -112,7 +128,7 @@
                   :class="[
                     'w-4 h-4 rounded border border-gray-300 flex items-center justify-center mr-2 cursor-pointer',
                     {
-                      'bg-green-100': task.status === 'completed'
+                      'bg-green-500': task.status === 'completed'
                     }
                   ]"
                 >
@@ -121,19 +137,20 @@
                   </svg>
                 </div>
                 <div class="flex-1">
-                  <div class="flex items-center">
-                    <span :class="[
-                      'text-sm font-medium',
-                      {
-                        'text-gray-800': task.status !== 'completed',
-                        'text-gray-500 line-through': task.status === 'completed'
-                      }
-                    ]">{{ task.title }}</span>
-                    <span class="text-xs text-gray-500 ml-2">· {{ task.time }}</span>
-                  </div>
-                  <p class="text-xs text-gray-600 italic mt-1">{{ task.description }}</p>
-                </div>
+              <div class="flex items-center">
+                <span :class="[
+                  'text-sm font-medium',
+                  {
+                    'text-gray-800': task.status !== 'completed',
+                    'text-gray-500 line-through': task.status === 'completed'
+                  }
+                ]">{{ task.title }}</span>
+                <span class="text-xs text-gray-500 ml-2">· {{ task.time }}</span>
+                <span class="text-xs ml-2 px-2 py-0.5 rounded bg-gray-100 text-gray-700">{{ task.category }}</span>
               </div>
+              <p class="text-xs text-gray-600 italic mt-1">{{ task.description }}</p>
+            </div>
+          </div>
               
               <div class="mt-3">
                 <div class="text-sm font-bold text-blue-600 mb-1">笔记本</div>
@@ -452,6 +469,28 @@ export default {
         status: 'overdue',
         notes: '',
         category: '研究'
+      },
+      // 示例任务：2025年10月5日
+      {
+        id: 1001,
+        title: '项目规划会议',
+        description: '讨论季度目标与里程碑安排',
+        date: '2025-10-05',
+        time: '09:00 - 11:00',
+        status: 'in-progress',
+        notes: '',
+        category: '工作'
+      },
+      // 示例任务：2025年10月6日
+      {
+        id: 1002,
+        title: '编程课',
+        description: '学习循环与函数基础，完成课堂练习',
+        date: '2025-10-05',
+        time: '08:00 - 09:00',
+        status: 'in-progress',
+        notes: '',
+        category: '学习'
       }
     ])
     
@@ -485,7 +524,39 @@ export default {
         relatedTask: '物理实验预习'
       }
     ])
-    
+
+    // 排序模式：none | time | category（默认按开始时间）
+    const sortMode = ref('time')
+
+    // 解析开始时间为分钟数
+    const getStartMinutes = (task) => {
+      const t = task.time || ''
+      // 格式：HH:MM - HH:MM
+      const rangeMatch = t.match(/^(\d{2}):(\d{2})\s*-\s*(\d{2}):(\d{2})$/)
+      if (rangeMatch) {
+        const h = parseInt(rangeMatch[1], 10)
+        const m = parseInt(rangeMatch[2], 10)
+        return h * 60 + m
+      }
+      // 格式：HH:MM 或 HH:MM前
+      const singleMatch = t.match(/^(\d{2}):(\d{2})/)
+      if (singleMatch) {
+        const h = parseInt(singleMatch[1], 10)
+        const m = parseInt(singleMatch[2], 10)
+        return h * 60 + m
+      }
+      // 全天或无法解析，排在最后
+      return Number.POSITIVE_INFINITY
+    }
+
+    // 本地日期格式化（避免 toISOString 的 UTC 偏移）
+    const formatLocalDate = (d) => {
+      const year = d.getFullYear()
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+
     // 计算属性
     const currentMonthYear = computed(() => {
       return `${currentDate.value.getFullYear()}年${currentDate.value.getMonth() + 1}月`
@@ -510,7 +581,7 @@ export default {
         const date = new Date(startDate)
         date.setDate(startDate.getDate() + i)
         
-        const dateString = date.toISOString().split('T')[0]
+        const dateString = formatLocalDate(date)
         const dateTasks = tasks.value.filter(task => task.date === dateString)
         
         dates.push({
@@ -528,8 +599,20 @@ export default {
     })
     
     const selectedDateTasks = computed(() => {
-      const dateString = selectedDate.value.toISOString().split('T')[0]
+      const dateString = formatLocalDate(selectedDate.value)
       return tasks.value.filter(task => task.date === dateString)
+    })
+
+    // 根据排序模式返回排序后的任务
+    const sortedSelectedDateTasks = computed(() => {
+      const list = [...selectedDateTasks.value]
+      if (sortMode.value === 'time') {
+        return list.sort((a, b) => getStartMinutes(a) - getStartMinutes(b))
+      }
+      if (sortMode.value === 'category') {
+        return list.sort((a, b) => (a.category || '').localeCompare(b.category || ''))
+      }
+      return list
     })
     
     const sortedNotes = computed(() => {
@@ -553,7 +636,7 @@ export default {
     }
     
     const openTaskModal = () => {
-      const today = new Date().toISOString().split('T')[0]
+      const today = formatLocalDate(new Date())
       newTask.value = {
         title: '',
         description: '',
@@ -581,8 +664,8 @@ export default {
       if (input.includes('明天')) {
         const tomorrow = new Date()
         tomorrow.setDate(tomorrow.getDate() + 1)
-        newTask.value.startDate = tomorrow.toISOString().split('T')[0]
-        newTask.value.endDate = tomorrow.toISOString().split('T')[0]
+        newTask.value.startDate = formatLocalDate(tomorrow)
+        newTask.value.endDate = formatLocalDate(tomorrow)
       }
       if (input.includes('下午3点') || input.includes('15:00')) {
         newTask.value.endTime = '15:00'
@@ -679,6 +762,7 @@ export default {
       isNotebookFullscreen,
       notesSortBy,
       naturalLanguageInput,
+      sortMode,
       stats,
       newTask,
       currentNotebook,
@@ -688,6 +772,7 @@ export default {
       selectedDateFormatted,
       calendarDates,
       selectedDateTasks,
+      sortedSelectedDateTasks,
       sortedNotes,
       previousMonth,
       nextMonth,
