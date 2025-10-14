@@ -168,3 +168,7 @@ storybook-static
 # Temporary folders
 tmp/
 temp/
+
+
+
+*.puml
