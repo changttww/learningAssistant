@@ -10,7 +10,7 @@ import {
   hasPermission,
   clearAuth,
 } from "../utils/auth";
-// import { ElMessage } from 'element-plus'
+import { ElMessage } from "element-plus";
 
 // 白名单路由（不需要登录即可访问）
 const whiteList = [
@@ -24,6 +24,7 @@ const whiteList = [
   "/profile",
   "/study-room",
   "/team-tasks",
+  "/video-room/*",
   "/",
 ];
 
@@ -31,7 +32,8 @@ const whiteList = [
 const permissionRoutes = {
   // '/team-tasks': ['team:view'],
   // '/task-manager': ['task:manage'],
-  // '/profile': ['profile:view']
+  // '/profile': ['profile:view'],
+  // '/video-room/:roomId': ['room:access']
 };
 
 /**
@@ -78,7 +80,7 @@ export function beforeEach(to, from, next) {
     next();
   } else {
     // 没有token
-    if (whiteList.includes(to.path)) {
+    if (isInWhiteList(to.path)) {
       // 在白名单中，直接通过
       next();
     } else {
@@ -104,9 +106,33 @@ export function afterEach(to, from) {
 }
 
 /**
+ * 检查路径是否在白名单中
+ * 支持通配符匹配
+ */
+function isInWhiteList(path) {
+  return whiteList.some(whiteListPath => {
+    if (whiteListPath.endsWith('/*')) {
+      // 通配符匹配
+      const basePath = whiteListPath.slice(0, -2);
+      return path.startsWith(basePath);
+    } else {
+      // 精确匹配
+      return path === whiteListPath;
+    }
+  });
+}
+
+/**
  * 检查页面权限
  */
 function checkPagePermission(path) {
+  // 对于动态路由（如 /video-room/:roomId），需要特殊处理
+  if (path.startsWith("/video-room/")) {
+    // 可以在这里添加特定的房间访问权限检查
+    // 例如：检查用户是否有权限访问特定房间
+    return true; // 暂时允许所有已登录用户访问
+  }
+
   const requiredPermissions = permissionRoutes[path];
 
   if (!requiredPermissions) {
