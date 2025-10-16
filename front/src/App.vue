@@ -27,7 +27,12 @@
       </div>
       <div class="flex items-center space-x-5">
         <div class="relative">
-          <iconify-icon icon="mdi:bell-outline" width="24" height="24" class="text-gray-600"></iconify-icon>
+          <iconify-icon
+            icon="mdi:bell-outline"
+            width="24"
+            height="24"
+            class="text-gray-600"
+          ></iconify-icon>
           <div class="notification-dot"></div>
         </div>
         <div class="flex items-center">
@@ -47,13 +52,13 @@
 </template>
 
 <script>
-export default {
-  name: 'App'
-}
+  export default {
+    name: "App",
+  };
 </script>
 
 <style>
-.router-link-active {
-  color: #2D5BFF !important;
-}
+  .router-link-active {
+    color: #2d5bff !important;
+  }
 </style>
