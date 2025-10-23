@@ -8,6 +8,7 @@ import Home from "./views/Home.vue";
 import PersonalTasks from "./views/PersonalTasks.vue";
 import TeamTasks from "./views/TeamTasks.vue";
 import StudyRoom from "./views/StudyRoom.vue";
+import VideoRoom from "./views/VideoRoom.vue";
 import Profile from "./views/Profile.vue";
 import TaskManager from "./views/TaskManager.vue";
 
@@ -39,6 +40,12 @@ const routes = [
     name: "StudyRoom",
     component: StudyRoom,
     meta: { title: "在线自习室", requiresAuth: true },
+  },
+  {
+    path: "/video-room/:roomId",
+    name: "VideoRoom",
+    component: VideoRoom,
+    meta: { title: "视频会议室", requiresAuth: true },
   },
   {
     path: "/profile",
