@@ -2,38 +2,78 @@
   <div class="min-h-full bg-gray-50">
     <div class="w-full py-8">
       <!-- 顶部统计卡片 -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-4">
         <div
-          class="stat-card bg-blue-50 rounded-lg p-4 flex flex-col items-center justify-center hover:transform hover:-translate-y-1 transition-transform"
+          class="stat-card bg-blue-50 rounded-lg p-4 flex flex-col items-center justify-center"
         >
-          <span class="text-2xl font-bold text-blue-600">{{
-            stats.total
-          }}</span>
+          <span class="text-2xl font-bold text-blue-600">{{ stats.total }}</span>
           <span class="text-gray-600 text-sm mt-1">总任务数</span>
         </div>
-        <div
-          class="stat-card bg-green-50 rounded-lg p-4 flex flex-col items-center justify-center hover:transform hover:-translate-y-1 transition-transform"
+        <button
+          type="button"
+          @click="setStatusFilter('completed')"
+          class="stat-card bg-green-50 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow focus:outline-none focus:ring-2 focus:ring-green-400 active:scale-95 transition"
+          aria-label="已完成任务"
         >
-          <span class="text-2xl font-bold text-green-600">{{
-            stats.completed
-          }}</span>
-          <span class="text-gray-600 text-sm mt-1">已完成</span>
-        </div>
-        <div
-          class="stat-card bg-orange-50 rounded-lg p-4 flex flex-col items-center justify-center hover:transform hover:-translate-y-1 transition-transform"
+          <span class="text-2xl font-bold text-green-600">{{ stats.completed }}</span>
+          <span class="text-gray-700 text-sm mt-1 font-medium">已完成</span>
+        </button>
+        <button
+          type="button"
+          @click="setStatusFilter('in-progress')"
+          class="stat-card bg-orange-50 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow focus:outline-none focus:ring-2 focus:ring-orange-400 active:scale-95 transition"
+          aria-label="进行中任务"
         >
-          <span class="text-2xl font-bold text-orange-600">{{
-            stats.inProgress
-          }}</span>
-          <span class="text-gray-600 text-sm mt-1">进行中</span>
-        </div>
-        <div
-          class="stat-card bg-red-50 rounded-lg p-4 flex flex-col items-center justify-center hover:transform hover:-translate-y-1 transition-transform"
+          <span class="text-2xl font-bold text-orange-600">{{ stats.inProgress }}</span>
+          <span class="text-gray-700 text-sm mt-1 font-medium">进行中</span>
+        </button>
+        <button
+          type="button"
+          @click="setStatusFilter('overdue')"
+          class="stat-card bg-red-50 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow focus:outline-none focus:ring-2 focus:ring-red-400 active:scale-95 transition"
+          aria-label="已逾期任务"
         >
-          <span class="text-2xl font-bold text-red-600">{{
-            stats.overdue
-          }}</span>
-          <span class="text-gray-600 text-sm mt-1">已逾期</span>
+          <span class="text-2xl font-bold text-red-600">{{ stats.overdue }}</span>
+          <span class="text-gray-700 text-sm mt-1 font-medium">已逾期</span>
+        </button>
+      </div>
+
+      <!-- 状态任务详情列表 -->
+      <div v-if="statusFilter" class="mb-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-gray-800 text-lg">
+              {{ getStatusLabel(statusFilter) }} 任务
+            </h3>
+            <button
+              @click="clearStatusFilter"
+              class="text-sm px-3 py-1 rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
+              aria-label="关闭状态面板"
+            >
+              关闭
+            </button>
+          </div>
+          <div v-if="filteredTasksByStatus.length === 0" class="text-gray-500 text-sm py-4">
+            该状态暂无任务。
+          </div>
+          <div v-else class="space-y-3">
+            <div
+              v-for="task in filteredTasksByStatus"
+              :key="task.id"
+              class="p-3 border border-gray-200 rounded hover:border-blue-600 hover:shadow transition"
+            >
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <div class="font-medium text-gray-800">{{ task.title }}</div>
+                  <div class="text-xs text-gray-500 mt-1">{{ task.date }} · {{ task.time }}</div>
+                  <div class="text-xs text-gray-600 mt-1">{{ task.description }}</div>
+                </div>
+                <span :class="['text-xs px-2 py-0.5 rounded', getCategoryStyle(task.category)]">
+                  {{ task.category }}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -249,7 +289,10 @@
                       >· {{ task.time }}</span
                     >
                     <span
-                      class="text-xs ml-2 px-2 py-0.5 rounded bg-gray-100 text-gray-700"
+                      :class="[
+                        'text-xs ml-2 px-2 py-0.5 rounded',
+                        getCategoryStyle(task.category),
+                      ]"
                       >{{ task.category }}</span
                     >
                   </div>
@@ -636,6 +679,7 @@
       const isNotebookFullscreen = ref(false);
       const notesSortBy = ref("category");
       const naturalLanguageInput = ref("");
+      const statusFilter = ref(null);
 
       // 统计数据
       const stats = ref({
@@ -680,7 +724,7 @@
         {
           id: 2,
           title: "准备英语报告",
-          description: "关于气候变化的影响与应对",
+          description: "关于气候变化的严重影响与应对",
           date: "2024-03-05",
           time: "15:00前",
           status: "in-progress",
@@ -718,7 +762,7 @@
           notes: "",
           category: "工作",
         },
-        // 示例任务：2025年10月6日
+        // 示例任务：2025年10月5日
         {
           id: 1002,
           title: "编程课",
@@ -728,6 +772,17 @@
           status: "in-progress",
           notes: "",
           category: "学习",
+        },
+        // 示例任务：2025年10月5日
+        {
+          id: 1003,
+          title: "项目管理",
+          description: "协调团队成员，分配任务，监控进度",
+          date: "2025-10-05",
+          time: "10:00 - 12:00",
+          status: "in-progress",
+          notes: "",
+          category: "其它",
         },
       ]);
 
@@ -745,7 +800,7 @@
         {
           id: 2,
           title: "英语演讲准备",
-          content: "气候变化报告的关键论点和数据整理。需要补充更多实例。",
+          content: "气候变化的报告的关键论点和数据整理。需要补充更多实例。",
           date: "3月3日",
           category: "英语",
           lastUpdated: "2024年3月3日 16:20",
@@ -871,6 +926,11 @@
         return [...notes.value].sort((a, b) =>
           a.category.localeCompare(b.category)
         );
+      });
+
+      const filteredTasksByStatus = computed(() => {
+        if (!statusFilter.value) return [];
+        return tasks.value.filter((t) => t.status === statusFilter.value);
       });
 
       // 方法
@@ -1003,13 +1063,37 @@
 
       const getCategoryStyle = (category) => {
         const styles = {
+          // 中文类别
           数学: "bg-blue-50 text-blue-600",
           英语: "bg-orange-50 text-orange-600",
           物理: "bg-red-50 text-red-600",
           研究: "bg-purple-50 text-purple-600",
           学习: "bg-blue-50 text-blue-600",
+          工作: "bg-teal-50 text-teal-600",
+          其他: "bg-gray-50 text-gray-600",
+          // 英文代码类别（表单值）
+          study: "bg-blue-50 text-blue-600",
+          exam: "bg-red-50 text-red-600",
+          project: "bg-purple-50 text-purple-600",
+          reading: "bg-green-50 text-green-600",
+          other: "bg-gray-50 text-gray-600",
         };
         return styles[category] || "bg-gray-50 text-gray-600";
+      };
+
+      const setStatusFilter = (status) => {
+        statusFilter.value = status;
+      };
+      const clearStatusFilter = () => {
+        statusFilter.value = null;
+      };
+      const getStatusLabel = (status) => {
+        const map = {
+          completed: "已完成",
+          "in-progress": "进行中",
+          overdue: "已逾期",
+        };
+        return map[status] || "任务";
       };
 
       // 初始化
@@ -1050,6 +1134,12 @@
         toggleNotebookFullscreen,
         saveNotebook,
         getCategoryStyle,
+        // 状态筛选
+        statusFilter,
+        filteredTasksByStatus,
+        setStatusFilter,
+        clearStatusFilter,
+        getStatusLabel,
       };
     },
   };
