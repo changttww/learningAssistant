@@ -6,7 +6,9 @@
         <div
           class="stat-card bg-blue-50 rounded-lg p-4 flex flex-col items-center justify-center"
         >
-          <span class="text-2xl font-bold text-blue-600">{{ stats.total }}</span>
+          <span class="text-2xl font-bold text-blue-600">{{
+            stats.total
+          }}</span>
           <span class="text-gray-600 text-sm mt-1">总任务数</span>
         </div>
         <button
@@ -15,7 +17,9 @@
           class="stat-card bg-green-50 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow focus:outline-none focus:ring-2 focus:ring-green-400 active:scale-95 transition"
           aria-label="已完成任务"
         >
-          <span class="text-2xl font-bold text-green-600">{{ stats.completed }}</span>
+          <span class="text-2xl font-bold text-green-600">{{
+            stats.completed
+          }}</span>
           <span class="text-gray-700 text-sm mt-1 font-medium">已完成</span>
         </button>
         <button
@@ -24,7 +28,9 @@
           class="stat-card bg-orange-50 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow focus:outline-none focus:ring-2 focus:ring-orange-400 active:scale-95 transition"
           aria-label="进行中任务"
         >
-          <span class="text-2xl font-bold text-orange-600">{{ stats.inProgress }}</span>
+          <span class="text-2xl font-bold text-orange-600">{{
+            stats.inProgress
+          }}</span>
           <span class="text-gray-700 text-sm mt-1 font-medium">进行中</span>
         </button>
         <button
@@ -33,7 +39,9 @@
           class="stat-card bg-red-50 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow focus:outline-none focus:ring-2 focus:ring-red-400 active:scale-95 transition"
           aria-label="已逾期任务"
         >
-          <span class="text-2xl font-bold text-red-600">{{ stats.overdue }}</span>
+          <span class="text-2xl font-bold text-red-600">{{
+            stats.overdue
+          }}</span>
           <span class="text-gray-700 text-sm mt-1 font-medium">已逾期</span>
         </button>
       </div>
@@ -53,7 +61,10 @@
               关闭
             </button>
           </div>
-          <div v-if="filteredTasksByStatus.length === 0" class="text-gray-500 text-sm py-4">
+          <div
+            v-if="filteredTasksByStatus.length === 0"
+            class="text-gray-500 text-sm py-4"
+          >
             该状态暂无任务。
           </div>
           <div v-else class="space-y-3">
@@ -65,10 +76,19 @@
               <div class="flex items-center justify-between">
                 <div class="flex-1">
                   <div class="font-medium text-gray-800">{{ task.title }}</div>
-                  <div class="text-xs text-gray-500 mt-1">{{ task.date }} · {{ task.time }}</div>
-                  <div class="text-xs text-gray-600 mt-1">{{ task.description }}</div>
+                  <div class="text-xs text-gray-500 mt-1">
+                    {{ task.date }} · {{ task.time }}
+                  </div>
+                  <div class="text-xs text-gray-600 mt-1">
+                    {{ task.description }}
+                  </div>
                 </div>
-                <span :class="['text-xs px-2 py-0.5 rounded', getCategoryStyle(task.category)]">
+                <span
+                  :class="[
+                    'text-xs px-2 py-0.5 rounded',
+                    getCategoryStyle(task.category),
+                  ]"
+                >
                   {{ task.category }}
                 </span>
               </div>
@@ -223,7 +243,7 @@
                 按任务类别排序
               </button>
               <button
-                @click="openTaskModal"
+                @click="openTaskModalSelected"
                 class="text-sm text-blue-600 py-1 px-2 border border-blue-600 rounded hover:bg-blue-50"
               >
                 + 添加任务
@@ -383,9 +403,9 @@
       </div>
     </div>
 
-    <!-- 新建任务按钮 -->
+    <!-- 新建任务按钮（系统日期） -->
     <button
-      @click="openTaskModal"
+      @click="openTaskModalSystem"
       class="fixed top-20 right-[5%] bg-blue-600 text-white text-sm px-4 py-2 rounded shadow-lg hover:bg-blue-700 z-50"
     >
       + 新建任务
@@ -666,20 +686,21 @@
 </template>
 
 <script>
-  import { ref, computed, onMounted } from "vue";
+  import { ref, computed, onMounted, watch } from "vue";
 
   export default {
     name: "PersonalTasks",
     setup() {
       // 响应式数据
       const currentDate = ref(new Date());
-      const selectedDate = ref(new Date());
+      const selectedDate = ref(null);
       const showTaskModal = ref(false);
       const showNotebookModal = ref(false);
       const isNotebookFullscreen = ref(false);
       const notesSortBy = ref("category");
       const naturalLanguageInput = ref("");
       const statusFilter = ref(null);
+      const modalDateMode = ref('system');
 
       // 统计数据
       const stats = ref({
@@ -858,6 +879,7 @@
       });
 
       const selectedDateFormatted = computed(() => {
+        if (!selectedDate.value) return "未选择日期";
         return `${selectedDate.value.getFullYear()}年${
           selectedDate.value.getMonth() + 1
         }月${selectedDate.value.getDate()}日`;
@@ -889,8 +911,9 @@
             dateString,
             isCurrentMonth: date.getMonth() === month,
             isToday: date.toDateString() === today.toDateString(),
-            isSelected:
-              date.toDateString() === selectedDate.value.toDateString(),
+            isSelected: selectedDate.value
+              ? date.toDateString() === selectedDate.value.toDateString()
+              : false,
             tasks: dateTasks,
           });
         }
@@ -899,6 +922,7 @@
       });
 
       const selectedDateTasks = computed(() => {
+        if (!selectedDate.value) return [];
         const dateString = formatLocalDate(selectedDate.value);
         return tasks.value.filter((task) => task.date === dateString);
       });
@@ -954,7 +978,8 @@
         selectedDate.value = new Date(date.date);
       };
 
-      const openTaskModal = () => {
+      const openTaskModalSystem = () => {
+        modalDateMode.value = 'system';
         const today = formatLocalDate(new Date());
         newTask.value = {
           title: "",
@@ -968,10 +993,39 @@
         showTaskModal.value = true;
       };
 
-      const closeTaskModal = () => {
-        showTaskModal.value = false;
-        naturalLanguageInput.value = "";
+      const openTaskModalSelected = () => {
+        if (!selectedDate.value) {
+          alert("请先在日历中选择日期");
+          return;
+        }
+        modalDateMode.value = 'selected';
+        const dateString = formatLocalDate(selectedDate.value);
+        newTask.value = {
+          title: "",
+          description: "",
+          startDate: dateString,
+          startTime: "",
+          endDate: dateString,
+          endTime: "",
+          category: "",
+        };
+        showTaskModal.value = true;
       };
+
+      // 弹窗打开时，与日历选中日期保持同步（若用户更换选中日期）
+      watch(selectedDate, (d) => {
+        if (!showTaskModal.value || !d) return;
+        if (modalDateMode.value !== 'selected') return;
+        const ds = formatLocalDate(d);
+        newTask.value.startDate = ds;
+        newTask.value.endDate = ds;
+      });
+
+        const closeTaskModal = () => {
+          showTaskModal.value = false;
+          naturalLanguageInput.value = "";
+          modalDateMode.value = 'system';
+        };
 
       const parseNaturalLanguage = () => {
         // 简单的自然语言解析示例
@@ -1124,7 +1178,6 @@
         previousMonth,
         nextMonth,
         selectDate,
-        openTaskModal,
         closeTaskModal,
         parseNaturalLanguage,
         saveTask,
@@ -1140,6 +1193,10 @@
         setStatusFilter,
         clearStatusFilter,
         getStatusLabel,
+        // 新建任务打开模式
+        modalDateMode,
+        openTaskModalSystem,
+        openTaskModalSelected,
       };
     },
   };
