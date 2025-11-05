@@ -37,8 +37,20 @@
         </div>
         <div class="flex items-center">
           <router-link to="/profile" class="flex items-center">
-            <div class="w-8 h-8 rounded-full bg-gray-300"></div>
-            <span class="ml-2 font-medium">张同学</span>
+            <div
+              class="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center text-sm font-semibold text-[#2D5BFF]"
+            >
+              <img
+                v-if="avatarUrl"
+                :src="avatarUrl"
+                :alt="displayName"
+                class="w-full h-full object-cover"
+              />
+              <span v-else>
+                {{ displayName.slice(0, 1) }}
+              </span>
+            </div>
+            <span class="ml-2 font-medium">{{ displayName }}</span>
           </router-link>
         </div>
       </div>
@@ -51,10 +63,29 @@
   </div>
 </template>
 
-<script>
-  export default {
-    name: "App",
-  };
+<script setup>
+import { computed, onMounted } from "vue";
+import { useCurrentUser } from "@/composables/useCurrentUser";
+import { getToken } from "@/utils/auth";
+
+const {
+  profile,
+  profileLoaded,
+  loadCurrentUser,
+} = useCurrentUser();
+
+const displayName = computed(() => profile.value?.display_name || "访客");
+const avatarUrl = computed(() => profile.value?.avatar_url || "");
+
+onMounted(() => {
+  if (getToken() && !profileLoaded.value) {
+    loadCurrentUser(profile.value?.id);
+  }
+});
+
+defineOptions({
+  name: "App",
+});
 </script>
 
 <style>

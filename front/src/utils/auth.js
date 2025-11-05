@@ -81,6 +81,10 @@ export function getUserInfo() {
  * 设置用户信息
  */
 export function setUserInfo(userInfo) {
+  if (!userInfo) {
+    localStorage.removeItem("userInfo");
+    return;
+  }
   localStorage.setItem("userInfo", JSON.stringify(userInfo));
 }
 

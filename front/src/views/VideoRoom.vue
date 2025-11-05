@@ -33,7 +33,7 @@
       <!-- 左侧视频容器 -->
       <div class="video-container">
         <div 
-          v-for="(video, index) in activeVideos" 
+          v-for="(video, index) in renderedVideos" 
           :key="index"
           class="video-box"
           @dblclick="switchVideoLayout(index)"
@@ -67,7 +67,7 @@
 
         <div class="members-list">
           <div 
-            v-for="member in members" 
+            v-for="member in renderedMembers" 
             :key="member.id"
             :class="['member-item', { active: member.id === activeMemberId }]"
             @click="selectMember(member.id)"
@@ -127,8 +127,28 @@
 </template>
 
 <script>
+import { computed, onMounted } from "vue";
+import { useCurrentUser } from "@/composables/useCurrentUser";
+
 export default {
   name: 'VideoRoom',
+  setup() {
+    const { profile, loadCurrentUser } = useCurrentUser();
+
+    onMounted(() => {
+      loadCurrentUser().catch((error) => {
+        console.error("加载用户信息失败:", error);
+      });
+    });
+
+    const currentUserName = computed(() => profile.value?.display_name || "学习者");
+    const currentUserRole = computed(() => profile.value?.role || "组长");
+
+    return {
+      currentUserName,
+      currentUserRole,
+    };
+  },
   data() {
     return {
       roomInfo: {
@@ -140,7 +160,7 @@ export default {
       },
       activeVideos: [
         {
-          userName: '李明',
+          userName: '',
           role: '组长',
           micOn: false,
           videoOn: false
@@ -154,7 +174,7 @@ export default {
       ],
       activeMemberId: 1,
       members: [
-        { id: 1, name: '李明', role: '组长', online: true, avatarType: 1 },
+        { id: 1, name: '', role: '组长', online: true, avatarType: 1 },
         { id: 2, name: '张小雨', role: '副组长', online: true, avatarType: 2 },
         { id: 3, name: '王浩然', role: '核心成员', online: true, avatarType: 3 },
         { id: 4, name: '赵舒雅', role: '新人', online: true, avatarType: 4 },
@@ -165,7 +185,7 @@ export default {
       messages: [
         {
           id: 1,
-          senderName: '李明',
+          senderName: '',
           senderRole: '组长',
           content: '大家早上好！今天我们的目标是完成React组件库的设计文档，建议先进行1小时的代码实践',
           time: '09:30',
@@ -218,19 +238,55 @@ export default {
     }
   },
   computed: {
-    groupedMessages() {
-      const groups = {}
-      this.messages.forEach(message => {
-        if (!groups[message.timeGroup]) {
-          groups[message.timeGroup] = {
-            time: message.timeGroup,
-            messages: []
-          }
+    currentMemberId() {
+      return this.members.length ? this.members[0].id : null;
+    },
+    renderedVideos() {
+      return this.activeVideos.map((video, index) => {
+        if (index === 0) {
+          return {
+            ...video,
+            userName: this.currentUserName,
+            role: this.currentUserRole || video.role || "组员",
+          };
         }
-        groups[message.timeGroup].messages.push(message)
-      })
-      return Object.values(groups)
-    }
+        return video;
+      });
+    },
+    renderedMembers() {
+      return this.members.map((member) => {
+        if (member.id === this.currentMemberId) {
+          return {
+            ...member,
+            name: this.currentUserName,
+            role: this.currentUserRole || member.role || "组员",
+          };
+        }
+        return member;
+      });
+    },
+    groupedMessages() {
+      const groups = {};
+      this.messages.forEach((message) => {
+        const timeGroup = message.timeGroup;
+        if (!groups[timeGroup]) {
+          groups[timeGroup] = {
+            time: timeGroup,
+            messages: [],
+          };
+        }
+        groups[timeGroup].messages.push({
+          ...message,
+          senderName: message.isSelf
+            ? this.currentUserName
+            : message.senderName,
+          senderRole: message.isSelf
+            ? this.currentUserRole
+            : message.senderRole,
+        });
+      });
+      return Object.values(groups);
+    },
   },
   mounted() {
     // 获取房间ID并加载房间信息
@@ -256,7 +312,7 @@ export default {
     selectMember(memberId) {
       if (this.activeMemberId === memberId) return
       
-      const member = this.members.find(m => m.id === memberId)
+      const member = this.renderedMembers.find(m => m.id === memberId)
       if (member && confirm(`将与${member.name}开始视频通话，当前通话将结束`)) {
         this.activeMemberId = memberId
       }
@@ -272,8 +328,8 @@ export default {
       
       const newMsg = {
         id: this.messages.length + 1,
-        senderName: '赵舒雅',
-        senderRole: '新人',
+        senderName: this.currentUserName,
+        senderRole: this.currentUserRole,
         content: this.newMessage,
         time: timeStr,
         timeGroup: `今天 ${timeStr}`,

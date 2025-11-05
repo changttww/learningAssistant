@@ -11,6 +11,9 @@ import {
   clearAuth,
 } from "../utils/auth";
 import { ElMessage } from "element-plus";
+import { useCurrentUser } from "@/composables/useCurrentUser";
+
+const userStore = useCurrentUser();
 
 // 白名单路由（不需要登录即可访问）
 const whiteList = [
@@ -52,6 +55,7 @@ export function beforeEach(to, from, next) {
     if (isTokenExpired()) {
       ElMessage.warning("登录已过期，请重新登录");
       clearAuth();
+      userStore.clearCurrentUser();
       next("/login");
       return;
     }
@@ -66,6 +70,7 @@ export function beforeEach(to, from, next) {
     if (!userInfo) {
       // 获取用户信息失败，清除认证信息
       clearAuth();
+      userStore.clearCurrentUser();
       next("/login");
       return;
     }

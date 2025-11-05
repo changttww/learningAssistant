@@ -3,15 +3,25 @@
     <!-- 个人信息顶部卡片 -->
     <div class="card mb-4">
       <div class="flex flex-col md:flex-row items-center md:items-start gap-4">
-        <div class="w-24 h-24 rounded-full bg-gray-300"></div>
+        <div
+          class="w-24 h-24 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center text-3xl font-semibold text-[#2D5BFF]"
+        >
+          <img
+            v-if="userAvatar"
+            :src="userAvatar"
+            :alt="displayName"
+            class="w-full h-full object-cover"
+          />
+          <span v-else>{{ displayName.slice(0, 1) }}</span>
+        </div>
         <div class="flex-1">
           <div class="flex flex-col md:flex-row md:items-center gap-3">
-            <h1 class="text-xl font-bold">孙同学</h1>
+            <h1 class="text-xl font-bold">{{ displayName }}</h1>
             <div class="flex items-center gap-2">
               <div
                 class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium"
               >
-                技术项目经理
+                {{ userRole }}
               </div>
               <div
                 class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1"
@@ -22,7 +32,7 @@
             </div>
           </div>
           <p class="text-gray-600 mt-2 text-sm">
-            专注于教育科技领域，热衷于学习新技术，致力于打造高效的学习工具。
+            {{ userBio }}
           </p>
           <div class="mt-3 flex flex-wrap gap-3 text-sm">
             <div class="flex items-center gap-1">
@@ -32,7 +42,7 @@
                 height="16"
                 class="text-gray-600"
               ></iconify-icon>
-              <span>北京大学 计算机科学与技术</span>
+              <span>{{ userSchoolMajor }}</span>
             </div>
             <div class="flex items-center gap-1">
               <iconify-icon
@@ -41,7 +51,7 @@
                 height="16"
                 class="text-gray-600"
               ></iconify-icon>
-              <span>北京市</span>
+              <span>{{ userLocation }}</span>
             </div>
             <div class="flex items-center gap-1">
               <iconify-icon
@@ -50,7 +60,7 @@
                 height="16"
                 class="text-gray-600"
               ></iconify-icon>
-              <span>已加入3个学习小组</span>
+              <span>已加入{{ studyGroupCount }}个学习小组</span>
             </div>
           </div>
           <div class="mt-3 flex gap-2">
@@ -81,11 +91,16 @@
             <div
               class="bg-blue-50 text-blue-800 px-2 py-1 rounded-full text-sm font-medium"
             >
-              学霸 Lv.4
+              {{ levelLabel }}
             </div>
             <div class="mt-2 text-center md:text-right">
-              <div class="text-lg font-bold text-[#10B981]">87.5h</div>
+              <div class="text-lg font-bold text-[#10B981]">
+                {{ totalStudyHoursLabel }}
+              </div>
               <div class="text-xs text-gray-600">学习时长</div>
+              <div class="text-xs text-gray-500 mt-1">
+                距离下一级还需 {{ pointsToNextLevel }} 积分
+              </div>
             </div>
           </div>
         </div>
@@ -97,7 +112,9 @@
       <!-- 学习数据卡片 -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
         <div class="stat-card bg-blue-50 p-4">
-          <div class="text-2xl font-bold text-blue-600">87.5h</div>
+          <div class="text-2xl font-bold text-blue-600">
+            {{ totalStudyHoursLabel }}
+          </div>
           <div class="text-gray-600 mt-1 text-sm">总学习时长</div>
           <div class="text-xs text-green-600 mt-1 flex items-center">
             <iconify-icon
@@ -110,7 +127,9 @@
           </div>
         </div>
         <div class="stat-card bg-green-50 p-4">
-          <div class="text-2xl font-bold text-green-600">92%</div>
+          <div class="text-2xl font-bold text-green-600">
+            {{ taskCompletionRate }}
+          </div>
           <div class="text-gray-600 mt-1 text-sm">任务完成率</div>
           <div class="text-xs text-green-600 mt-1 flex items-center">
             <iconify-icon
@@ -123,7 +142,9 @@
           </div>
         </div>
         <div class="stat-card bg-orange-50 p-4">
-          <div class="text-2xl font-bold text-orange-600">8</div>
+          <div class="text-2xl font-bold text-orange-600">
+            {{ tasksInProgress }}
+          </div>
           <div class="text-gray-600 mt-1 text-sm">进行中任务</div>
           <div class="text-xs text-green-600 mt-1 flex items-center">
             <iconify-icon
@@ -136,7 +157,9 @@
           </div>
         </div>
         <div class="stat-card bg-purple-50 p-4">
-          <div class="text-2xl font-bold text-purple-600">24</div>
+          <div class="text-2xl font-bold text-purple-600">
+            {{ certificatesCount }}
+          </div>
           <div class="text-gray-600 mt-1 text-sm">已获得成就</div>
           <div class="text-xs text-green-600 mt-1 flex items-center">
             <iconify-icon
@@ -273,11 +296,95 @@
 </template>
 
 <script>
-  import { ref, onMounted, nextTick } from "vue";
+  import { computed, onMounted } from "vue";
   import * as echarts from "echarts";
+  import {
+    useCurrentUser,
+    DEFAULT_USER_ID,
+  } from "@/composables/useCurrentUser";
 
   export default {
     name: "Home",
+    setup() {
+      const {
+        profile,
+        loadCurrentUser,
+        loadStudyStats,
+        studyStats,
+        studyStatsLoaded,
+      } = useCurrentUser();
+
+      onMounted(async () => {
+        try {
+          const loadedProfile = await loadCurrentUser();
+          await loadStudyStats(loadedProfile?.id ?? DEFAULT_USER_ID);
+        } catch (error) {
+          console.error("加载用户详情失败:", error);
+        }
+      });
+
+      const displayName = computed(() => profile.value?.display_name || "学习者");
+      const userAvatar = computed(() => profile.value?.avatar_url || "");
+      const userRole = computed(() => profile.value?.role || "学习者");
+      const userBio = computed(
+        () =>
+          profile.value?.bio ||
+          "专注于自我提升，期待开启新的学习旅程。"
+      );
+      const userSchoolMajor = computed(() => {
+        const school = profile.value?.basic_info?.school;
+        const major = profile.value?.basic_info?.major;
+        if (school && major) return `${school} ${major}`;
+        if (school) return school;
+        if (major) return major;
+        return "学校与专业未填写";
+      });
+      const userLocation = computed(
+        () => profile.value?.basic_info?.location || "所在地未填写"
+      );
+      const levelLabel = computed(
+        () => studyStats.value?.level_label || "成长中学员"
+      );
+      const totalStudyHoursLabel = computed(() => {
+        const hours = studyStats.value?.total_study_hours;
+        if (hours === null || hours === undefined) return "--";
+        return `${hours}h`;
+      });
+      const pointsToNextLevel = computed(
+        () => studyStats.value?.distance_to_next ?? 0
+      );
+      const studyGroupCount = computed(
+        () => studyStats.value?.study_groups ?? 0
+      );
+      const taskCompletionRate = computed(() => {
+        const rate = studyStats.value?.task_completion_rate;
+        if (rate === null || rate === undefined) return "92%";
+        return `${rate}%`;
+      });
+      const tasksInProgress = computed(
+        () => studyStats.value?.tasks_in_progress ?? 8
+      );
+      const certificatesCount = computed(
+        () => studyStats.value?.certificates_count ?? 24
+      );
+
+      return {
+        displayName,
+        userAvatar,
+        userRole,
+        userBio,
+        userSchoolMajor,
+        userLocation,
+        levelLabel,
+        totalStudyHoursLabel,
+        studyGroupCount,
+        taskCompletionRate,
+        tasksInProgress,
+        certificatesCount,
+        studyStatsLoaded,
+        pointsToNextLevel,
+      };
+    },
     data() {
       return {
         // 今日任务数据

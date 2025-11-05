@@ -13,18 +13,26 @@
             <!-- 个人信息区 -->
             <div class="flex justify-center mb-4">
               <div
-                class="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden"
+                class="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden text-2xl font-semibold text-[#2D5BFF]"
               >
-                <div class="w-24 h-24 bg-gray-300 rounded-full"></div>
+                <img
+                  v-if="userAvatar"
+                  :src="userAvatar"
+                  :alt="displayName"
+                  class="w-full h-full object-cover"
+                />
+                <span v-else>{{ displayName.slice(0, 1) }}</span>
               </div>
             </div>
-            <h2 class="text-xl font-bold mb-2">李明</h2>
+            <h2 class="text-xl font-bold mb-2">{{ displayName }}</h2>
             <div class="flex justify-center items-center mb-4">
               <iconify-icon
                 icon="mdi:medal"
                 class="text-orange-500 text-xl"
               ></iconify-icon>
-              <span class="ml-1 text-orange-500 font-medium">黄金会员</span>
+              <span class="ml-1 text-orange-500 font-medium">
+                {{ userRoleLabel }}
+              </span>
             </div>
 
             <!-- 学习统计 -->
@@ -32,19 +40,19 @@
               <div class="bg-white rounded-lg p-3">
                 <p class="text-gray-500 text-xs mb-1">连续签到</p>
                 <p class="text-lg font-bold text-blue-600">
-                  28<span class="text-xs">天</span>
+                  {{ streakDays }}<span class="text-xs">天</span>
                 </p>
               </div>
               <div class="bg-white rounded-lg p-3">
                 <p class="text-gray-500 text-xs mb-1">正在学习</p>
                 <p class="text-lg font-bold text-blue-600">
-                  3<span class="text-xs">门课</span>
+                  {{ coursesInProgress }}<span class="text-xs">门课</span>
                 </p>
               </div>
               <div class="bg-white rounded-lg p-3">
                 <p class="text-gray-500 text-xs mb-1">总任务</p>
                 <p class="text-lg font-bold text-blue-600">
-                  102<span class="text-xs">项</span>
+                  {{ totalTasks }}<span class="text-xs">项</span>
                 </p>
               </div>
             </div>
@@ -56,13 +64,13 @@
                   <iconify-icon
                     icon="mdi:crystal-ball"
                     class="mr-2 text-blue-600"
-                  ></iconify-icon>
+                ></iconify-icon>
                   我的积分
                 </h3>
                 <span
                   class="badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
                 >
-                  TOP 15%
+                  {{ pointsRankLabel }}
                 </span>
               </div>
 
@@ -75,7 +83,7 @@
                       class="absolute inset-0 bg-blue-600 bg-opacity-10 rounded-full"
                     ></div>
                     <span class="text-2xl font-bold text-blue-600 relative z-10"
-                      >3860</span
+                      >{{ currentPoints }}</span
                     >
                   </div>
                   <div
@@ -93,16 +101,20 @@
             <!-- 成长等级进度条 -->
             <div class="mb-4">
               <div class="flex justify-between items-center mb-2">
-                <span class="text-sm font-medium text-gray-700">学霸 Lv.4</span>
+                <span class="text-sm font-medium text-gray-700">
+                  {{ levelLabel }}
+                </span>
                 <span class="text-xs text-gray-500">距离下一级</span>
               </div>
               <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
                 <div
                   class="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full"
-                  style="width: 75%"
+                  :style="{ width: `${levelProgress}%` }"
                 ></div>
               </div>
-              <div class="text-xs text-gray-600">还需 250 积分升级到 Lv.5</div>
+              <div class="text-xs text-gray-600">
+                还需 {{ pointsToNextLevel }} 积分升级到下一级
+              </div>
             </div>
 
             <!-- 操作按钮 -->
@@ -1822,10 +1834,75 @@
 </template>
 
 <script>
+  import { computed, onMounted } from "vue";
   import * as echarts from "echarts";
+  import {
+    useCurrentUser,
+    DEFAULT_USER_ID,
+  } from "@/composables/useCurrentUser";
 
   export default {
     name: "TaskManager",
+    setup() {
+      const {
+        profile,
+        loadCurrentUser,
+        loadStudyStats,
+        studyStats,
+      } = useCurrentUser();
+
+      onMounted(async () => {
+        try {
+          const loadedProfile = await loadCurrentUser();
+          await loadStudyStats(loadedProfile?.id ?? DEFAULT_USER_ID);
+        } catch (error) {
+          console.error("加载用户信息失败:", error);
+        }
+      });
+
+      const displayName = computed(() => profile.value?.display_name || "学习者");
+      const userAvatar = computed(() => profile.value?.avatar_url || "");
+      const userRoleLabel = computed(
+        () => profile.value?.role || "学习者"
+      );
+      const streakDays = computed(() => studyStats.value?.streak_days ?? 28);
+      const coursesInProgress = computed(
+        () => studyStats.value?.courses_in_progress ?? 3
+      );
+      const totalTasks = computed(() => studyStats.value?.total_tasks ?? 102);
+      const pointsRankLabel = computed(
+        () => studyStats.value?.rank_label || "TOP 15%"
+      );
+      const currentPoints = computed(
+        () => studyStats.value?.current_points ?? 0
+      );
+      const levelLabel = computed(
+        () => studyStats.value?.level_label || "成长中学员"
+      );
+      const levelProgress = computed(() => {
+        const progress = studyStats.value?.progress_percent ?? 75;
+        if (progress < 0) return 0;
+        if (progress > 100) return 100;
+        return progress;
+      });
+      const pointsToNextLevel = computed(
+        () => studyStats.value?.distance_to_next ?? 250
+      );
+
+      return {
+        displayName,
+        userAvatar,
+        userRoleLabel,
+        streakDays,
+        coursesInProgress,
+        totalTasks,
+        pointsRankLabel,
+        currentPoints,
+        levelLabel,
+        levelProgress,
+        pointsToNextLevel,
+      };
+    },
     data() {
       return {
         showAchievements: false,

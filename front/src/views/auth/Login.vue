@@ -112,7 +112,7 @@
       <!-- 注册链接 -->
       <div class="register-link">
         <span>还没有账户？</span>
-        <a href="#" @click="goToRegister">立即注册</a>
+        <router-link :to="{ name: 'Register' }">立即注册</router-link>
       </div>
     </div>
 
@@ -126,8 +126,27 @@
 </template>
 
 <script>
+  import { login } from "@/api/modules/auth";
+  import {
+    setToken,
+    setRefreshToken,
+    setUserInfo,
+    setPermissions,
+    setRoles,
+  } from "@/utils/auth";
+  import { useCurrentUser } from "@/composables/useCurrentUser";
+
   export default {
     name: "Login",
+    setup() {
+      const { loadCurrentUser, loadStudyStats, setCurrentUser } =
+        useCurrentUser();
+      return {
+        loadCurrentUser,
+        loadStudyStats,
+        setCurrentUser,
+      };
+    },
     data() {
       return {
         loginForm: {
@@ -141,34 +160,57 @@
     },
     methods: {
       async handleLogin() {
+        if (!this.loginForm.username || !this.loginForm.password) {
+          alert("请输入用户名和密码");
+          return;
+        }
+
         this.loading = true;
 
         try {
-          // 模拟登录请求
-          await new Promise((resolve) => setTimeout(resolve, 1500));
+          const response = await login({
+            identifier: this.loginForm.username.trim(),
+            password: this.loginForm.password,
+            remember: this.loginForm.remember,
+          });
 
-          // 这里应该调用实际的登录API
-          // const response = await authApi.login(this.loginForm)
+          const payload = response.data || {};
+          const {
+            token,
+            refresh_token: refreshToken,
+            user,
+            permissions = [],
+            roles = [],
+          } = payload;
 
-          // 模拟登录成功
-          console.log("登录成功", this.loginForm);
+          if (!token || !user?.id) {
+            throw new Error("登录响应缺少必要信息");
+          }
 
-          // 跳转到首页或之前访问的页面
+          setToken(token);
+          if (refreshToken) {
+            setRefreshToken(refreshToken);
+          }
+          setPermissions(permissions);
+          setRoles(roles);
+          setUserInfo(user);
+          this.setCurrentUser(user);
+
+          await Promise.all([
+            this.loadCurrentUser(user.id, { force: true }),
+            this.loadStudyStats(user.id, { force: true }),
+          ]);
+
           const redirect = this.$route.query.redirect || "/";
           this.$router.push(redirect);
         } catch (error) {
           console.error("登录失败:", error);
-          // 这里应该显示错误提示
-          alert("登录失败，请检查用户名和密码");
+          alert(error?.message || "登录失败，请检查用户名和密码");
         } finally {
           this.loading = false;
         }
       },
 
-      goToRegister() {
-        // 跳转到注册页面
-        console.log("跳转到注册页面");
-      },
     },
 
     mounted() {
