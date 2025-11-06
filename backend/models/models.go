@@ -19,6 +19,10 @@ func GetAllModels() []interface{} {
 	return []interface{}{
 		&User{},
 		&UserProfile{},
+		&UserBadge{},
+		&UserAchievement{},
+		&UserSkill{},
+		&UserSetting{},
 		&PointsLedger{},
 		&LevelRule{},
 		&Team{},

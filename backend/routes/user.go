@@ -3,17 +3,22 @@ package routes
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
+	"learningAssistant-backend/database"
+	"learningAssistant-backend/models"
 )
 
-// userProfileResponse describes the shape of user profile data returned to the client.
 type userProfileResponse struct {
 	ID         uint64                `json:"id"`
 	Account    string                `json:"account"`
@@ -42,25 +47,24 @@ type userPreferencesBrief struct {
 }
 
 type userStudyStatsResponse struct {
-	LevelLabel         string  `json:"level_label"`
-	CurrentLevel       int     `json:"current_level"`
-	CurrentPoints      int     `json:"current_points"`
-	NextLevelPoints    int     `json:"next_level_points"`
-	ProgressPercent    int     `json:"progress_percent"`
-	DistanceToNext     int     `json:"distance_to_next"`
-	TotalStudyHours    float64 `json:"total_study_hours"`
-	TasksCompleted     int     `json:"tasks_completed"`
-	CertificatesCount  int     `json:"certificates_count"`
-	StudyGroups        int     `json:"study_groups"`
-	TaskCompletionRate float64 `json:"task_completion_rate"`
-	TasksInProgress    int     `json:"tasks_in_progress"`
-	RankLabel          string  `json:"rank_label"`
-	StreakDays         int     `json:"streak_days"`
-	CoursesInProgress  int     `json:"courses_in_progress"`
-	TotalTasks         int     `json:"total_tasks"`
+	LevelLabel        string  `json:"level_label"`
+	CurrentLevel      int     `json:"current_level"`
+	CurrentPoints     int     `json:"current_points"`
+	NextLevelPoints   int     `json:"next_level_points"`
+	ProgressPercent   int     `json:"progress_percent"`
+	DistanceToNext    int     `json:"distance_to_next"`
+	TotalStudyHours   float64 `json:"total_study_hours"`
+	TasksCompleted    int     `json:"tasks_completed"`
+	CertificatesCount int     `json:"certificates_count"`
+	StudyGroups       int     `json:"study_groups"`
+	TaskCompletionRate int    `json:"task_completion_rate"`
+	TasksInProgress   int     `json:"tasks_in_progress"`
+	RankLabel         string  `json:"rank_label"`
+	StreakDays        int     `json:"streak_days"`
+	CoursesInProgress int     `json:"courses_in_progress"`
 }
 
-type userAchievement struct {
+type userAchievementResponse struct {
 	ID          uint64 `json:"id"`
 	Title       string `json:"title"`
 	Description string `json:"description"`
@@ -107,123 +111,15 @@ type userStudyRecord struct {
 	RecordedAt string `json:"recorded_at"`
 }
 
-type userAuthAccount struct {
-	ID           uint64 `json:"id"`
-	Username     string `json:"username"`
-	Email        string `json:"email"`
-	PasswordHash string `json:"-"`
-	DisplayName  string `json:"display_name"`
+type authUserSummary struct {
+	ID          uint64 `json:"id"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	Email       string `json:"email"`
+	Role        string `json:"role"`
+	AvatarURL   string `json:"avatar_url"`
 }
 
-var (
-	userDataMu sync.RWMutex
-	userData   = map[uint64]*userProfileResponse{
-		1: {
-			ID:        1,
-			Account:   "student001",
-			Display:   "张同学",
-			AvatarURL: "https://avatars.dicebear.com/api/initials/%E5%BC%A0.svg",
-			Bio:       "专注于教育科技领域，热衷于学习新技术，致力于打造高效的学习工具。",
-			Role:      "技术项目经理",
-			Status:    "online",
-			BasicInfo: userBasicInfo{
-				RealName: "张同学",
-				Email:    "zhang@example.com",
-				School:   "北京大学",
-				Major:    "计算机科学与技术",
-				Location: "北京市",
-				JoinDate: "2023年9月",
-			},
-			Badges: []string{"学习达人", "团队协作", "效率先锋"},
-			Preferences: userPreferencesBrief{
-				Language: "zh-CN",
-				Theme:    "light",
-			},
-		},
-	}
-
-	userStudyStats = map[uint64]*userStudyStatsResponse{
-		1: {
-			LevelLabel:         "学霸 Lv.4",
-			CurrentLevel:       4,
-			CurrentPoints:      3860,
-			NextLevelPoints:    4200,
-			ProgressPercent:    75,
-			DistanceToNext:     340,
-			TotalStudyHours:    87.5,
-			TasksCompleted:     156,
-			CertificatesCount:  24,
-			StudyGroups:        3,
-			TaskCompletionRate: 92,
-			TasksInProgress:    8,
-			RankLabel:          "TOP 15%",
-			StreakDays:         28,
-			CoursesInProgress:  3,
-			TotalTasks:         102,
-		},
-	}
-
-	userAchievements = map[uint64][]userAchievement{
-		1: {
-			{ID: 101, Title: "连续学习7天", Description: "连续7天每天学习超过2小时", AwardedAt: "2024-01-15", Type: "streak"},
-			{ID: 102, Title: "完成Vue项目", Description: "完成前端高级课程项目", AwardedAt: "2024-01-12", Type: "project"},
-			{ID: 103, Title: "团队协作达人", Description: "协同完成团队任务5次", AwardedAt: "2024-01-10", Type: "team"},
-		},
-	}
-
-	userSkills = map[uint64]*userSkillsResponse{
-		1: {
-			Primary:   []string{"Vue.js", "JavaScript", "Node.js"},
-			Secondary: []string{"项目管理", "UI设计", "数据分析"},
-		},
-	}
-
-	userSettings = map[uint64]*userSettingsResponse{
-		1: {
-			Notifications: userNotificationPreferences{Email: true, SMS: false, InApp: true, Summary: true},
-			Privacy:       userPrivacySettings{ShowEmail: false, ShowProfile: true, ShowStudyData: true},
-			StudyHabits:   userStudyHabitSettings{DailyGoalMinutes: 120, PreferredPeriod: "evening", FocusMode: true},
-		},
-	}
-
-	userStudyRecords = map[uint64][]userStudyRecord{
-		1: {
-			{ID: 201, Title: "Vue3 组合式API学习", Category: "前端开发", Duration: 2.5, Completed: true, RecordedAt: "2024-01-15"},
-			{ID: 202, Title: "数据可视化实践", Category: "数据分析", Duration: 1.8, Completed: true, RecordedAt: "2024-01-14"},
-			{ID: 203, Title: "团队项目协作", Category: "项目管理", Duration: 2.0, Completed: false, RecordedAt: "2024-01-14"},
-		},
-	}
-
-	userIDCounter uint64 = 1
-
-	authAccountsByUsername = map[string]*userAuthAccount{}
-	authAccountsByEmail    = map[string]*userAuthAccount{}
-)
-
-func init() {
-	userDataMu.Lock()
-	defer userDataMu.Unlock()
-
-	defaultProfile, exists := userData[1]
-	if !exists {
-		return
-	}
-
-	account := &userAuthAccount{
-		ID:           1,
-		Username:     defaultProfile.Account,
-		Email:        defaultProfile.BasicInfo.Email,
-		PasswordHash: hashPassword("password123"),
-		DisplayName:  defaultProfile.Display,
-	}
-
-	authAccountsByUsername[normalizeUsername(account.Username)] = account
-	if account.Email != "" {
-		authAccountsByEmail[normalizeEmail(account.Email)] = account
-	}
-}
-
-// registerUserRoutes setups all user related endpoints.
 func registerUserRoutes(router *gin.RouterGroup) {
 	router.GET("/:userId", handleGetUserProfile)
 	router.PUT("/:userId", handleUpdateUserProfile)
@@ -239,41 +135,34 @@ func registerUserRoutes(router *gin.RouterGroup) {
 	router.POST("/avatar", handleUploadAvatar)
 }
 
-func parseUserID(c *gin.Context) (uint64, bool) {
-	userIDParam := c.Param("userId")
-	userID, err := strconv.ParseUint(userIDParam, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "invalid user id",
-		})
-		return 0, false
-	}
-	return userID, true
-}
-
 func handleGetUserProfile(c *gin.Context) {
 	userID, ok := parseUserID(c)
 	if !ok {
 		return
 	}
 
-	userDataMu.RLock()
-	defer userDataMu.RUnlock()
-
-	profile, exists := userData[userID]
-	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "user not found",
-		})
+	db := database.GetDB()
+	var user models.User
+	if err := db.First(&user, userID).Error; err != nil {
+		if errorsIsNotFound(err) {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "用户不存在"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户信息失败"})
 		return
 	}
 
+	var badges []models.UserBadge
+	if err := db.Where("user_id = ?", userID).Order("created_at ASC").Find(&badges).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户徽章失败"})
+		return
+	}
+
+	response := buildUserProfileResponse(&user, badges)
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
-		"data":    profile,
+		"data":    response,
 	})
 }
 
@@ -307,74 +196,82 @@ func handleUpdateUserProfile(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
-			"message": "invalid request body",
+			"message": "请求参数格式不正确",
 		})
 		return
 	}
 
-	userDataMu.Lock()
-	defer userDataMu.Unlock()
+	db := database.GetDB()
+	err := db.Transaction(func(tx *gorm.DB) error {
+		var user models.User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, userID).Error; err != nil {
+			return err
+		}
 
-	profile, exists := userData[userID]
-	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "user not found",
-		})
-		return
-	}
+		if strings.TrimSpace(req.DisplayName) != "" {
+			user.DisplayName = strings.TrimSpace(req.DisplayName)
+		}
+		if req.Bio != "" {
+			user.Bio = req.Bio
+		}
+		if req.AvatarURL != "" {
+			user.AvatarURL = req.AvatarURL
+		}
+		if req.Role != "" {
+			user.Role = mapRoleToCode(req.Role)
+		}
+		if req.Status != "" {
+			user.Status = mapStatusToCode(req.Status)
+		}
+		if req.Preferences != nil {
+			if req.Preferences.Language != "" {
+				user.PreferredLanguage = req.Preferences.Language
+			}
+			if req.Preferences.Theme != "" {
+				user.PreferredTheme = req.Preferences.Theme
+			}
+		}
+		if req.BasicInfo != nil {
+			if req.BasicInfo.RealName != "" {
+				user.DisplayName = req.BasicInfo.RealName
+			}
+			if req.BasicInfo.Email != "" && !strings.EqualFold(user.Email, req.BasicInfo.Email) {
+				if err := ensureEmailUnique(tx, req.BasicInfo.Email, user.ID); err != nil {
+					return err
+				}
+				user.Email = req.BasicInfo.Email
+			}
+			if req.BasicInfo.School != "" {
+				user.School = req.BasicInfo.School
+			}
+			if req.BasicInfo.Major != "" {
+				user.Major = req.BasicInfo.Major
+			}
+			if req.BasicInfo.Location != "" {
+				user.Location = req.BasicInfo.Location
+			}
+			if req.BasicInfo.JoinDate != "" {
+				user.JoinDate = req.BasicInfo.JoinDate
+			}
+		}
 
-	if req.DisplayName != "" {
-		profile.Display = req.DisplayName
-		updateAuthAccountDisplayNameLocked(profile.ID, req.DisplayName)
-	}
-	if req.Bio != "" {
-		profile.Bio = req.Bio
-	}
-	if req.AvatarURL != "" {
-		profile.AvatarURL = req.AvatarURL
-	}
-	if req.Role != "" {
-		profile.Role = req.Role
-	}
-	if req.Status != "" {
-		profile.Status = req.Status
-	}
-	if req.BasicInfo != nil {
-		if req.BasicInfo.RealName != "" {
-			profile.BasicInfo.RealName = req.BasicInfo.RealName
-		}
-		if req.BasicInfo.Email != "" && req.BasicInfo.Email != profile.BasicInfo.Email {
-			updateAuthAccountEmailLocked(profile.ID, req.BasicInfo.Email)
-			profile.BasicInfo.Email = req.BasicInfo.Email
-		}
-		if req.BasicInfo.School != "" {
-			profile.BasicInfo.School = req.BasicInfo.School
-		}
-		if req.BasicInfo.Major != "" {
-			profile.BasicInfo.Major = req.BasicInfo.Major
-		}
-		if req.BasicInfo.Location != "" {
-			profile.BasicInfo.Location = req.BasicInfo.Location
-		}
-		if req.BasicInfo.JoinDate != "" {
-			profile.BasicInfo.JoinDate = req.BasicInfo.JoinDate
-		}
-	}
-	if req.Preferences != nil {
-		if req.Preferences.Language != "" {
-			profile.Preferences.Language = req.Preferences.Language
-		}
-		if req.Preferences.Theme != "" {
-			profile.Preferences.Theme = req.Preferences.Theme
-		}
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "user profile updated",
-		"data":    profile,
+		return tx.Save(&user).Error
 	})
+
+	if err != nil {
+		if errorsIsNotFound(err) {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "用户不存在"})
+			return
+		}
+		if strings.Contains(err.Error(), "邮箱已存在") {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新用户信息失败"})
+		return
+	}
+
+	handleGetUserProfile(c)
 }
 
 func handleGetUserStudyStats(c *gin.Context) {
@@ -383,22 +280,27 @@ func handleGetUserStudyStats(c *gin.Context) {
 		return
 	}
 
-	userDataMu.RLock()
-	defer userDataMu.RUnlock()
-
-	stats, exists := userStudyStats[userID]
-	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "study stats not found",
-		})
+	db := database.GetDB()
+	var profile models.UserProfile
+	err := db.Where("user_id = ?", userID).First(&profile).Error
+	if err != nil {
+		if errorsIsNotFound(err) {
+			c.JSON(http.StatusOK, gin.H{
+				"code":    200,
+				"message": "success",
+				"data":    defaultStudyStats(),
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取学习统计失败"})
 		return
 	}
 
+	response := buildStudyStatsResponse(&profile)
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
-		"data":    stats,
+		"data":    response,
 	})
 }
 
@@ -408,27 +310,32 @@ func handleGetUserAchievements(c *gin.Context) {
 		return
 	}
 
-	userDataMu.RLock()
-	defer userDataMu.RUnlock()
+	db := database.GetDB()
+	var achievements []models.UserAchievement
+	if err := db.Where("user_id = ?", userID).Order("awarded_at DESC").Find(&achievements).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取成就失败"})
+		return
+	}
 
-	achievements, exists := userAchievements[userID]
-	if !exists {
-		achievements = []userAchievement{}
+	items := make([]userAchievementResponse, 0, len(achievements))
+	for _, ach := range achievements {
+		items = append(items, userAchievementResponse{
+			ID:          ach.ID,
+			Title:       ach.Title,
+			Description: ach.Description,
+			AwardedAt:   ach.AwardedAt.Format("2006-01-02"),
+			Type:        ach.Type,
+		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
 		"data": gin.H{
-			"items": achievements,
-			"total": len(achievements),
+			"items": items,
+			"total": len(items),
 		},
 	})
-}
-
-type updateUserSkillsRequest struct {
-	Primary   []string `json:"primary"`
-	Secondary []string `json:"secondary"`
 }
 
 func handleGetUserSkills(c *gin.Context) {
@@ -437,22 +344,35 @@ func handleGetUserSkills(c *gin.Context) {
 		return
 	}
 
-	userDataMu.RLock()
-	defer userDataMu.RUnlock()
+	db := database.GetDB()
+	var skills []models.UserSkill
+	if err := db.Where("user_id = ?", userID).Order("created_at ASC").Find(&skills).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取技能失败"})
+		return
+	}
 
-	skills, exists := userSkills[userID]
-	if !exists {
-		skills = &userSkillsResponse{
-			Primary:   []string{},
-			Secondary: []string{},
+	response := userSkillsResponse{
+		Primary:   []string{},
+		Secondary: []string{},
+	}
+	for _, skill := range skills {
+		if skill.Category == "primary" {
+			response.Primary = append(response.Primary, skill.Name)
+		} else {
+			response.Secondary = append(response.Secondary, skill.Name)
 		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
-		"data":    skills,
+		"data":    response,
 	})
+}
+
+type updateUserSkillsRequest struct {
+	Primary   []string `json:"primary"`
+	Secondary []string `json:"secondary"`
 }
 
 func handleUpdateUserSkills(c *gin.Context) {
@@ -463,26 +383,51 @@ func handleUpdateUserSkills(c *gin.Context) {
 
 	var req updateUserSkillsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "invalid request body",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数格式不正确"})
 		return
 	}
 
-	userDataMu.Lock()
-	defer userDataMu.Unlock()
+	db := database.GetDB()
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("user_id = ?", userID).Delete(&models.UserSkill{}).Error; err != nil {
+			return err
+		}
 
-	userSkills[userID] = &userSkillsResponse{
-		Primary:   append([]string{}, req.Primary...),
-		Secondary: append([]string{}, req.Secondary...),
+		for _, name := range req.Primary {
+			name = strings.TrimSpace(name)
+			if name == "" {
+				continue
+			}
+			if err := tx.Create(&models.UserSkill{
+				UserID:    userID,
+				Name:      name,
+				Category:  "primary",
+			}).Error; err != nil {
+				return err
+			}
+		}
+		for _, name := range req.Secondary {
+			name = strings.TrimSpace(name)
+			if name == "" {
+				continue
+			}
+			if err := tx.Create(&models.UserSkill{
+				UserID:    userID,
+				Name:      name,
+				Category:  "secondary",
+			}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新技能失败"})
+		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "skills updated",
-		"data":    userSkills[userID],
-	})
+	handleGetUserSkills(c)
 }
 
 func handleGetUserStudyRecords(c *gin.Context) {
@@ -491,20 +436,96 @@ func handleGetUserStudyRecords(c *gin.Context) {
 		return
 	}
 
-	userDataMu.RLock()
-	defer userDataMu.RUnlock()
+	db := database.GetDB()
+	var records []models.LearningRecord
+	if err := db.Where("user_id = ?", userID).Order("session_start DESC").Limit(30).Find(&records).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取学习记录失败"})
+		return
+	}
 
-	records := userStudyRecords[userID]
-	if records == nil {
-		records = []userStudyRecord{}
+	if len(records) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"code":    200,
+			"message": "success",
+			"data": gin.H{
+				"items": []userStudyRecord{},
+				"total": 0,
+			},
+		})
+		return
+	}
+
+	taskIDs := make([]uint64, 0, len(records))
+	for _, rec := range records {
+		taskIDs = append(taskIDs, rec.TaskID)
+	}
+
+	taskMap := map[uint64]models.Task{}
+	if len(taskIDs) > 0 {
+		var tasks []models.Task
+		if err := db.Where("id IN ?", taskIDs).Find(&tasks).Error; err == nil {
+			for _, task := range tasks {
+				taskMap[task.ID] = task
+			}
+		}
+	}
+
+	categoryIDs := []uint64{}
+	for _, task := range taskMap {
+		if task.CategoryID != nil {
+			categoryIDs = append(categoryIDs, *task.CategoryID)
+		}
+	}
+
+	categoryMap := map[uint64]string{}
+	if len(categoryIDs) > 0 {
+		var categories []models.TaskCategory
+		if err := db.Where("id IN ?", categoryIDs).Find(&categories).Error; err == nil {
+			for _, cat := range categories {
+				categoryMap[cat.ID] = cat.Name
+			}
+		}
+	}
+
+	items := make([]userStudyRecord, 0, len(records))
+	for _, rec := range records {
+		task := taskMap[rec.TaskID]
+		category := "自定义学习"
+		if task.CategoryID != nil {
+			if name, ok := categoryMap[*task.CategoryID]; ok {
+				category = name
+			}
+		}
+		if task.Title != "" {
+			category = category
+		}
+
+		durationHours := float64(rec.DurationMinutes) / 60.0
+		durationHours = math.Round(durationHours*10) / 10
+		if durationHours == 0 {
+			durationHours = float64(rec.DurationMinutes) / 60.0
+		}
+
+		item := userStudyRecord{
+			ID:        rec.ID,
+			Title:     task.Title,
+			Category:  category,
+			Duration:  durationHours,
+			Completed: rec.SessionEnd.After(rec.SessionStart),
+			RecordedAt: rec.SessionEnd.Format("2006-01-02"),
+		}
+		if item.Title == "" {
+			item.Title = "学习记录"
+		}
+		items = append(items, item)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
 		"data": gin.H{
-			"items": records,
-			"total": len(records),
+			"items": items,
+			"total": len(items),
 		},
 	})
 }
@@ -515,22 +536,16 @@ func handleGetUserSettings(c *gin.Context) {
 		return
 	}
 
-	userDataMu.RLock()
-	defer userDataMu.RUnlock()
-
-	settings, exists := userSettings[userID]
-	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "settings not found",
-		})
+	settings, err := ensureUserSettings(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户设置失败"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
-		"data":    settings,
+		"data":    buildSettingsResponse(settings),
 	})
 }
 
@@ -548,36 +563,46 @@ func handleUpdateUserSettings(c *gin.Context) {
 
 	var req updateUserSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "invalid request body",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数格式不正确"})
 		return
 	}
 
-	userDataMu.Lock()
-	defer userDataMu.Unlock()
-
-	settings, exists := userSettings[userID]
-	if !exists {
-		settings = &userSettingsResponse{}
-		userSettings[userID] = settings
+	settings, err := ensureUserSettings(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户设置失败"})
+		return
 	}
 
 	if req.Notifications != nil {
-		settings.Notifications = *req.Notifications
+		settings.NotifyEmail = req.Notifications.Email
+		settings.NotifySMS = req.Notifications.SMS
+		settings.NotifyInApp = req.Notifications.InApp
+		settings.NotifySummary = req.Notifications.Summary
 	}
 	if req.Privacy != nil {
-		settings.Privacy = *req.Privacy
+		settings.ShowEmail = req.Privacy.ShowEmail
+		settings.ShowProfile = req.Privacy.ShowProfile
+		settings.ShowStudyData = req.Privacy.ShowStudyData
 	}
 	if req.StudyHabits != nil {
-		settings.StudyHabits = *req.StudyHabits
+		if req.StudyHabits.DailyGoalMinutes > 0 {
+			settings.DailyGoalMinutes = req.StudyHabits.DailyGoalMinutes
+		}
+		if strings.TrimSpace(req.StudyHabits.PreferredPeriod) != "" {
+			settings.PreferredPeriod = req.StudyHabits.PreferredPeriod
+		}
+		settings.FocusMode = req.StudyHabits.FocusMode
+	}
+
+	if err := database.GetDB().Save(settings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新用户设置失败"})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "settings updated",
-		"data":    settings,
+		"data":    buildSettingsResponse(settings),
 	})
 }
 
@@ -587,22 +612,21 @@ func handleGetUserNotificationPreferences(c *gin.Context) {
 		return
 	}
 
-	userDataMu.RLock()
-	defer userDataMu.RUnlock()
-
-	settings, exists := userSettings[userID]
-	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "notification preferences not found",
-		})
+	settings, err := ensureUserSettings(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户通知设置失败"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
-		"data":    settings.Notifications,
+		"data": userNotificationPreferences{
+			Email:   settings.NotifyEmail,
+			SMS:     settings.NotifySMS,
+			InApp:   settings.NotifyInApp,
+			Summary: settings.NotifySummary,
+		},
 	})
 }
 
@@ -614,58 +638,415 @@ func handleUpdateUserNotificationPreferences(c *gin.Context) {
 
 	var req userNotificationPreferences
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "invalid request body",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数格式不正确"})
 		return
 	}
 
-	userDataMu.Lock()
-	defer userDataMu.Unlock()
-
-	settings, exists := userSettings[userID]
-	if !exists {
-		settings = &userSettingsResponse{}
-		userSettings[userID] = settings
+	settings, err := ensureUserSettings(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户通知设置失败"})
+		return
 	}
 
-	settings.Notifications = req
+	settings.NotifyEmail = req.Email
+	settings.NotifySMS = req.SMS
+	settings.NotifyInApp = req.InApp
+	settings.NotifySummary = req.Summary
+
+	if err := database.GetDB().Save(settings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新通知设置失败"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "notification preferences updated",
-		"data":    settings.Notifications,
+		"data": userNotificationPreferences{
+			Email:   settings.NotifyEmail,
+			SMS:     settings.NotifySMS,
+			InApp:   settings.NotifyInApp,
+			Summary: settings.NotifySummary,
+		},
 	})
 }
 
 func handleUploadAvatar(c *gin.Context) {
-	if err := c.Request.ParseMultipartForm(5 << 20); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "failed to parse form data",
-		})
-		return
-	}
+	c.JSON(http.StatusNotImplemented, gin.H{
+		"code":    501,
+		"message": "暂未开放头像上传功能",
+	})
+}
 
-	file, _, err := c.Request.FormFile("avatar")
+func parseUserID(c *gin.Context) (uint64, bool) {
+	userIDParam := c.Param("userId")
+	userID, err := strconv.ParseUint(userIDParam, 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
-			"message": "avatar file is required",
+			"message": "用户ID不正确",
 		})
-		return
-	}
-	defer file.Close()
+		return 0, false
+}
+	return userID, true
+}
 
-	// 由于当前未接入实际的文件存储，这里直接返回一个示例地址
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "avatar uploaded",
-		"data": gin.H{
-			"url": "https://avatars.dicebear.com/api/identicon/demo.svg",
+func buildUserProfileResponse(user *models.User, badges []models.UserBadge) userProfileResponse {
+	badgeNames := make([]string, 0, len(badges))
+	for _, badge := range badges {
+		badgeNames = append(badgeNames, badge.Name)
+	}
+
+	return userProfileResponse{
+		ID:        user.ID,
+		Account:   user.Account,
+		Display:   user.DisplayName,
+		AvatarURL: user.AvatarURL,
+		Bio:       user.Bio,
+		Role:      roleLabel(user.Role),
+		Status:    statusLabel(user.Status),
+		BasicInfo: userBasicInfo{
+			RealName: user.DisplayName,
+			Email:    user.Email,
+			School:   user.School,
+			Major:    user.Major,
+			Location: user.Location,
+			JoinDate: user.JoinDate,
 		},
+		Badges: badgeNames,
+		Preferences: userPreferencesBrief{
+			Language: user.PreferredLanguage,
+			Theme:    user.PreferredTheme,
+		},
+	}
+}
+
+func buildStudyStatsResponse(profile *models.UserProfile) userStudyStatsResponse {
+	nextLevel := profile.NextLevelPoints
+	if nextLevel <= 0 {
+		nextLevel = 200
+	}
+	progress := 0
+	if nextLevel > 0 {
+		progress = int(math.Round(float64(profile.TotalPoints) / float64(nextLevel) * 100))
+		if progress > 100 {
+			progress = 100
+		}
+		if progress < 0 {
+			progress = 0
+		}
+	}
+	distance := nextLevel - profile.TotalPoints
+	if distance < 0 {
+		distance = 0
+	}
+	totalHours := float64(profile.TotalStudyMins) / 60.0
+	totalHours = math.Round(totalHours*10) / 10
+
+	levelLabel := fmt.Sprintf("学霸 Lv.%d", profile.Level)
+	if profile.Level <= 0 {
+		levelLabel = "学霸 Lv.1"
+	}
+
+	rate := int(math.Round(float64(profile.TaskCompletionRate)))
+
+	return userStudyStatsResponse{
+		LevelLabel:        levelLabel,
+		CurrentLevel:      profile.Level,
+		CurrentPoints:     profile.TotalPoints,
+		NextLevelPoints:   nextLevel,
+		ProgressPercent:   progress,
+		DistanceToNext:    distance,
+		TotalStudyHours:   totalHours,
+		TasksCompleted:    profile.TasksCompleted,
+		CertificatesCount: profile.CertificatesCount,
+		StudyGroups:       profile.StudyGroups,
+		TaskCompletionRate: rate,
+		TasksInProgress:   profile.TasksInProgress,
+		RankLabel:         profile.RankLabel,
+		StreakDays:        profile.StreakDays,
+		CoursesInProgress: profile.CoursesInProgress,
+	}
+}
+
+func buildSettingsResponse(settings *models.UserSetting) userSettingsResponse {
+	return userSettingsResponse{
+		Notifications: userNotificationPreferences{
+			Email:   settings.NotifyEmail,
+			SMS:     settings.NotifySMS,
+			InApp:   settings.NotifyInApp,
+			Summary: settings.NotifySummary,
+		},
+		Privacy: userPrivacySettings{
+			ShowEmail:     settings.ShowEmail,
+			ShowProfile:   settings.ShowProfile,
+			ShowStudyData: settings.ShowStudyData,
+		},
+		StudyHabits: userStudyHabitSettings{
+			DailyGoalMinutes: settings.DailyGoalMinutes,
+			PreferredPeriod:  settings.PreferredPeriod,
+			FocusMode:        settings.FocusMode,
+		},
+	}
+}
+
+func ensureUserSettings(userID uint64) (*models.UserSetting, error) {
+	db := database.GetDB()
+	var settings models.UserSetting
+	err := db.Where("user_id = ?", userID).First(&settings).Error
+	if err == nil {
+		return &settings, nil
+	}
+	if !errorsIsNotFound(err) {
+		return nil, err
+	}
+
+	settings = models.UserSetting{UserID: userID}
+	if err := db.Create(&settings).Error; err != nil {
+		return nil, err
+	}
+	return &settings, nil
+}
+
+func ensureEmailUnique(db *gorm.DB, email string, userID uint64) error {
+	if strings.TrimSpace(email) == "" {
+		return nil
+	}
+	var count int64
+	if err := db.Model(&models.User{}).
+		Where("LOWER(email) = ?", strings.ToLower(email)).
+		Where("id <> ?", userID).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return fmt.Errorf("邮箱已存在")
+	}
+	return nil
+}
+
+func defaultStudyStats() userStudyStatsResponse {
+	return userStudyStatsResponse{
+		LevelLabel:        "学霸 Lv.1",
+		CurrentLevel:      1,
+		CurrentPoints:     0,
+		NextLevelPoints:   200,
+		ProgressPercent:   0,
+		DistanceToNext:    200,
+		TotalStudyHours:   0,
+		TasksCompleted:    0,
+		CertificatesCount: 0,
+		StudyGroups:       0,
+		TaskCompletionRate: 0,
+		TasksInProgress:   0,
+		RankLabel:         "TOP 100%",
+		StreakDays:        0,
+		CoursesInProgress: 0,
+	}
+}
+
+func roleLabel(role int8) string {
+	switch role {
+	case 1:
+		return "管理员"
+	case 2:
+		return "教师"
+	default:
+		return "学生"
+	}
+}
+
+func mapRoleToCode(role string) int8 {
+	role = strings.TrimSpace(role)
+	switch role {
+	case "管理员":
+		return 1
+	case "教师":
+		return 2
+	default:
+		return 0
+	}
+}
+
+func statusLabel(status int8) string {
+	if status == 1 {
+		return "online"
+	}
+	return "offline"
+}
+
+func mapStatusToCode(status string) int8 {
+	switch strings.ToLower(status) {
+	case "online", "active":
+		return 1
+	default:
+		return 0
+	}
+}
+
+func errorsIsNotFound(err error) bool {
+	return err != nil && errors.Is(err, gorm.ErrRecordNotFound)
+}
+
+func composeUserSummary(userID uint64) (*authUserSummary, error) {
+	return composeUserSummaryWithDB(database.GetDB(), userID)
+}
+
+func composeUserSummaryWithDB(db *gorm.DB, userID uint64) (*authUserSummary, error) {
+	var user models.User
+	if err := db.First(&user, userID).Error; err != nil {
+		return nil, err
+	}
+
+	return &authUserSummary{
+		ID:          user.ID,
+		Username:    user.Account,
+		DisplayName: user.DisplayName,
+		Email:       user.Email,
+		Role:        roleLabel(user.Role),
+		AvatarURL:   user.AvatarURL,
+	}, nil
+}
+
+func registerUserAccount(username, email, password, displayName string) (*authUserSummary, error) {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return nil, fmt.Errorf("用户名不能为空")
+	}
+	password = strings.TrimSpace(password)
+	if password == "" {
+		return nil, fmt.Errorf("密码不能为空")
+	}
+	display := strings.TrimSpace(displayName)
+	if display == "" {
+		display = username
+	}
+
+	db := database.GetDB()
+	var result *authUserSummary
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if err := ensureAccountUnique(tx, username); err != nil {
+			return err
+		}
+		if strings.TrimSpace(email) != "" {
+			if err := ensureEmailUnique(tx, email, 0); err != nil {
+				return fmt.Errorf("该邮箱已注册")
+			}
+		}
+
+		user := models.User{
+			Account:           username,
+			Email:             strings.TrimSpace(email),
+			DisplayName:       display,
+			Role:              0,
+			AvatarURL:         "",
+			Bio:               "这位同学还没有填写个人简介。",
+			Status:            1,
+			PasswordHash:      hashPassword(password),
+			School:            "",
+			Major:             "",
+			Location:          "",
+			JoinDate:          time.Now().Format("2006年1月"),
+			PreferredLanguage: "zh-CN",
+			PreferredTheme:    "light",
+		}
+
+		if err := tx.Create(&user).Error; err != nil {
+			return err
+		}
+
+		profile := models.UserProfile{
+			UserID:           user.ID,
+			TotalPoints:      0,
+			Level:            1,
+			TotalStudyMins:   0,
+			TasksCompleted:   0,
+			TasksInProgress:  0,
+			TaskCompletionRate: 0,
+			CertificatesCount:  0,
+			StudyGroups:        0,
+			RankLabel:          "TOP 100%",
+			StreakDays:         0,
+			CoursesInProgress:  0,
+			NextLevelPoints:    200,
+		}
+		if err := tx.Create(&profile).Error; err != nil {
+			return err
+		}
+
+		settings := models.UserSetting{
+			UserID:           user.ID,
+			NotifyEmail:      true,
+			NotifySMS:        false,
+			NotifyInApp:      true,
+			NotifySummary:    true,
+			ShowEmail:        false,
+			ShowProfile:      true,
+			ShowStudyData:    true,
+			DailyGoalMinutes: 60,
+			PreferredPeriod:  "evening",
+			FocusMode:        false,
+		}
+		if err := tx.Create(&settings).Error; err != nil {
+			return err
+		}
+
+		summary, err := composeUserSummaryWithDB(tx, user.ID)
+		if err != nil {
+			return err
+		}
+		result = summary
+		return nil
 	})
+
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func ensureAccountUnique(db *gorm.DB, account string) error {
+	var count int64
+	if err := db.Model(&models.User{}).
+		Where("LOWER(account) = ?", strings.ToLower(account)).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return fmt.Errorf("用户名已存在")
+	}
+	return nil
+}
+
+func authenticateUser(identifier, password string) (*authUserSummary, error) {
+	normalized := strings.TrimSpace(identifier)
+	if normalized == "" {
+		return nil, fmt.Errorf("请输入用户名或邮箱")
+	}
+
+	db := database.GetDB()
+	var user models.User
+	if err := db.Where("LOWER(account) = ? OR LOWER(email) = ?", strings.ToLower(normalized), strings.ToLower(normalized)).
+		First(&user).Error; err != nil {
+		if errorsIsNotFound(err) {
+			return nil, fmt.Errorf("用户不存在")
+		}
+		return nil, err
+	}
+
+	if !verifyPassword(user.PasswordHash, password) {
+		return nil, fmt.Errorf("密码不正确")
+	}
+
+	if summary, err := composeUserSummary(user.ID); err == nil {
+		return summary, nil
+	} else {
+		return nil, err
+	}
+}
+
+func getUserSummary(userID uint64) (*authUserSummary, error) {
+	return composeUserSummary(userID)
 }
 
 func normalizeUsername(username string) string {
@@ -683,212 +1064,4 @@ func hashPassword(password string) string {
 
 func verifyPassword(hash, password string) bool {
 	return hash == hashPassword(password)
-}
-
-func updateAuthAccountDisplayNameLocked(userID uint64, displayName string) {
-	for key, account := range authAccountsByUsername {
-		if account.ID == userID {
-			account.DisplayName = displayName
-			authAccountsByUsername[key] = account
-			break
-		}
-	}
-}
-
-func updateAuthAccountEmailLocked(userID uint64, newEmail string) {
-	var target *userAuthAccount
-	for key, account := range authAccountsByUsername {
-		if account.ID == userID {
-			oldEmailKey := normalizeEmail(account.Email)
-			if oldEmailKey != "" {
-				delete(authAccountsByEmail, oldEmailKey)
-			}
-			account.Email = newEmail
-			authAccountsByUsername[key] = account
-			target = account
-			break
-		}
-	}
-
-	if target != nil {
-		newEmailKey := normalizeEmail(newEmail)
-		if newEmailKey != "" {
-			authAccountsByEmail[newEmailKey] = target
-		}
-	}
-}
-
-type authUserSummary struct {
-	ID          uint64 `json:"id"`
-	Username    string `json:"username"`
-	DisplayName string `json:"display_name"`
-	Email       string `json:"email"`
-	Role        string `json:"role"`
-	AvatarURL   string `json:"avatar_url"`
-}
-
-func composeUserSummary(userID uint64) *authUserSummary {
-	profile, exists := userData[userID]
-	if !exists {
-		return nil
-	}
-
-	account, hasAccount := authAccountsByUsername[normalizeUsername(profile.Account)]
-	email := profile.BasicInfo.Email
-	if hasAccount && account.Email != "" {
-		email = account.Email
-	}
-
-	return &authUserSummary{
-		ID:          profile.ID,
-		Username:    profile.Account,
-		DisplayName: profile.Display,
-		Email:       email,
-		Role:        profile.Role,
-		AvatarURL:   profile.AvatarURL,
-	}
-}
-
-func registerUserAccount(username, email, password, displayName string) (*authUserSummary, error) {
-	username = strings.TrimSpace(username)
-	if username == "" {
-		return nil, fmt.Errorf("用户名不能为空")
-	}
-
-	password = strings.TrimSpace(password)
-	if password == "" {
-		return nil, fmt.Errorf("密码不能为空")
-	}
-
-	nUsername := normalizeUsername(username)
-	nEmail := normalizeEmail(email)
-	display := strings.TrimSpace(displayName)
-	if display == "" {
-		display = username
-	}
-
-	userDataMu.Lock()
-	defer userDataMu.Unlock()
-
-	if _, exists := authAccountsByUsername[nUsername]; exists {
-		return nil, fmt.Errorf("用户名已存在")
-	}
-	if nEmail != "" {
-		if _, exists := authAccountsByEmail[nEmail]; exists {
-			return nil, fmt.Errorf("该邮箱已注册")
-		}
-	}
-
-	newID := userIDCounter + 1
-	userIDCounter = newID
-
-	profile := &userProfileResponse{
-		ID:        newID,
-		Account:   username,
-		Display:   display,
-		AvatarURL: "",
-		Bio:       "这位同学还没有填写个人简介。",
-		Role:      "学习者",
-		Status:    "online",
-		BasicInfo: userBasicInfo{
-			RealName: display,
-			Email:    email,
-			School:   "",
-			Major:    "",
-			Location: "",
-			JoinDate: time.Now().Format("2006年1月"),
-		},
-		Badges: []string{},
-		Preferences: userPreferencesBrief{
-			Language: "zh-CN",
-			Theme:    "light",
-		},
-	}
-	userData[newID] = profile
-
-	userStudyStats[newID] = &userStudyStatsResponse{
-		LevelLabel:         "入门学员 Lv.1",
-		CurrentLevel:       1,
-		CurrentPoints:      0,
-		NextLevelPoints:    200,
-		ProgressPercent:    0,
-		DistanceToNext:     200,
-		TotalStudyHours:    0,
-		TasksCompleted:     0,
-		CertificatesCount:  0,
-		StudyGroups:        0,
-		TaskCompletionRate: 0,
-		TasksInProgress:    0,
-		RankLabel:          "TOP 100%",
-		StreakDays:         0,
-		CoursesInProgress:  0,
-		TotalTasks:         0,
-	}
-
-	userAchievements[newID] = []userAchievement{}
-	userSkills[newID] = &userSkillsResponse{
-		Primary:   []string{},
-		Secondary: []string{},
-	}
-	userSettings[newID] = &userSettingsResponse{
-		Notifications: userNotificationPreferences{Email: true, SMS: false, InApp: true, Summary: true},
-		Privacy:       userPrivacySettings{ShowEmail: false, ShowProfile: true, ShowStudyData: true},
-		StudyHabits:   userStudyHabitSettings{DailyGoalMinutes: 60, PreferredPeriod: "evening", FocusMode: false},
-	}
-	userStudyRecords[newID] = []userStudyRecord{}
-
-	account := &userAuthAccount{
-		ID:           newID,
-		Username:     username,
-		Email:        email,
-		PasswordHash: hashPassword(password),
-		DisplayName:  display,
-	}
-
-	authAccountsByUsername[nUsername] = account
-	if nEmail != "" {
-		authAccountsByEmail[nEmail] = account
-	}
-
-	return composeUserSummary(newID), nil
-}
-
-func authenticateUser(identifier, password string) (*authUserSummary, error) {
-	account, exists := getAuthAccount(identifier)
-	if !exists {
-		return nil, fmt.Errorf("用户不存在")
-	}
-	if !verifyPassword(account.PasswordHash, password) {
-		return nil, fmt.Errorf("密码不正确")
-	}
-	return getUserSummary(account.ID)
-}
-
-func getUserSummary(userID uint64) (*authUserSummary, error) {
-	userDataMu.RLock()
-	defer userDataMu.RUnlock()
-
-	summary := composeUserSummary(userID)
-	if summary == nil {
-		return nil, fmt.Errorf("用户不存在")
-	}
-	return summary, nil
-}
-
-func getAuthAccount(identifier string) (*userAuthAccount, bool) {
-	normalizedUsername := normalizeUsername(identifier)
-	normalizedEmail := normalizeEmail(identifier)
-
-	userDataMu.RLock()
-	defer userDataMu.RUnlock()
-
-	if account, ok := authAccountsByUsername[normalizedUsername]; ok {
-		return account, true
-	}
-	if normalizedEmail != "" {
-		if account, ok := authAccountsByEmail[normalizedEmail]; ok {
-			return account, true
-		}
-	}
-	return nil, false
 }
