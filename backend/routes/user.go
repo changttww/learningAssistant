@@ -951,7 +951,18 @@ func registerUserAccount(username, email, password, displayName string) (*authUs
 			PreferredTheme:    "light",
 		}
 
-		if err := tx.Create(&user).Error; err != nil {
+		createTx := tx
+		omitCols := []string{}
+		if strings.TrimSpace(user.Phone) == "" {
+			omitCols = append(omitCols, "Phone")
+		}
+		if strings.TrimSpace(user.Email) == "" {
+			omitCols = append(omitCols, "Email")
+		}
+		if len(omitCols) > 0 {
+			createTx = createTx.Omit(omitCols...)
+		}
+		if err := createTx.Create(&user).Error; err != nil {
 			return err
 		}
 
