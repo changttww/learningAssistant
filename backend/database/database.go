@@ -45,7 +45,7 @@ func InitDatabase() {
 	}
 }
 
-// AutoMigrate 自动迁移数据库表
+// AutoMigrate 自动迁移数据库表，从model中获取数据结构，并创建对应的表结构
 func AutoMigrate() error {
 	allModels := models.GetAllModels()
 	

@@ -15,5 +15,6 @@
   },
   "eslint.validate": ["javascript", "vue"],
   "eslint.format.enable": true,
-  "prettier.vueIndentScriptAndStyle": true
+  "prettier.vueIndentScriptAndStyle": true,
+  "chatgpt.openOnStartup": false
 }

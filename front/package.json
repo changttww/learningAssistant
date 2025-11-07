@@ -1,7 +1,7 @@
 {
   "name": "study-assistant-vue",
   "version": "1.0.0",
-  "description": "学辅助手 Vue 应用",
+  "description": "智学空间 Vue 应用",
   "main": "index.js",
   "scripts": {
     "dev": "vite",

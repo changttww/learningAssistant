@@ -5,7 +5,7 @@
       <div class="flex items-center space-x-10">
         <div class="text-xl font-bold text-[#2D5BFF] flex items-center">
           <iconify-icon icon="mdi:brain" width="26" height="26"></iconify-icon>
-          <span class="ml-2">学辅助手</span>
+          <span class="ml-2">智学空间</span>
         </div>
         <div class="flex space-x-6 font-medium text-gray-700">
           <div class="py-1 hover:text-[#2D5BFF]">
