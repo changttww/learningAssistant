@@ -93,6 +93,33 @@
             </div>
             <div v-else class="text-sm text-gray-500">暂无技能标签</div>
           </div>
+
+          <!-- 账户操作 -->
+          <div class="mt-8 border border-gray-100 rounded-xl p-5 bg-gray-50">
+            <h3 class="font-bold text-lg mb-1">账户与安全</h3>
+            <p class="text-sm text-gray-500">
+              管理您的账户，退出登录后需要重新验证才能访问受限页面。
+            </p>
+            <div class="flex flex-wrap gap-3 mt-4">
+              <button
+                class="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition"
+                disabled
+                title="功能开发中"
+              >
+                修改密码 (开发中)
+              </button>
+              <button
+                class="px-4 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                @click="handleLogout"
+                :disabled="loggingOut"
+              >
+                {{ loggingOut ? "退出中..." : "退出登录" }}
+              </button>
+            </div>
+            <p v-if="logoutError" class="text-sm text-red-500 mt-2">
+              {{ logoutError }}
+            </p>
+          </div>
         </div>
 
         <!-- 右侧统计信息 -->
@@ -185,13 +212,16 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
 import {
   getUserProfile,
   getUserStudyStats,
   getUserAchievements,
   getUserSkills,
 } from "@/api/modules/user";
-import { DEFAULT_USER_ID } from "@/composables/useCurrentUser";
+import { DEFAULT_USER_ID, useCurrentUser } from "@/composables/useCurrentUser";
+import { logout as logoutApi } from "@/api/modules/auth";
+import { clearAuth } from "@/utils/auth";
 
 const loading = ref(false);
 const error = ref("");
@@ -202,6 +232,8 @@ const skills = reactive({
   primary: [],
   secondary: [],
 });
+const loggingOut = ref(false);
+const logoutError = ref("");
 
 const achievementIconMap = {
   streak: "mdi:trophy",
@@ -238,6 +270,9 @@ const allSkills = computed(() => [
 ]);
 
 const profileBadges = computed(() => profile.badges || []);
+
+const router = useRouter();
+const { clearCurrentUser } = useCurrentUser();
 
 const ProfileReadonlyInput = {
   name: "ProfileReadonlyInput",
@@ -325,6 +360,26 @@ async function fetchProfileData() {
 onMounted(() => {
   fetchProfileData();
 });
+
+async function handleLogout() {
+  if (loggingOut.value) return;
+  loggingOut.value = true;
+  logoutError.value = "";
+  try {
+    await logoutApi();
+  } catch (err) {
+    console.error("退出登录失败:", err);
+    logoutError.value = err?.message || "退出登录失败，请稍后重试。";
+  } finally {
+    clearAuth();
+    clearCurrentUser();
+    loggingOut.value = false;
+    router.push({
+      name: "Login",
+      query: { redirect: router.currentRoute.value.fullPath },
+    });
+  }
+}
 
 defineOptions({
   name: "Profile",

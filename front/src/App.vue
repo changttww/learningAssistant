@@ -23,10 +23,16 @@
           <div class="py-1 hover:text-[#2D5BFF]">
             <router-link to="/task-manager">任务进度管理</router-link>
           </div>
+          <div
+            v-if="!isAuthenticated"
+            class="py-1 hover:text-[#2D5BFF]"
+          >
+            <router-link to="/login">登录</router-link>
+          </div>
         </div>
       </div>
       <div class="flex items-center space-x-5">
-        <div class="relative">
+        <div v-if="isAuthenticated" class="relative">
           <iconify-icon
             icon="mdi:bell-outline"
             width="24"
@@ -35,7 +41,7 @@
           ></iconify-icon>
           <div class="notification-dot"></div>
         </div>
-        <div class="flex items-center">
+        <div v-if="isAuthenticated" class="flex items-center">
           <router-link to="/profile" class="flex items-center">
             <div
               class="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center text-sm font-semibold text-[#2D5BFF]"
@@ -51,6 +57,20 @@
               </span>
             </div>
             <span class="ml-2 font-medium">{{ displayName }}</span>
+          </router-link>
+        </div>
+        <div v-else class="flex items-center gap-2">
+          <router-link
+            to="/login"
+            class="px-3 py-1.5 border border-[#2D5BFF] text-[#2D5BFF] rounded-lg text-sm hover:bg-[#2D5BFF] hover:text-white transition"
+          >
+            登录
+          </router-link>
+          <router-link
+            to="/register"
+            class="px-3 py-1.5 bg-[#2D5BFF] text-white rounded-lg text-sm hover:bg-opacity-90 transition"
+          >
+            注册
           </router-link>
         </div>
       </div>
@@ -76,6 +96,7 @@ const {
 
 const displayName = computed(() => profile.value?.display_name || "访客");
 const avatarUrl = computed(() => profile.value?.avatar_url || "");
+const isAuthenticated = computed(() => Boolean(profile.value?.id));
 
 onMounted(() => {
   if (getToken() && !profileLoaded.value) {
