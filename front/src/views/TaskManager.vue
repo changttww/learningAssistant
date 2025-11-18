@@ -2,1104 +2,47 @@
   <div class="bg-gray-50 min-h-screen py-8">
     <div class="w-full h-full">
       <div class="flex gap-6 h-full items-stretch">
-        <!-- 左侧：学习档案卡 -->
-        <aside
-          class="w-80 flex-shrink-0 sidebar-shadow rounded-2xl bg-white p-6 flex flex-col"
-        >
-          <!-- 统一的学习档案卡 -->
-          <div
-            class="card mb-6 p-6 text-center bg-gradient-to-br from-blue-50 to-indigo-50"
-          >
-            <!-- 个人信息区 -->
-            <div class="flex justify-center mb-4">
-              <div
-                class="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden text-2xl font-semibold text-[#2D5BFF]"
-              >
-                <img
-                  v-if="userAvatar"
-                  :src="userAvatar"
-                  :alt="displayName"
-                  class="w-full h-full object-cover"
-                />
-                <span v-else>{{ displayName.slice(0, 1) }}</span>
-              </div>
-            </div>
-            <h2 class="text-xl font-bold mb-2">{{ displayName }}</h2>
-            <div class="flex justify-center items-center mb-4">
-              <iconify-icon
-                icon="mdi:medal"
-                class="text-orange-500 text-xl"
-              ></iconify-icon>
-              <span class="ml-1 text-orange-500 font-medium">
-                {{ userRoleLabel }}
-              </span>
-            </div>
+        <TaskSidebar
+          @show-achievements="showAchievements = true"
+          @show-settings="openSettingsModal"
+        />
 
-            <!-- 学习统计 -->
-            <div class="grid grid-cols-3 gap-3 mb-6">
-              <div class="bg-white rounded-lg p-3">
-                <p class="text-gray-500 text-xs mb-1">连续签到</p>
-                <p class="text-lg font-bold text-blue-600">
-                  {{ streakDays }}<span class="text-xs">天</span>
-                </p>
-              </div>
-              <div class="bg-white rounded-lg p-3">
-                <p class="text-gray-500 text-xs mb-1">正在学习</p>
-                <p class="text-lg font-bold text-blue-600">
-                  {{ coursesInProgress }}<span class="text-xs">门课</span>
-                </p>
-              </div>
-              <div class="bg-white rounded-lg p-3">
-                <p class="text-gray-500 text-xs mb-1">总任务</p>
-                <p class="text-lg font-bold text-blue-600">
-                  {{ totalTasks }}<span class="text-xs">项</span>
-                </p>
-              </div>
-            </div>
-
-            <!-- 积分展示 -->
-            <div class="mb-6">
-              <div class="flex justify-between items-center mb-3">
-                <h3 class="font-bold text-gray-700 flex items-center">
-                  <iconify-icon
-                    icon="mdi:crystal-ball"
-                    class="mr-2 text-blue-600"
-                ></iconify-icon>
-                  我的积分
-                </h3>
-                <span
-                  class="badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                >
-                  {{ pointsRankLabel }}
-                </span>
-              </div>
-
-              <div class="flex justify-center mb-4">
-                <div class="relative">
-                  <div
-                    class="w-20 h-20 rounded-full relative flex items-center justify-center"
-                  >
-                    <div
-                      class="absolute inset-0 bg-blue-600 bg-opacity-10 rounded-full"
-                    ></div>
-                    <span class="text-2xl font-bold text-blue-600 relative z-10"
-                      >{{ currentPoints }}</span
-                    >
-                  </div>
-                  <div
-                    class="absolute bottom-0 right-0 transform translate-y-1"
-                  >
-                    <iconify-icon
-                      icon="mdi:star-four-points"
-                      class="text-yellow-400 text-lg"
-                    ></iconify-icon>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 成长等级进度条 -->
-            <div class="mb-4">
-              <div class="flex justify-between items-center mb-2">
-                <span class="text-sm font-medium text-gray-700">
-                  {{ levelLabel }}
-                </span>
-                <span class="text-xs text-gray-500">距离下一级</span>
-              </div>
-              <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
-                <div
-                  class="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full"
-                  :style="{ width: `${levelProgress}%` }"
-                ></div>
-              </div>
-              <div class="text-xs text-gray-600">
-                还需 {{ pointsToNextLevel }} 积分升级到下一级
-              </div>
-            </div>
-
-            <!-- 操作按钮 -->
-            <div class="flex gap-2">
-              <button
-                class="flex-1 px-3 py-2 bg-white text-blue-600 border border-blue-200 rounded-lg font-medium text-sm hover:bg-blue-50"
-              >
-                查看明细
-              </button>
-              <button
-                class="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 flex items-center justify-center"
-              >
-                <iconify-icon
-                  icon="mdi:gift-outline"
-                  class="mr-1"
-                ></iconify-icon>
-                兑换奖品
-              </button>
-            </div>
-          </div>
-
-          <!-- 快速导航 -->
-          <div class="space-y-3">
-            <router-link
-              to="/personal-tasks"
-              class="flex items-center p-3 text-gray-700 hover:bg-gray-50 rounded-lg transition"
-            >
-              <iconify-icon
-                icon="mdi:calendar-check"
-                class="text-xl text-green-500 mr-3"
-              ></iconify-icon>
-              <span>今日任务</span>
-            </router-link>
-            <button
-              @click="showAchievements = true"
-              class="w-full flex items-center p-3 text-gray-700 hover:bg-gray-50 rounded-lg transition"
-            >
-              <iconify-icon
-                icon="mdi:trophy"
-                class="text-xl text-yellow-500 mr-3"
-              ></iconify-icon>
-              <span>我的成就</span>
-            </button>
-            <button
-              @click="showSettings = true"
-              class="w-full flex items-center p-3 text-gray-700 hover:bg-gray-50 rounded-lg transition"
-            >
-              <iconify-icon
-                icon="mdi:cog"
-                class="text-xl text-gray-500 mr-3"
-              ></iconify-icon>
-              <span>系统设置</span>
-            </button>
-          </div>
-        </aside>
-
-        <!-- 中间：动态学习看板 -->
         <main class="flex-1 flex flex-col h-full">
-          <!-- 看板标题和时间切换 -->
-          <div class="flex items-center justify-between mb-5">
-            <h2 class="text-2xl font-bold text-gray-700">动态学习看板</h2>
-            <div class="inline-flex bg-gray-100 p-1 rounded-xl">
-              <button
-                class="px-4 py-1 rounded-lg font-medium transition-colors"
-                :class="
-                  activeTimeFilter === 'week'
-                    ? 'bg-white shadow-sm text-blue-600'
-                    : 'text-gray-600 hover:text-gray-800'
-                "
-                @click="setTimeFilter('week')"
-              >
-                周
-              </button>
-              <button
-                class="px-4 py-1 rounded-lg font-medium transition-colors"
-                :class="
-                  activeTimeFilter === 'month'
-                    ? 'bg-white shadow-sm text-blue-600'
-                    : 'text-gray-600 hover:text-gray-800'
-                "
-                @click="setTimeFilter('month')"
-              >
-                月
-              </button>
-              <button
-                class="px-4 py-1 rounded-lg font-medium transition-colors"
-                :class="
-                  activeTimeFilter === 'quarter'
-                    ? 'bg-white shadow-sm text-blue-600'
-                    : 'text-gray-600 hover:text-gray-800'
-                "
-                @click="setTimeFilter('quarter')"
-              >
-                季度
-              </button>
-            </div>
-          </div>
+          <LearningBoardHeader
+            :active-filter="activeTimeFilter"
+            @update:activeFilter="activeTimeFilter = $event"
+          />
 
-          <!-- 任务进度图表区 -->
-          <div class="grid grid-cols-3 gap-4 mb-6">
-            <!-- 环形进度图 -->
-            <div
-              class="card col-span-1 p-5 cursor-pointer hover:shadow-lg transition-shadow"
-              @click="showTaskDetails"
-            >
-              <div class="flex justify-between mb-3">
-                <div>
-                  <p class="text-gray-500 mb-2">整体完成率</p>
-                  <h3 class="text-3xl font-bold text-blue-600">
-                    {{ currentTimeData.completionRate }}%
-                  </h3>
-                </div>
-                <div class="h-16 w-16" ref="ringProgress"></div>
-              </div>
-              <div class="mt-4">
-                <div class="flex justify-between text-sm text-gray-500 mb-1">
-                  <span>已完成</span>
-                  <span
-                    >{{ currentTimeData.completedTasks }}/{{
-                      currentTimeData.totalTasks
-                    }}</span
-                  >
-                </div>
-                <div class="w-full h-3 bg-gray-200 rounded-full">
-                  <div
-                    class="h-full rounded-full bg-green-500"
-                    :style="`width: ${currentTimeData.completionRate}%`"
-                  ></div>
-                </div>
-              </div>
-            </div>
+          <TaskProgressOverview
+            :current-time-data="currentTimeData"
+            :active-time-filter="activeTimeFilter"
+            @show-details="showTaskDetails"
+          />
 
-            <!-- 柱状图容器 -->
-            <div class="card col-span-2 p-5">
-              <div class="h-64" ref="taskProgressChart"></div>
-            </div>
-          </div>
+          <AnalysisEntryGrid
+            @show-efficiency="showEfficiencyAnalysis"
+            @show-summary="showSmartSummary"
+            @show-check-in="showCheckInAnalysis"
+          />
 
-          <!-- 学习效率分析入口 -->
-          <div class="grid grid-cols-3 gap-4 mb-6">
-            <!-- 学习效率分析 -->
-            <div
-              class="card p-5 cursor-pointer hover:shadow-lg transition-shadow"
-              @click="showEfficiencyAnalysis"
-            >
-              <div class="flex items-center mb-4">
-                <div
-                  class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mr-3"
-                >
-                  <iconify-icon
-                    icon="mdi:chart-line"
-                    class="text-2xl text-white"
-                  ></iconify-icon>
-                </div>
-                <div>
-                  <h4 class="font-bold text-gray-800">学习效率分析</h4>
-                  <p class="text-sm text-gray-500">智能分析学习数据</p>
-                </div>
-              </div>
-              <div class="space-y-2">
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-600">本周学习时长</span>
-                  <span class="font-medium text-purple-600">28.5小时</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-600">专注度评分</span>
-                  <span class="font-medium text-green-600">85分</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-600">任务完成率</span>
-                  <span class="font-medium text-blue-600">92%</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- 智能总结与复习 -->
-            <div
-              class="card p-5 cursor-pointer hover:shadow-lg transition-shadow"
-              @click="showSmartSummary"
-            >
-              <div class="flex items-center mb-4">
-                <div
-                  class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mr-3"
-                >
-                  <iconify-icon
-                    icon="mdi:brain"
-                    class="text-2xl text-white"
-                  ></iconify-icon>
-                </div>
-                <div>
-                  <h4 class="font-bold text-gray-800">智能总结复习</h4>
-                  <p class="text-sm text-gray-500">AI生成复习提纲</p>
-                </div>
-              </div>
-              <div class="space-y-2">
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-600">待复习内容</span>
-                  <span class="font-medium text-orange-600">5项</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-600">复习提醒</span>
-                  <span class="font-medium text-red-600">3条</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-600">知识点掌握</span>
-                  <span class="font-medium text-green-600">78%</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- 学习打卡分析 -->
-            <div
-              class="card p-5 cursor-pointer hover:shadow-lg transition-shadow"
-              @click="showCheckInAnalysis"
-            >
-              <div class="flex items-center mb-4">
-                <div
-                  class="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-teal-500 flex items-center justify-center mr-3"
-                >
-                  <iconify-icon
-                    icon="mdi:calendar-check"
-                    class="text-2xl text-white"
-                  ></iconify-icon>
-                </div>
-                <div>
-                  <h4 class="font-bold text-gray-800">打卡记录分析</h4>
-                  <p class="text-sm text-gray-500">学习习惯与建议</p>
-                </div>
-              </div>
-              <div class="space-y-2">
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-600">连续打卡</span>
-                  <span class="font-medium text-green-600">28天</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-600">平均打字速度</span>
-                  <span class="font-medium text-blue-600">65WPM</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-600">建议状态</span>
-                  <span class="font-medium text-purple-600">继续保持</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 任务标签页 -->
-          <div class="mb-4">
-            <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg w-fit">
-              <button
-                class="px-4 py-2 rounded-md font-medium transition-colors"
-                :class="
-                  activeTab === 'inProgress'
-                    ? 'bg-white shadow-sm text-blue-600'
-                    : 'text-gray-600 hover:text-gray-800'
-                "
-                @click="activeTab = 'inProgress'"
-              >
-                进行中 (3)
-              </button>
-              <button
-                class="px-4 py-2 rounded-md font-medium transition-colors"
-                :class="
-                  activeTab === 'pending'
-                    ? 'bg-white shadow-sm text-orange-600'
-                    : 'text-gray-600 hover:text-gray-800'
-                "
-                @click="activeTab = 'pending'"
-              >
-                待开始 (5)
-              </button>
-              <button
-                class="px-4 py-2 rounded-md font-medium transition-colors"
-                :class="
-                  activeTab === 'completed'
-                    ? 'bg-white shadow-sm text-green-600'
-                    : 'text-gray-600 hover:text-gray-800'
-                "
-                @click="activeTab = 'completed'"
-              >
-                已完成 (86)
-              </button>
-            </div>
-          </div>
-
-          <!-- 任务列表 -->
-          <div class="space-y-4">
-            <!-- 进行中的任务 -->
-            <div v-show="activeTab === 'inProgress'">
-              <!-- 任务卡片1 -->
-              <div
-                class="card p-5 flex items-center hover:shadow-md transition-shadow"
-              >
-                <div
-                  class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mr-4"
-                >
-                  <iconify-icon
-                    icon="mdi:code-tags"
-                    class="text-2xl text-blue-600"
-                  ></iconify-icon>
-                </div>
-                <div class="flex-1">
-                  <h4 class="font-bold text-gray-800">前端开发课程学习</h4>
-                  <div class="flex items-center mt-1">
-                    <div class="text-xs text-gray-500">
-                      最后学习：今天 12:30
-                    </div>
-                    <span
-                      class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                      >高优先级</span
-                    >
-                  </div>
-                </div>
-                <div class="w-1/3">
-                  <div class="flex justify-between text-sm text-gray-500 mb-1">
-                    <span>学习进度</span>
-                    <span>64%</span>
-                  </div>
-                  <div class="h-2 bg-gray-200 rounded-full">
-                    <div
-                      class="h-full rounded-full bg-blue-600"
-                      style="width: 64%"
-                    ></div>
-                  </div>
-                </div>
-                <button
-                  class="ml-6 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg"
-                >
-                  继续
-                </button>
-              </div>
-
-              <!-- 任务卡片2 -->
-              <div
-                class="card p-5 flex items-center hover:shadow-md transition-shadow"
-              >
-                <div
-                  class="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center mr-4"
-                >
-                  <iconify-icon
-                    icon="mdi:translate"
-                    class="text-2xl text-orange-600"
-                  ></iconify-icon>
-                </div>
-                <div class="flex-1">
-                  <h4 class="font-bold text-gray-800">英语四级备考测试</h4>
-                  <div class="flex items-center mt-1">
-                    <div class="text-xs text-gray-500">
-                      最后测试：昨天 16:45
-                    </div>
-                    <span
-                      class="ml-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full"
-                      >中优先级</span
-                    >
-                  </div>
-                </div>
-                <div class="w-1/3">
-                  <div class="flex justify-between text-sm text-gray-500 mb-1">
-                    <span>完成进度</span>
-                    <span>48%</span>
-                  </div>
-                  <div class="h-2 bg-gray-200 rounded-full">
-                    <div
-                      class="h-full rounded-full bg-orange-500"
-                      style="width: 48%"
-                    ></div>
-                  </div>
-                </div>
-                <button
-                  class="ml-6 bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 px-4 rounded-lg"
-                >
-                  开始
-                </button>
-              </div>
-
-              <!-- 任务卡片3 -->
-              <div
-                class="card p-5 flex items-center hover:shadow-md transition-shadow"
-              >
-                <div
-                  class="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center mr-4"
-                >
-                  <iconify-icon
-                    icon="mdi:book-open-page-variant"
-                    class="text-2xl text-green-600"
-                  ></iconify-icon>
-                </div>
-                <div class="flex-1">
-                  <h4 class="font-bold text-gray-800">
-                    每周阅读计划 - 《Web开发实战》
-                  </h4>
-                  <div class="flex items-center mt-1">
-                    <div class="text-xs text-gray-500">本周任务：3/5章节</div>
-                    <span
-                      class="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
-                      >低优先级</span
-                    >
-                  </div>
-                </div>
-                <div class="w-1/3">
-                  <div class="flex justify-between text-sm text-gray-500 mb-1">
-                    <span>进度</span>
-                    <span>82%</span>
-                  </div>
-                  <div class="h-2 bg-gray-200 rounded-full">
-                    <div
-                      class="h-full rounded-full bg-green-500"
-                      style="width: 82%"
-                    ></div>
-                  </div>
-                </div>
-                <button
-                  class="ml-6 bg-gray-800 hover:bg-black text-white font-medium py-2 px-4 rounded-lg"
-                >
-                  阅读
-                </button>
-              </div>
-            </div>
-
-            <!-- 待开始的任务 -->
-            <div v-show="activeTab === 'pending'">
-              <div
-                class="card p-5 flex items-center hover:shadow-md transition-shadow"
-              >
-                <div
-                  class="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center mr-4"
-                >
-                  <iconify-icon
-                    icon="mdi:database"
-                    class="text-2xl text-purple-600"
-                  ></iconify-icon>
-                </div>
-                <div class="flex-1">
-                  <h4 class="font-bold text-gray-800">数据库设计与优化</h4>
-                  <div class="flex items-center mt-1">
-                    <div class="text-xs text-gray-500">
-                      计划开始：明天 09:00
-                    </div>
-                    <span
-                      class="ml-2 px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full"
-                      >待开始</span
-                    >
-                  </div>
-                </div>
-                <div class="w-1/3">
-                  <div class="flex justify-between text-sm text-gray-500 mb-1">
-                    <span>预计时长</span>
-                    <span>40小时</span>
-                  </div>
-                  <div class="h-2 bg-gray-200 rounded-full">
-                    <div
-                      class="h-full rounded-full bg-gray-300"
-                      style="width: 0%"
-                    ></div>
-                  </div>
-                </div>
-                <button
-                  class="ml-6 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg"
-                >
-                  开始学习
-                </button>
-              </div>
-            </div>
-
-            <!-- 已完成的任务 -->
-            <div v-show="activeTab === 'completed'">
-              <div
-                class="card p-5 flex items-center hover:shadow-md transition-shadow"
-              >
-                <div
-                  class="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center mr-4"
-                >
-                  <iconify-icon
-                    icon="mdi:check-circle"
-                    class="text-2xl text-green-600"
-                  ></iconify-icon>
-                </div>
-                <div class="flex-1">
-                  <h4 class="font-bold text-gray-800">JavaScript基础课程</h4>
-                  <div class="flex items-center mt-1">
-                    <div class="text-xs text-gray-500">
-                      完成时间：2024-01-15 18:30
-                    </div>
-                    <span
-                      class="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
-                      >已完成</span
-                    >
-                  </div>
-                </div>
-                <div class="w-1/3">
-                  <div class="flex justify-between text-sm text-gray-500 mb-1">
-                    <span>最终得分</span>
-                    <span>95分</span>
-                  </div>
-                  <div class="h-2 bg-gray-200 rounded-full">
-                    <div
-                      class="h-full rounded-full bg-green-500"
-                      style="width: 100%"
-                    ></div>
-                  </div>
-                </div>
-                <button
-                  class="ml-6 bg-gray-500 text-white font-medium py-2 px-4 rounded-lg"
-                >
-                  查看证书
-                </button>
-              </div>
-            </div>
-          </div>
+          <TaskTabsSection
+            :active-tab="activeTab"
+            :tasks="tasks"
+            @update:activeTab="activeTab = $event"
+          />
         </main>
 
-        <!-- 右侧：学习互动面板 -->
-        <aside
-          class="w-80 flex-shrink-0 sidebar-shadow rounded-2xl bg-white p-6 flex flex-col"
-          :class="{ 'h-full': isChatExpanded }"
-        >
-          <!-- 互动面板标题 -->
-          <div class="flex justify-between items-center mb-5">
-            <h3 class="text-xl font-bold text-gray-700">学习互动</h3>
-            <div class="flex items-center gap-2">
-              <div
-                class="w-2 h-2 bg-green-500 rounded-full animate-pulse"
-              ></div>
-              <span class="text-sm text-green-600">3人在线</span>
-            </div>
-          </div>
-
-          <!-- 学习伙伴 -->
-          <div class="mb-6">
-            <div class="flex justify-between items-center mb-3">
-              <h4 class="font-medium text-gray-700">学习伙伴</h4>
-              <button
-                class="text-blue-600 hover:text-blue-800 flex items-center text-sm"
-              >
-                <iconify-icon
-                  icon="mdi:plus-circle"
-                  class="mr-1"
-                ></iconify-icon>
-                添加
-              </button>
-            </div>
-
-            <!-- 好友列表 -->
-            <div class="space-y-3">
-              <!-- 好友1 -->
-              <div
-                class="friend-card card p-3 flex items-center cursor-pointer hover:bg-blue-50 rounded-xl"
-              >
-                <div class="relative">
-                  <div class="w-10 h-10 rounded-full bg-gray-300"></div>
-                  <div
-                    class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-white"
-                  ></div>
-                </div>
-                <div class="ml-3 flex-1">
-                  <div class="font-medium text-sm">张伟</div>
-                  <div class="text-xs text-gray-500">前端开发课程学习中</div>
-                </div>
-                <div class="flex gap-1">
-                  <button
-                    class="w-7 h-7 flex items-center justify-center bg-gray-100 text-gray-600 rounded-full hover:bg-blue-100 text-sm"
-                  >
-                    <iconify-icon icon="mdi:thumb-up"></iconify-icon>
-                  </button>
-                  <button
-                    class="w-7 h-7 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 text-sm"
-                  >
-                    <iconify-icon icon="mdi:message"></iconify-icon>
-                  </button>
-                </div>
-              </div>
-
-              <!-- 好友2 -->
-              <div
-                class="friend-card card p-3 flex items-center cursor-pointer hover:bg-blue-50 rounded-xl"
-              >
-                <div class="relative">
-                  <div class="w-10 h-10 rounded-full bg-gray-300"></div>
-                  <div
-                    class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-gray-300 border-2 border-white"
-                  ></div>
-                </div>
-                <div class="ml-3 flex-1">
-                  <div class="font-medium text-sm">刘燕</div>
-                  <div class="text-xs text-gray-500">英语学习进行中</div>
-                </div>
-                <div class="flex gap-1">
-                  <button
-                    class="w-7 h-7 flex items-center justify-center bg-gray-100 text-gray-600 rounded-full hover:bg-blue-100 text-sm"
-                  >
-                    <iconify-icon icon="mdi:thumb-up"></iconify-icon>
-                  </button>
-                  <button
-                    class="w-7 h-7 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 text-sm"
-                  >
-                    <iconify-icon icon="mdi:message"></iconify-icon>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 评论提醒 -->
-          <div class="mb-4">
-            <div class="flex justify-between items-center mb-3">
-              <h4 class="font-medium text-gray-700">评论提醒</h4>
-              <div
-                class="w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs"
-              >
-                3
-              </div>
-            </div>
-            <div class="space-y-2">
-              <div class="p-2 bg-red-50 border-l-4 border-red-400 rounded">
-                <div class="text-sm font-medium text-red-800">新评论</div>
-                <div class="text-xs text-red-600">王浩评论了你的Vue项目</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 互动消息 -->
-          <div class="mb-4">
-            <div class="flex justify-between items-center mb-3">
-              <h4 class="font-medium text-gray-700 flex items-center">
-                <iconify-icon
-                  icon="mdi:chat"
-                  class="mr-2 text-blue-600"
-                ></iconify-icon>
-                互动消息
-                <span
-                  class="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-0.5"
-                  >3</span
-                >
-              </h4>
-              <button
-                @click="toggleChatList"
-                class="text-blue-600 hover:text-blue-800 text-xs cursor-pointer flex items-center"
-              >
-                <span>{{ isChatExpanded ? "收起" : "展开" }}</span>
-                <iconify-icon
-                  :icon="isChatExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'"
-                  class="ml-1"
-                ></iconify-icon>
-              </button>
-            </div>
-
-            <!-- 展开状态的聊天列表 -->
-            <div v-if="isChatExpanded" class="mt-6 flex-1 flex flex-col pb-6">
-              <div class="flex-1 space-y-3 overflow-y-auto">
-                <!-- 聊天项1 -->
-                <div
-                  class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                  @click="goToChatHistory('陈敏')"
-                >
-                  <div class="relative mr-3">
-                    <div
-                      class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center"
-                    >
-                      <span class="text-white font-medium text-sm">陈</span>
-                    </div>
-                    <div
-                      class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"
-                    ></div>
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-center mb-1">
-                      <h5 class="font-medium text-gray-800 text-sm truncate">
-                        陈敏
-                      </h5>
-                      <span class="text-xs text-gray-500">1小时前</span>
-                    </div>
-                    <p class="text-xs text-gray-600 truncate">
-                      你的前端项目太棒了！😄 有时间一起讨论一下吗？
-                    </p>
-                  </div>
-                  <div class="ml-2">
-                    <div class="w-2 h-2 bg-red-500 rounded-full"></div>
-                  </div>
-                </div>
-
-                <!-- 聊天项2 -->
-                <div
-                  class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                  @click="goToChatHistory('王小明')"
-                >
-                  <div class="relative mr-3">
-                    <div
-                      class="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center"
-                    >
-                      <span class="text-white font-medium text-sm">王</span>
-                    </div>
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-center mb-1">
-                      <h5 class="font-medium text-gray-800 text-sm truncate">
-                        王小明
-                      </h5>
-                      <span class="text-xs text-gray-500">3小时前</span>
-                    </div>
-                    <p class="text-xs text-gray-600 truncate">
-                      学习小组今晚8点开始，记得参加哦～
-                    </p>
-                  </div>
-                  <div class="ml-2">
-                    <div class="w-2 h-2 bg-red-500 rounded-full"></div>
-                  </div>
-                </div>
-
-                <!-- 聊天项3 -->
-                <div
-                  class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                  @click="goToChatHistory('李老师')"
-                >
-                  <div class="relative mr-3">
-                    <div
-                      class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center"
-                    >
-                      <span class="text-white font-medium text-sm">李</span>
-                    </div>
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-center mb-1">
-                      <h5 class="font-medium text-gray-800 text-sm truncate">
-                        李老师
-                      </h5>
-                      <span class="text-xs text-gray-500">昨天</span>
-                    </div>
-                    <p class="text-xs text-gray-600 truncate">
-                      作业完成得很好，继续保持！💪
-                    </p>
-                  </div>
-                  <div class="ml-2">
-                    <div class="w-2 h-2 bg-red-500 rounded-full"></div>
-                  </div>
-                </div>
-
-                <!-- 聊天项4 -->
-                <div
-                  class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                  @click="goToChatHistory('刘晓雨')"
-                >
-                  <div class="relative mr-3">
-                    <div
-                      class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center"
-                    >
-                      <span class="text-white font-medium text-sm">刘</span>
-                    </div>
-                    <div
-                      class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"
-                    ></div>
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-center mb-1">
-                      <h5 class="font-medium text-gray-800 text-sm truncate">
-                        刘晓雨
-                      </h5>
-                      <span class="text-xs text-gray-500">2天前</span>
-                    </div>
-                    <p class="text-xs text-gray-600 truncate">
-                      Vue3的新特性真的很棒，一起学习吧！🚀
-                    </p>
-                  </div>
-                  <div class="ml-2">
-                    <div class="w-2 h-2 bg-red-500 rounded-full"></div>
-                  </div>
-                </div>
-
-                <!-- 聊天项5 -->
-                <div
-                  class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                  @click="goToChatHistory('张小花')"
-                >
-                  <div class="relative mr-3">
-                    <div
-                      class="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center"
-                    >
-                      <span class="text-white font-medium text-sm">张</span>
-                    </div>
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-center mb-1">
-                      <h5 class="font-medium text-gray-800 text-sm truncate">
-                        张小花
-                      </h5>
-                      <span class="text-xs text-gray-500">3天前</span>
-                    </div>
-                    <p class="text-xs text-gray-600 truncate">
-                      明天的算法课记得带笔记本哦～📚
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 快速回复输入框 - 固定在底部 -->
-              <div class="mt-4 p-3 bg-blue-50 rounded-lg">
-                <div class="flex items-center">
-                  <input
-                    type="text"
-                    placeholder="快速回复..."
-                    class="flex-1 bg-white border border-blue-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent rounded-full py-2 px-4 text-sm"
-                  />
-                  <button
-                    class="w-8 h-8 flex items-center justify-center bg-blue-600 text-white rounded-full ml-3 hover:bg-blue-700 transition-colors"
-                  >
-                    <iconify-icon
-                      icon="mdi:send"
-                      class="text-sm"
-                    ></iconify-icon>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 折叠状态的部分聊天列表显示 -->
-            <div v-else class="space-y-2">
-              <!-- 显示前5条聊天记录 -->
-              <div
-                class="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                @click="goToChatHistory('陈敏')"
-              >
-                <div class="relative mr-2">
-                  <div
-                    class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center"
-                  >
-                    <span class="text-white font-medium text-xs">陈</span>
-                  </div>
-                  <div
-                    class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border border-white"
-                  ></div>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="flex justify-between items-center mb-0.5">
-                    <h5 class="font-medium text-gray-800 text-xs truncate">
-                      陈敏
-                    </h5>
-                    <span class="text-xs text-gray-500">1小时前</span>
-                  </div>
-                  <p class="text-xs text-gray-600 truncate">
-                    你的前端项目太棒了！😄 有时...
-                  </p>
-                </div>
-                <div class="ml-1">
-                  <div class="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                </div>
-              </div>
-
-              <div
-                class="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                @click="goToChatHistory('王小明')"
-              >
-                <div class="relative mr-2">
-                  <div
-                    class="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center"
-                  >
-                    <span class="text-white font-medium text-xs">王</span>
-                  </div>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="flex justify-between items-center mb-0.5">
-                    <h5 class="font-medium text-gray-800 text-xs truncate">
-                      王小明
-                    </h5>
-                    <span class="text-xs text-gray-500">3小时前</span>
-                  </div>
-                  <p class="text-xs text-gray-600 truncate">
-                    学习小组今晚8点开始，记得参...
-                  </p>
-                </div>
-                <div class="ml-1">
-                  <div class="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                </div>
-              </div>
-
-              <div
-                class="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                @click="goToChatHistory('李老师')"
-              >
-                <div class="relative mr-2">
-                  <div
-                    class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center"
-                  >
-                    <span class="text-white font-medium text-xs">李</span>
-                  </div>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="flex justify-between items-center mb-0.5">
-                    <h5 class="font-medium text-gray-800 text-xs truncate">
-                      李老师
-                    </h5>
-                    <span class="text-xs text-gray-500">昨天</span>
-                  </div>
-                  <p class="text-xs text-gray-600 truncate">
-                    作业完成得很好，继续保持！💪
-                  </p>
-                </div>
-                <div class="ml-1">
-                  <div class="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                </div>
-              </div>
-
-              <div
-                class="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                @click="goToChatHistory('刘晓雨')"
-              >
-                <div class="relative mr-2">
-                  <div
-                    class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center"
-                  >
-                    <span class="text-white font-medium text-xs">刘</span>
-                  </div>
-                  <div
-                    class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border border-white"
-                  ></div>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="flex justify-between items-center mb-0.5">
-                    <h5 class="font-medium text-gray-800 text-xs truncate">
-                      刘晓雨
-                    </h5>
-                    <span class="text-xs text-gray-500">2天前</span>
-                  </div>
-                  <p class="text-xs text-gray-600 truncate">
-                    Vue3的新特性真的很棒，一起...
-                  </p>
-                </div>
-                <div class="ml-1">
-                  <div class="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                </div>
-              </div>
-
-              <div
-                class="flex items-center p-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                @click="goToChatHistory('张小花')"
-              >
-                <div class="relative mr-2">
-                  <div
-                    class="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center"
-                  >
-                    <span class="text-white font-medium text-xs">张</span>
-                  </div>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="flex justify-between items-center mb-0.5">
-                    <h5 class="font-medium text-gray-800 text-xs truncate">
-                      张小花
-                    </h5>
-                    <span class="text-xs text-gray-500">3天前</span>
-                  </div>
-                  <p class="text-xs text-gray-600 truncate">
-                    明天的算法课记得带笔记本哦～📚
-                  </p>
-                </div>
-              </div>
-
-              <!-- 展开回复按钮 -->
-              <div class="text-center py-2">
-                <button
-                  @click="toggleChatList"
-                  class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <iconify-icon icon="mdi:reply" class="mr-1"></iconify-icon>
-                  展开回复
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- 励志语录 (仅在聊天折叠时显示) -->
-          <div
-            v-if="!isChatExpanded"
-            class="mt-6 flex-1 flex items-end justify-center pb-4"
-          >
-            <div class="text-center">
-              <p
-                class="text-2xl font-bold bg-gradient-to-r from-gray-600 to-gray-800 bg-clip-text text-transparent leading-relaxed font-serif italic"
-              >
-                {{ currentMotivationalQuote }}
-              </p>
-            </div>
-          </div>
-        </aside>
+        <InteractionPanel
+          :is-chat-expanded="isChatExpanded"
+          :current-motivational-quote="currentMotivationalQuote"
+          @toggle-chat="toggleChatList"
+          @open-chat="goToChatHistory"
+        />
       </div>
     </div>
+  </div>
 
-    <!-- 我的成就弹窗 -->
+<!-- 我的成就弹窗 -->
     <div
       v-if="showAchievements"
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -1286,8 +229,24 @@
           </button>
         </div>
 
+        <div v-if="settingsLoading" class="py-12 text-center text-gray-500">
+          正在加载设置...
+        </div>
+        <div
+          v-else-if="settingsLoadError"
+          class="py-10 text-center flex flex-col items-center gap-4 text-sm text-gray-500"
+        >
+          <p>{{ settingsLoadError }}</p>
+          <button
+            class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium"
+            @click="fetchUserSettings"
+          >
+            重试加载
+          </button>
+        </div>
+
         <!-- 设置选项 -->
-        <div class="space-y-6">
+        <div v-else class="space-y-6">
           <!-- 通知设置 -->
           <div>
             <h3 class="text-lg font-bold text-gray-700 mb-3 flex items-center">
@@ -1303,10 +262,16 @@
               >
                 <div>
                   <div class="font-medium text-gray-800">学习提醒</div>
-                  <div class="text-sm text-gray-600">每日学习时间提醒</div>
+                  <div class="text-sm text-gray-600">
+                    接收学习进度和每日提醒邮件
+                  </div>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" class="sr-only peer" checked />
+                  <input
+                    type="checkbox"
+                    class="sr-only peer"
+                    v-model="settingsForm.notifications.email"
+                  />
                   <div
                     class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"
                   ></div>
@@ -1318,10 +283,14 @@
               >
                 <div>
                   <div class="font-medium text-gray-800">任务截止提醒</div>
-                  <div class="text-sm text-gray-600">任务即将到期时提醒</div>
+                  <div class="text-sm text-gray-600">在应用内推送待办提醒</div>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" class="sr-only peer" checked />
+                  <input
+                    type="checkbox"
+                    class="sr-only peer"
+                    v-model="settingsForm.notifications.inApp"
+                  />
                   <div
                     class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"
                   ></div>
@@ -1333,10 +302,35 @@
               >
                 <div>
                   <div class="font-medium text-gray-800">社交互动</div>
-                  <div class="text-sm text-gray-600">好友动态和消息通知</div>
+                  <div class="text-sm text-gray-600">好友动态短信提醒</div>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" class="sr-only peer" />
+                  <input
+                    type="checkbox"
+                    class="sr-only peer"
+                    v-model="settingsForm.notifications.sms"
+                  />
+                  <div
+                    class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"
+                  ></div>
+                </label>
+              </div>
+
+              <div
+                class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              >
+                <div>
+                  <div class="font-medium text-gray-800">每周学习周报</div>
+                  <div class="text-sm text-gray-600">
+                    每周发送总结与建议至邮箱
+                  </div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    class="sr-only peer"
+                    v-model="settingsForm.notifications.summary"
+                  />
                   <div
                     class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"
                   ></div>
@@ -1361,45 +355,60 @@
                 >
                 <select
                   class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  v-model.number="settingsForm.studyHabits.dailyGoalMinutes"
                 >
-                  <option>1小时</option>
-                  <option selected>2小时</option>
-                  <option>3小时</option>
-                  <option>4小时</option>
+                  <option
+                    v-for="option in studyGoalOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
                 </select>
               </div>
 
               <div class="p-3 bg-gray-50 rounded-lg">
                 <label class="block text-sm font-medium text-gray-700 mb-2"
-                  >学习模式</label
+                  >首选学习时段</label
                 >
                 <div class="space-y-2">
-                  <label class="flex items-center">
+                  <label
+                    v-for="option in preferredPeriodOptions"
+                    :key="option.value"
+                    class="flex items-center"
+                  >
                     <input
                       type="radio"
-                      name="studyMode"
                       class="text-blue-600"
-                      checked
+                      :value="option.value"
+                      v-model="settingsForm.studyHabits.preferredPeriod"
                     />
-                    <span class="ml-2 text-sm text-gray-700">专注模式</span>
-                  </label>
-                  <label class="flex items-center">
-                    <input
-                      type="radio"
-                      name="studyMode"
-                      class="text-blue-600"
-                    />
-                    <span class="ml-2 text-sm text-gray-700">轻松模式</span>
-                  </label>
-                  <label class="flex items-center">
-                    <input
-                      type="radio"
-                      name="studyMode"
-                      class="text-blue-600"
-                    />
-                    <span class="ml-2 text-sm text-gray-700">挑战模式</span>
+                    <span class="ml-2 text-sm text-gray-700">
+                      {{ option.label }}
+                    </span>
                   </label>
                 </div>
+              </div>
+
+              <div
+                class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              >
+                <div>
+                  <div class="font-medium text-gray-800">专注模式</div>
+                  <div class="text-sm text-gray-600">
+                    开启后将屏蔽多余提醒，集中学习
+                  </div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    class="sr-only peer"
+                    v-model="settingsForm.studyHabits.focusMode"
+                  />
+                  <div
+                    class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"
+                  ></div>
+                </label>
               </div>
             </div>
           </div>
@@ -1422,7 +431,11 @@
                   <div class="text-sm text-gray-600">允许好友查看学习进度</div>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" class="sr-only peer" checked />
+                  <input
+                    type="checkbox"
+                    class="sr-only peer"
+                    v-model="settingsForm.privacy.showStudyData"
+                  />
                   <div
                     class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"
                   ></div>
@@ -1439,7 +452,32 @@
                   </div>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" class="sr-only peer" checked />
+                  <input
+                    type="checkbox"
+                    class="sr-only peer"
+                    v-model="settingsForm.privacy.showProfile"
+                  />
+                  <div
+                    class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"
+                  ></div>
+                </label>
+              </div>
+
+              <div
+                class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              >
+                <div>
+                  <div class="font-medium text-gray-800">邮箱展示</div>
+                  <div class="text-sm text-gray-600">
+                    在个人资料中展示邮箱地址
+                  </div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    class="sr-only peer"
+                    v-model="settingsForm.privacy.showEmail"
+                  />
                   <div
                     class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"
                   ></div>
@@ -1458,15 +496,15 @@
             </button>
             <button
               @click="saveSettings"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              :disabled="settingsSaving"
             >
-              保存设置
+              {{ settingsSaving ? "保存中..." : "保存设置" }}
             </button>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
   <!-- 学习效率分析弹窗 -->
   <div
@@ -1834,79 +872,139 @@
 </template>
 
 <script>
-  import { computed, onMounted } from "vue";
+  import { computed } from "vue";
   import * as echarts from "echarts";
+  import { ElMessage } from "element-plus";
   import {
     useCurrentUser,
     DEFAULT_USER_ID,
   } from "@/composables/useCurrentUser";
+  import { getUserSettings, updateUserSettings } from "@/api/modules/user";
+  import TaskSidebar from "@/components/TaskManager/TaskSidebar.vue";
+  import LearningBoardHeader from "@/components/TaskManager/LearningBoardHeader.vue";
+  import TaskProgressOverview from "@/components/TaskManager/TaskProgressOverview.vue";
+  import AnalysisEntryGrid from "@/components/TaskManager/AnalysisEntryGrid.vue";
+  import TaskTabsSection from "@/components/TaskManager/TaskTabsSection.vue";
+  import InteractionPanel from "@/components/TaskManager/InteractionPanel.vue";
+
+  const STUDY_GOAL_OPTIONS = [
+    { label: "30分钟", value: 30 },
+    { label: "1小时", value: 60 },
+    { label: "2小时", value: 120 },
+    { label: "3小时", value: 180 },
+    { label: "4小时", value: 240 },
+  ];
+
+  const PREFERRED_PERIOD_OPTIONS = [
+    { label: "清晨（6-9点）", value: "morning" },
+    { label: "白天（10-17点）", value: "day" },
+    { label: "傍晚（18-21点）", value: "evening" },
+    { label: "夜间（22点后）", value: "night" },
+  ];
+
+  function createDefaultSettingsForm() {
+    return {
+      notifications: {
+        email: true,
+        sms: false,
+        inApp: true,
+        summary: true,
+      },
+      privacy: {
+        showEmail: false,
+        showProfile: true,
+        showStudyData: true,
+      },
+      studyHabits: {
+        dailyGoalMinutes: 60,
+        preferredPeriod: "evening",
+        focusMode: false,
+      },
+    };
+  }
+
+  function mapSettingsResponse(data) {
+    const base = createDefaultSettingsForm();
+    if (!data) {
+      return base;
+    }
+
+    return {
+      notifications: {
+        email: data.notifications?.email ?? base.notifications.email,
+        sms: data.notifications?.sms ?? base.notifications.sms,
+        inApp: data.notifications?.in_app ?? base.notifications.inApp,
+        summary:
+          data.notifications?.weekly_summary ?? base.notifications.summary,
+      },
+      privacy: {
+        showEmail: data.privacy?.show_email ?? base.privacy.showEmail,
+        showProfile: data.privacy?.show_profile ?? base.privacy.showProfile,
+        showStudyData:
+          data.privacy?.show_study_data ?? base.privacy.showStudyData,
+      },
+      studyHabits: {
+        dailyGoalMinutes:
+          data.study_habits?.daily_goal_minutes ??
+          base.studyHabits.dailyGoalMinutes,
+        preferredPeriod:
+          data.study_habits?.preferred_period ??
+          base.studyHabits.preferredPeriod,
+        focusMode:
+          data.study_habits?.focus_mode ?? base.studyHabits.focusMode,
+      },
+    };
+  }
+
+  function buildSettingsPayload(form) {
+    const safeForm = form || createDefaultSettingsForm();
+    return {
+      notifications: {
+        email: !!safeForm.notifications.email,
+        sms: !!safeForm.notifications.sms,
+        in_app: !!safeForm.notifications.inApp,
+        weekly_summary: !!safeForm.notifications.summary,
+      },
+      privacy: {
+        show_email: !!safeForm.privacy.showEmail,
+        show_profile: !!safeForm.privacy.showProfile,
+        show_study_data: !!safeForm.privacy.showStudyData,
+      },
+      study_habits: {
+        daily_goal_minutes: Number(safeForm.studyHabits.dailyGoalMinutes) || 0,
+        preferred_period: safeForm.studyHabits.preferredPeriod,
+        focus_mode: !!safeForm.studyHabits.focusMode,
+      },
+    };
+  }
 
   export default {
     name: "TaskManager",
+    components: {
+      TaskSidebar,
+      LearningBoardHeader,
+      TaskProgressOverview,
+      AnalysisEntryGrid,
+      TaskTabsSection,
+      InteractionPanel,
+    },
     setup() {
-      const {
-        profile,
-        loadCurrentUser,
-        loadStudyStats,
-        studyStats,
-      } = useCurrentUser();
-
-      onMounted(async () => {
-        try {
-          const loadedProfile = await loadCurrentUser();
-          await loadStudyStats(loadedProfile?.id ?? DEFAULT_USER_ID);
-        } catch (error) {
-          console.error("加载用户信息失败:", error);
-        }
-      });
-
-      const displayName = computed(() => profile.value?.display_name || "学习者");
-      const userAvatar = computed(() => profile.value?.avatar_url || "");
-      const userRoleLabel = computed(
-        () => profile.value?.role || "学习者"
-      );
-      const streakDays = computed(() => studyStats.value?.streak_days ?? 28);
-      const coursesInProgress = computed(
-        () => studyStats.value?.courses_in_progress ?? 3
-      );
-      const totalTasks = computed(() => studyStats.value?.total_tasks ?? 102);
-      const pointsRankLabel = computed(
-        () => studyStats.value?.rank_label || "TOP 15%"
-      );
-      const currentPoints = computed(
-        () => studyStats.value?.current_points ?? 0
-      );
-      const levelLabel = computed(
-        () => studyStats.value?.level_label || "成长中学员"
-      );
-      const levelProgress = computed(() => {
-        const progress = studyStats.value?.progress_percent ?? 75;
-        if (progress < 0) return 0;
-        if (progress > 100) return 100;
-        return progress;
-      });
-      const pointsToNextLevel = computed(
-        () => studyStats.value?.distance_to_next ?? 250
-      );
+      const { profile } = useCurrentUser();
 
       return {
-        displayName,
-        userAvatar,
-        userRoleLabel,
-        streakDays,
-        coursesInProgress,
-        totalTasks,
-        pointsRankLabel,
-        currentPoints,
-        levelLabel,
-        levelProgress,
-        pointsToNextLevel,
+        currentUserId: computed(() => profile.value?.id ?? DEFAULT_USER_ID),
       };
     },
     data() {
       return {
         showAchievements: false,
         showSettings: false,
+        settingsForm: createDefaultSettingsForm(),
+        settingsLoading: false,
+        settingsLoadError: "",
+        settingsSaving: false,
+        studyGoalOptions: STUDY_GOAL_OPTIONS,
+        preferredPeriodOptions: PREFERRED_PERIOD_OPTIONS,
         activeTab: "inProgress",
         // 聊天相关状态
         isChatExpanded: true, // 聊天列表展开状态
@@ -1989,8 +1087,6 @@
           ],
         },
         activeTimeFilter: "week", // 修正数据属性名称
-        chartInstance: null,
-        progressChartInstance: null,
         // 不同时间段的数据
         timeFilterData: {
           week: {
@@ -2087,7 +1183,7 @@
               tags: ["CSS", "布局"],
             },
           ],
-          toStart: [
+          pending: [
             {
               id: 4,
               title: "React Hooks",
@@ -2136,253 +1232,28 @@
         return this.timeFilterData[this.activeTimeFilter];
       },
     },
-    mounted() {
-      this.initCharts();
-    },
     methods: {
-      // 设置时间筛选器
-      setTimeFilter(filter) {
-        this.activeTimeFilter = filter;
-        this.updateCharts();
-      },
-
-      // 更新图表数据
-      updateCharts() {
-        this.updateRingChart();
-        this.updateBarChart();
-      },
-
-      // 更新环形进度图
-      updateRingChart() {
-        if (this.chartInstance) {
-          const completionRate = this.currentTimeData.completionRate / 100;
-          this.chartInstance.setOption({
-            tooltip: { show: false },
-            series: [
-              {
-                type: "gauge",
-                startAngle: 180,
-                endAngle: 0,
-                radius: "100%",
-                min: 0,
-                max: 100,
-                splitNumber: 10,
-                pointer: { show: false },
-                axisLine: {
-                  lineStyle: {
-                    width: 15,
-                    color: [
-                      [completionRate, "#2D5BFF"],
-                      [1, "#F5F7FA"],
-                    ],
-                  },
-                },
-                axisLabel: { show: false },
-                axisTick: { show: false },
-                splitLine: { show: false },
-                detail: { show: false },
-              },
-            ],
-          });
-
-          // 柱状图
-          this.progressChartInstance = echarts.init(
-            this.$refs.taskProgressChart
-          );
-          this.updateBarChart();
-
-          // 窗口大小变化时重绘图表
-          window.addEventListener("resize", () => {
-            if (this.chartInstance) this.chartInstance.resize();
-            if (this.progressChartInstance) this.progressChartInstance.resize();
-          });
+      openSettingsModal() {
+        this.showSettings = true;
+        if (!this.settingsLoading) {
+          this.fetchUserSettings();
         }
       },
-
-      // 更新柱状图
-      updateBarChart() {
-        if (this.progressChartInstance) {
-          const isLineChart =
-            this.activeTimeFilter === "month" ||
-            this.activeTimeFilter === "quarter";
-
-          this.progressChartInstance.setOption({
-            xAxis: {
-              data: this.currentTimeData.chartLabels,
-            },
-            series: [
-              {
-                data: this.currentTimeData.chartData,
-                type: isLineChart ? "line" : "bar",
-                barWidth: isLineChart ? undefined : 24,
-                smooth: isLineChart ? true : undefined,
-                symbol: isLineChart ? "circle" : undefined,
-                symbolSize: isLineChart ? 6 : undefined,
-                lineStyle: isLineChart
-                  ? {
-                      width: 3,
-                      color: "#2D5BFF",
-                    }
-                  : undefined,
-                itemStyle: isLineChart
-                  ? {
-                      color: "#2D5BFF",
-                      borderColor: "#fff",
-                      borderWidth: 2,
-                    }
-                  : {
-                      color: {
-                        type: "linear",
-                        x: 0,
-                        y: 0,
-                        x2: 0,
-                        y2: 1,
-                        colorStops: [
-                          {
-                            offset: 0,
-                            color: "#2D5BFF",
-                          },
-                          {
-                            offset: 1,
-                            color: "#5D8AFE",
-                          },
-                        ],
-                      },
-                      borderRadius: [8, 8, 0, 0],
-                    },
-                emphasis: {
-                  itemStyle: {
-                    shadowColor: "rgba(45,91,255,0.5)",
-                    shadowBlur: 8,
-                  },
-                },
-              },
-            ],
-          });
+      async fetchUserSettings() {
+        if (this.settingsLoading) {
+          return;
         }
-      },
-      initCharts() {
-        // 环形进度图
-        this.chartInstance = echarts.init(this.$refs.ringProgress);
-        const completionRate = this.currentTimeData.completionRate / 100;
-        this.chartInstance.setOption({
-          tooltip: { show: false },
-          series: [
-            {
-              type: "gauge",
-              startAngle: 180,
-              endAngle: 0,
-              radius: "100%",
-              min: 0,
-              max: 100,
-              splitNumber: 10,
-              pointer: { show: false },
-              axisLine: {
-                lineStyle: {
-                  width: 15,
-                  color: [
-                    [completionRate, "#2D5BFF"],
-                    [1, "#F5F7FA"],
-                  ],
-                },
-              },
-              axisLabel: { show: false },
-              axisTick: { show: false },
-              splitLine: { show: false },
-              detail: { show: false },
-            },
-          ],
-        });
-
-        // 柱状图/折线图
-        this.progressChartInstance = echarts.init(this.$refs.taskProgressChart);
-        const isLineChart =
-          this.activeTimeFilter === "month" ||
-          this.activeTimeFilter === "quarter";
-
-        this.progressChartInstance.setOption({
-          tooltip: {
-            trigger: "axis",
-            formatter: "{b}<br/>{c}% 完成",
-          },
-          grid: {
-            left: "3%",
-            right: "4%",
-            bottom: "3%",
-            top: "5%",
-            containLabel: true,
-          },
-          xAxis: {
-            type: "category",
-            data: this.currentTimeData.chartLabels,
-            axisLine: { lineStyle: { color: "#E5E7EB" } },
-            axisTick: { show: false },
-          },
-          yAxis: {
-            type: "value",
-            max: 100,
-            axisLine: { show: false },
-            axisTick: { show: false },
-            splitLine: {
-              lineStyle: { color: "#F0F2F5" },
-            },
-            axisLabel: { formatter: "{value}%" },
-          },
-          series: [
-            {
-              data: this.currentTimeData.chartData,
-              type: isLineChart ? "line" : "bar",
-              barWidth: isLineChart ? undefined : 24,
-              smooth: isLineChart ? true : undefined,
-              symbol: isLineChart ? "circle" : undefined,
-              symbolSize: isLineChart ? 6 : undefined,
-              lineStyle: isLineChart
-                ? {
-                    width: 3,
-                    color: "#2D5BFF",
-                  }
-                : undefined,
-              itemStyle: isLineChart
-                ? {
-                    color: "#2D5BFF",
-                    borderColor: "#fff",
-                    borderWidth: 2,
-                  }
-                : {
-                    color: {
-                      type: "linear",
-                      x: 0,
-                      y: 0,
-                      x2: 0,
-                      y2: 1,
-                      colorStops: [
-                        {
-                          offset: 0,
-                          color: "#2D5BFF",
-                        },
-                        {
-                          offset: 1,
-                          color: "#5D8AFE",
-                        },
-                      ],
-                    },
-                    borderRadius: [8, 8, 0, 0],
-                  },
-              emphasis: {
-                itemStyle: {
-                  shadowColor: "rgba(45,91,255,0.5)",
-                  shadowBlur: 8,
-                },
-              },
-            },
-          ],
-        });
-
-        // 窗口大小变化时重绘图表
-        window.addEventListener("resize", () => {
-          if (this.chartInstance) this.chartInstance.resize();
-          if (this.progressChartInstance) this.progressChartInstance.resize();
-        });
+        this.settingsLoading = true;
+        this.settingsLoadError = "";
+        try {
+          const response = await getUserSettings(this.currentUserId);
+          this.settingsForm = mapSettingsResponse(response?.data);
+        } catch (error) {
+          console.error("获取用户设置失败:", error);
+          this.settingsLoadError = error?.message || "获取用户设置失败";
+        } finally {
+          this.settingsLoading = false;
+        }
       },
       showTaskDetails() {
         // 点击环形图显示任务详情的联动功能
@@ -2547,11 +1418,24 @@
           }
         });
       },
-      saveSettings() {
-        // 保存设置逻辑
-        console.log("设置已保存");
-        this.showSettings = false;
-        // 这里可以添加实际的保存逻辑，比如调用API
+      async saveSettings() {
+        if (this.settingsSaving) {
+          return;
+        }
+        this.settingsSaving = true;
+        try {
+          const payload = buildSettingsPayload(this.settingsForm);
+          await updateUserSettings(this.currentUserId, payload);
+          ElMessage.success("设置已保存");
+          this.showSettings = false;
+        } catch (error) {
+          console.error("保存设置失败:", error);
+          if (!error?.message) {
+            ElMessage.error("保存设置失败");
+          }
+        } finally {
+          this.settingsSaving = false;
+        }
       },
 
       // 聊天相关方法
@@ -2576,71 +1460,8 @@
         alert(`即将跳转到与 ${friendName} 的聊天界面，并自动聚焦到消息输入框`);
       },
 
-      // 更换励志语录
-      changeQuote() {
-        const currentIndex = this.motivationalQuotes.indexOf(
-          this.currentMotivationalQuote
-        );
-        let newIndex;
-        do {
-          newIndex = Math.floor(Math.random() * this.motivationalQuotes.length);
-        } while (
-          newIndex === currentIndex &&
-          this.motivationalQuotes.length > 1
-        );
-
-        this.currentMotivationalQuote = this.motivationalQuotes[newIndex];
-      },
     },
   };
 </script>
 
-<style scoped>
-  .sidebar-shadow {
-    box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.05);
-  }
-
-  .badge {
-    animation: pulse 1.5s infinite;
-  }
-
-  @keyframes pulse {
-    0% {
-      box-shadow: 0 0 0 0 rgba(45, 91, 255, 0.4);
-    }
-    70% {
-      box-shadow: 0 0 0 10px rgba(45, 91, 255, 0);
-    }
-    100% {
-      box-shadow: 0 0 0 0 rgba(45, 91, 255, 0);
-    }
-  }
-
-  .bubble-left:before {
-    content: "";
-    width: 0;
-    height: 0;
-    position: absolute;
-    left: -10px;
-    top: 10px;
-    border-top: 10px solid transparent;
-    border-bottom: 10px solid transparent;
-    border-right: 10px solid #e5e7eb;
-  }
-
-  .bubble-right:before {
-    content: "";
-    width: 0;
-    height: 0;
-    position: absolute;
-    right: -10px;
-    top: 10px;
-    border-top: 10px solid transparent;
-    border-bottom: 10px solid transparent;
-    border-left: 10px solid #2d5bff;
-  }
-
-  .friend-card:hover {
-    background-color: rgba(45, 91, 255, 0.05);
-  }
-</style>
+<style scoped></style>
