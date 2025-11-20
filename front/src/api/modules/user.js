@@ -33,6 +33,20 @@ export function getUserStudyStats(userId) {
 }
 
 /**
+ * 获取用户积分账本
+ */
+export function getUserPointsLedger(userId, params = {}) {
+  return request.get(`/users/${userId}/points/ledger`, params);
+}
+
+/**
+ * 用户签到
+ */
+export function checkInUser(userId) {
+  return request.post(`/users/${userId}/check-in`);
+}
+
+/**
  * 获取用户成就列表
  */
 export function getUserAchievements(userId) {
