@@ -17,18 +17,20 @@ import (
 
 	"learningAssistant-backend/database"
 	"learningAssistant-backend/models"
+	"learningAssistant-backend/services/achievement"
+	"learningAssistant-backend/services/points"
 )
 
 type userProfileResponse struct {
-	ID         uint64                `json:"id"`
-	Account    string                `json:"account"`
-	Display    string                `json:"display_name"`
-	AvatarURL  string                `json:"avatar_url"`
-	Bio        string                `json:"bio"`
-	Role       string                `json:"role"`
-	Status     string                `json:"status"`
-	BasicInfo  userBasicInfo         `json:"basic_info"`
-	Badges     []string              `json:"badges"`
+	ID          uint64               `json:"id"`
+	Account     string               `json:"account"`
+	Display     string               `json:"display_name"`
+	AvatarURL   string               `json:"avatar_url"`
+	Bio         string               `json:"bio"`
+	Role        string               `json:"role"`
+	Status      string               `json:"status"`
+	BasicInfo   userBasicInfo        `json:"basic_info"`
+	Badges      []string             `json:"badges"`
 	Preferences userPreferencesBrief `json:"preferences"`
 }
 
@@ -47,29 +49,32 @@ type userPreferencesBrief struct {
 }
 
 type userStudyStatsResponse struct {
-	LevelLabel        string  `json:"level_label"`
-	CurrentLevel      int     `json:"current_level"`
-	CurrentPoints     int     `json:"current_points"`
-	NextLevelPoints   int     `json:"next_level_points"`
-	ProgressPercent   int     `json:"progress_percent"`
-	DistanceToNext    int     `json:"distance_to_next"`
-	TotalStudyHours   float64 `json:"total_study_hours"`
-	TasksCompleted    int     `json:"tasks_completed"`
-	CertificatesCount int     `json:"certificates_count"`
-	StudyGroups       int     `json:"study_groups"`
-	TaskCompletionRate int    `json:"task_completion_rate"`
-	TasksInProgress   int     `json:"tasks_in_progress"`
-	RankLabel         string  `json:"rank_label"`
-	StreakDays        int     `json:"streak_days"`
-	CoursesInProgress int     `json:"courses_in_progress"`
+	LevelLabel         string  `json:"level_label"`
+	CurrentLevel       int     `json:"current_level"`
+	CurrentPoints      int     `json:"current_points"`
+	NextLevelPoints    int     `json:"next_level_points"`
+	ProgressPercent    int     `json:"progress_percent"`
+	DistanceToNext     int     `json:"distance_to_next"`
+	TotalStudyHours    float64 `json:"total_study_hours"`
+	TasksCompleted     int     `json:"tasks_completed"`
+	CertificatesCount  int     `json:"certificates_count"`
+	StudyGroups        int     `json:"study_groups"`
+	TaskCompletionRate int     `json:"task_completion_rate"`
+	TasksInProgress    int     `json:"tasks_in_progress"`
+	RankLabel          string  `json:"rank_label"`
+	StreakDays         int     `json:"streak_days"`
+	CoursesInProgress  int     `json:"courses_in_progress"`
 }
 
 type userAchievementResponse struct {
-	ID          uint64 `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	AwardedAt   string `json:"awarded_at"`
-	Type        string `json:"type"`
+	ID            uint64 `json:"id"`
+	AchievementID uint   `json:"achievement_id"`
+	Code          string `json:"code"`
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	Category      string `json:"category"`
+	Icon          string `json:"icon"`
+	AwardedAt     string `json:"awarded_at"`
 }
 
 type userSkillsResponse struct {
@@ -79,8 +84,8 @@ type userSkillsResponse struct {
 
 type userSettingsResponse struct {
 	Notifications userNotificationPreferences `json:"notifications"`
-	Privacy       userPrivacySettings          `json:"privacy"`
-	StudyHabits   userStudyHabitSettings       `json:"study_habits"`
+	Privacy       userPrivacySettings         `json:"privacy"`
+	StudyHabits   userStudyHabitSettings      `json:"study_habits"`
 }
 
 type userNotificationPreferences struct {
@@ -103,12 +108,12 @@ type userStudyHabitSettings struct {
 }
 
 type userStudyRecord struct {
-	ID        uint64  `json:"id"`
-	Title     string  `json:"title"`
-	Category  string  `json:"category"`
-	Duration  float64 `json:"duration"`
-	Completed bool    `json:"completed"`
-	RecordedAt string `json:"recorded_at"`
+	ID         uint64  `json:"id"`
+	Title      string  `json:"title"`
+	Category   string  `json:"category"`
+	Duration   float64 `json:"duration"`
+	Completed  bool    `json:"completed"`
+	RecordedAt string  `json:"recorded_at"`
 }
 
 type authUserSummary struct {
@@ -124,6 +129,10 @@ func registerUserRoutes(router *gin.RouterGroup) {
 	router.GET("/:userId", handleGetUserProfile)
 	router.PUT("/:userId", handleUpdateUserProfile)
 	router.GET("/:userId/study-stats", handleGetUserStudyStats)
+	router.POST("/:userId/check-in", handleUserDailyCheckIn)
+	router.POST("/:userId/points/task-complete", handleUserTaskCompletionPoints)
+	router.POST("/:userId/points/study-duration", handleUserStudyRoomPoints)
+	router.GET("/:userId/points/ledger", handleGetUserPointsLedger)
 	router.GET("/:userId/achievements", handleGetUserAchievements)
 	router.GET("/:userId/skills", handleGetUserSkills)
 	router.PUT("/:userId/skills", handleUpdateUserSkills)
@@ -304,37 +313,221 @@ func handleGetUserStudyStats(c *gin.Context) {
 	})
 }
 
-func handleGetUserAchievements(c *gin.Context) {
+func handleUserDailyCheckIn(c *gin.Context) {
 	userID, ok := parseUserID(c)
 	if !ok {
 		return
 	}
 
 	db := database.GetDB()
-	var achievements []models.UserAchievement
-	if err := db.Where("user_id = ?", userID).Order("awarded_at DESC").Find(&achievements).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取成就失败"})
+	var user models.User
+	if err := db.Select("id").First(&user, userID).Error; err != nil {
+		if errorsIsNotFound(err) {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "用户不存在"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "查询用户失败"})
 		return
 	}
 
-	items := make([]userAchievementResponse, 0, len(achievements))
-	for _, ach := range achievements {
-		items = append(items, userAchievementResponse{
-			ID:          ach.ID,
-			Title:       ach.Title,
-			Description: ach.Description,
-			AwardedAt:   ach.AwardedAt.Format("2006-01-02"),
-			Type:        ach.Type,
-		})
+	var updatedProfile models.UserProfile
+	err := db.Transaction(func(tx *gorm.DB) error {
+		var profile models.UserProfile
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("user_id = ?", userID).
+			First(&profile).Error
+		if err != nil {
+			if !errorsIsNotFound(err) {
+				return err
+			}
+			profile = models.UserProfile{
+				UserID:             userID,
+				Level:              1,
+				NextLevelPoints:    200,
+				RankLabel:          "TOP 100%",
+				StreakDays:         1,
+				TaskCompletionRate: 0,
+			}
+			if err := tx.Create(&profile).Error; err != nil {
+				return err
+			}
+			updatedProfile = profile
+			return nil
+		}
+
+		profile.StreakDays++
+		if err := tx.Model(&models.UserProfile{}).
+			Where("id = ?", profile.ID).
+			Update("streak_days", profile.StreakDays).Error; err != nil {
+			return err
+		}
+		updatedProfile = profile
+		return nil
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "签到失败"})
+		return
+	}
+
+	pointResult, err := points.AwardDailyCheckIn(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "签到积分发放失败"})
+		return
+	}
+	updatedProfile = *pointResult.Profile
+
+	if err := achievement.ProcessEvent(achievement.Event{
+		Type:   achievement.EventStreakUpdated,
+		UserID: userID,
+		Value:  updatedProfile.StreakDays,
+	}); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "签到事件处理失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "check-in success",
+		"data":    buildPointsAwardData(pointResult, updatedProfile.StreakDays),
+	})
+}
+
+type taskPointsRequest struct {
+	TaskID uint64 `json:"task_id"`
+}
+
+type studyRoomPointsRequest struct {
+	RoomID          *uint64 `json:"room_id"`
+	DurationMinutes int     `json:"duration_minutes"`
+}
+
+func handleUserTaskCompletionPoints(c *gin.Context) {
+	userID, ok := parseUserID(c)
+	if !ok {
+		return
+	}
+	if !ensureUserExists(c, userID) {
+		return
+	}
+
+	var req taskPointsRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.TaskID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "task_id 必填"})
+		return
+	}
+
+	result, err := points.AwardTaskCompletion(userID, req.TaskID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, points.ErrInvalidPointsDelta) {
+			status = http.StatusBadRequest
+		}
+		message := "发放任务完成积分失败"
+		if status == http.StatusBadRequest {
+			message = err.Error()
+		}
+		c.JSON(status, gin.H{"code": status, "message": message})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "task completion points applied",
+		"data":    buildPointsAwardData(result, 0),
+	})
+}
+
+func handleUserStudyRoomPoints(c *gin.Context) {
+	userID, ok := parseUserID(c)
+	if !ok {
+		return
+	}
+	if !ensureUserExists(c, userID) {
+		return
+	}
+
+	var req studyRoomPointsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数格式不正确"})
+		return
+	}
+	if req.DurationMinutes <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "duration_minutes 必须大于 0"})
+		return
+	}
+
+	result, err := points.AwardStudyRoomDuration(userID, req.RoomID, req.DurationMinutes)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, points.ErrInsufficientDuration) || errors.Is(err, points.ErrInvalidPointsDelta) {
+			status = http.StatusBadRequest
+		}
+		c.JSON(status, gin.H{"code": status, "message": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "study room points applied",
+		"data":    buildPointsAwardData(result, 0),
+	})
+}
+
+func handleGetUserPointsLedger(c *gin.Context) {
+	userID, ok := parseUserID(c)
+	if !ok {
+		return
+	}
+	if !ensureUserExists(c, userID) {
+		return
+	}
+
+	limit := 50
+	if query := strings.TrimSpace(c.Query("limit")); query != "" {
+		if parsed, err := strconv.Atoi(query); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	records, err := points.ListLedger(userID, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取积分记录失败"})
+		return
+	}
+
+	profile, err := loadUserProfileSnapshot(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取积分概要失败"})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    200,
 		"message": "success",
 		"data": gin.H{
-			"items": items,
-			"total": len(items),
+			"items":   records,
+			"total":   len(records),
+			"summary": buildPointsSummary(profile),
 		},
+	})
+}
+
+func handleGetUserAchievements(c *gin.Context) {
+	userID, ok := parseUserID(c)
+	if !ok {
+		return
+	}
+
+	overview, err := achievement.BuildOverview(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取成就失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "success",
+		"data":    overview,
 	})
 }
 
@@ -399,9 +592,9 @@ func handleUpdateUserSkills(c *gin.Context) {
 				continue
 			}
 			if err := tx.Create(&models.UserSkill{
-				UserID:    userID,
-				Name:      name,
-				Category:  "primary",
+				UserID:   userID,
+				Name:     name,
+				Category: "primary",
 			}).Error; err != nil {
 				return err
 			}
@@ -412,9 +605,9 @@ func handleUpdateUserSkills(c *gin.Context) {
 				continue
 			}
 			if err := tx.Create(&models.UserSkill{
-				UserID:    userID,
-				Name:      name,
-				Category:  "secondary",
+				UserID:   userID,
+				Name:     name,
+				Category: "secondary",
 			}).Error; err != nil {
 				return err
 			}
@@ -507,11 +700,11 @@ func handleGetUserStudyRecords(c *gin.Context) {
 		}
 
 		item := userStudyRecord{
-			ID:        rec.ID,
-			Title:     task.Title,
-			Category:  category,
-			Duration:  durationHours,
-			Completed: rec.SessionEnd.After(rec.SessionStart),
+			ID:         rec.ID,
+			Title:      task.Title,
+			Category:   category,
+			Duration:   durationHours,
+			Completed:  rec.SessionEnd.After(rec.SessionStart),
 			RecordedAt: rec.SessionEnd.Format("2006-01-02"),
 		}
 		if item.Title == "" {
@@ -551,8 +744,8 @@ func handleGetUserSettings(c *gin.Context) {
 
 type updateUserSettingsRequest struct {
 	Notifications *userNotificationPreferences `json:"notifications"`
-	Privacy       *userPrivacySettings          `json:"privacy"`
-	StudyHabits   *userStudyHabitSettings       `json:"study_habits"`
+	Privacy       *userPrivacySettings         `json:"privacy"`
+	StudyHabits   *userStudyHabitSettings      `json:"study_habits"`
 }
 
 func handleUpdateUserSettings(c *gin.Context) {
@@ -686,8 +879,89 @@ func parseUserID(c *gin.Context) (uint64, bool) {
 			"message": "用户ID不正确",
 		})
 		return 0, false
-}
+	}
 	return userID, true
+}
+
+func ensureUserExists(c *gin.Context, userID uint64) bool {
+	var user models.User
+	if err := database.GetDB().Select("id").First(&user, userID).Error; err != nil {
+		if errorsIsNotFound(err) {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "用户不存在"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "查询用户失败"})
+		}
+		return false
+	}
+	return true
+}
+
+func loadUserProfileSnapshot(userID uint64) (*models.UserProfile, error) {
+	var profile models.UserProfile
+	err := database.GetDB().Where("user_id = ?", userID).First(&profile).Error
+	if err != nil {
+		if !errorsIsNotFound(err) {
+			return nil, err
+		}
+		// 返回默认档案用于展示
+		profile = models.UserProfile{
+			UserID:          userID,
+			Level:           1,
+			NextLevelPoints: 200,
+			RankLabel:       "TOP 100%",
+		}
+	}
+	return &profile, nil
+}
+
+func buildPointsAwardData(result *points.AwardResult, streakDays int) gin.H {
+	data := gin.H{
+		"points_added":      result.Ledger.Delta,
+		"balance_after":     result.Ledger.BalanceAfter,
+		"current_level":     result.Profile.Level,
+		"next_level_points": result.Profile.NextLevelPoints,
+		"ledger":            result.Ledger,
+	}
+	if streakDays > 0 {
+		data["streak_days"] = streakDays
+	}
+	return data
+}
+
+func buildPointsSummary(profile *models.UserProfile) gin.H {
+	nextLevel := profile.NextLevelPoints
+	if nextLevel <= 0 {
+		nextLevel = 200
+	}
+	current := profile.TotalPoints
+	progress := 0
+	if nextLevel > 0 {
+		progress = int(math.Round(float64(current) / float64(nextLevel) * 100))
+		if progress > 100 {
+			progress = 100
+		}
+		if progress < 0 {
+			progress = 0
+		}
+	}
+	distance := nextLevel - current
+	if distance < 0 {
+		distance = 0
+	}
+
+	levelLabel := fmt.Sprintf("学霸 Lv.%d", profile.Level)
+	if profile.Level <= 0 {
+		levelLabel = "学霸 Lv.1"
+	}
+
+	return gin.H{
+		"current_points":    current,
+		"next_level_points": nextLevel,
+		"distance_to_next":  distance,
+		"progress_percent":  progress,
+		"current_level":     profile.Level,
+		"level_label":       levelLabel,
+	}
 }
 
 func buildUserProfileResponse(user *models.User, badges []models.UserBadge) userProfileResponse {
@@ -750,21 +1024,21 @@ func buildStudyStatsResponse(profile *models.UserProfile) userStudyStatsResponse
 	rate := int(math.Round(float64(profile.TaskCompletionRate)))
 
 	return userStudyStatsResponse{
-		LevelLabel:        levelLabel,
-		CurrentLevel:      profile.Level,
-		CurrentPoints:     profile.TotalPoints,
-		NextLevelPoints:   nextLevel,
-		ProgressPercent:   progress,
-		DistanceToNext:    distance,
-		TotalStudyHours:   totalHours,
-		TasksCompleted:    profile.TasksCompleted,
-		CertificatesCount: profile.CertificatesCount,
-		StudyGroups:       profile.StudyGroups,
+		LevelLabel:         levelLabel,
+		CurrentLevel:       profile.Level,
+		CurrentPoints:      profile.TotalPoints,
+		NextLevelPoints:    nextLevel,
+		ProgressPercent:    progress,
+		DistanceToNext:     distance,
+		TotalStudyHours:    totalHours,
+		TasksCompleted:     profile.TasksCompleted,
+		CertificatesCount:  profile.CertificatesCount,
+		StudyGroups:        profile.StudyGroups,
 		TaskCompletionRate: rate,
-		TasksInProgress:   profile.TasksInProgress,
-		RankLabel:         profile.RankLabel,
-		StreakDays:        profile.StreakDays,
-		CoursesInProgress: profile.CoursesInProgress,
+		TasksInProgress:    profile.TasksInProgress,
+		RankLabel:          profile.RankLabel,
+		StreakDays:         profile.StreakDays,
+		CoursesInProgress:  profile.CoursesInProgress,
 	}
 }
 
@@ -826,21 +1100,21 @@ func ensureEmailUnique(db *gorm.DB, email string, userID uint64) error {
 
 func defaultStudyStats() userStudyStatsResponse {
 	return userStudyStatsResponse{
-		LevelLabel:        "学霸 Lv.1",
-		CurrentLevel:      1,
-		CurrentPoints:     0,
-		NextLevelPoints:   200,
-		ProgressPercent:   0,
-		DistanceToNext:    200,
-		TotalStudyHours:   0,
-		TasksCompleted:    0,
-		CertificatesCount: 0,
-		StudyGroups:       0,
+		LevelLabel:         "学霸 Lv.1",
+		CurrentLevel:       1,
+		CurrentPoints:      0,
+		NextLevelPoints:    200,
+		ProgressPercent:    0,
+		DistanceToNext:     200,
+		TotalStudyHours:    0,
+		TasksCompleted:     0,
+		CertificatesCount:  0,
+		StudyGroups:        0,
 		TaskCompletionRate: 0,
-		TasksInProgress:   0,
-		RankLabel:         "TOP 100%",
-		StreakDays:        0,
-		CoursesInProgress: 0,
+		TasksInProgress:    0,
+		RankLabel:          "TOP 100%",
+		StreakDays:         0,
+		CoursesInProgress:  0,
 	}
 }
 
@@ -967,12 +1241,12 @@ func registerUserAccount(username, email, password, displayName string) (*authUs
 		}
 
 		profile := models.UserProfile{
-			UserID:           user.ID,
-			TotalPoints:      0,
-			Level:            1,
-			TotalStudyMins:   0,
-			TasksCompleted:   0,
-			TasksInProgress:  0,
+			UserID:             user.ID,
+			TotalPoints:        0,
+			Level:              1,
+			TotalStudyMins:     0,
+			TasksCompleted:     0,
+			TasksInProgress:    0,
 			TaskCompletionRate: 0,
 			CertificatesCount:  0,
 			StudyGroups:        0,
