@@ -1,66 +1,27 @@
 <template>
-  <div class="w-full h-full overflow-auto px-4">
+  <div class="container">
     <div class="card">
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold">个人资料</h1>
-        <button
-          class="bg-[#2D5BFF] text-white font-medium py-2 px-4 rounded-lg text-sm hover:bg-opacity-90 transition-colors flex items-center gap-2"
-        >
+        <button class="bg-[#2D5BFF] text-white font-medium py-2 px-4 rounded-lg text-sm hover:bg-opacity-90 transition-colors flex items-center gap-2">
           <iconify-icon icon="mdi:pencil" width="16" height="16"></iconify-icon>
           编辑资料
         </button>
       </div>
 
-      <div v-if="loading" class="py-10 text-center text-gray-500">
-        正在加载个人资料...
-      </div>
-
-      <div v-else-if="error" class="py-10 text-center text-red-500">
-        {{ error }}
-      </div>
-
-      <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- 左侧个人信息 -->
         <div class="lg:col-span-2">
           <div class="flex items-start gap-6 mb-6">
-            <div
-              class="w-24 h-24 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center text-3xl font-semibold text-[#2D5BFF]"
-            >
-              <img
-                v-if="profile.avatar_url"
-                :src="profile.avatar_url"
-                :alt="profile.display_name"
-                class="w-full h-full object-cover"
-              />
-              <span v-else>{{ profile.display_name?.slice(0, 1) || "U" }}</span>
-            </div>
+            <div class="w-24 h-24 rounded-full bg-gray-300"></div>
             <div class="flex-1">
-              <h2 class="text-xl font-bold mb-2">{{ profile.display_name }}</h2>
-              <p class="text-gray-600 mb-3">
-                {{ profile.bio || "这个用户还没有填写简介。" }}
-              </p>
-              <div class="flex items-center gap-4 flex-wrap">
-                <div
-                  v-if="profile.role"
-                  class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium"
-                >
-                  {{ profile.role }}
-                </div>
-                <div
-                  class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1"
-                >
-                  <span
-                    class="w-2 h-2 rounded-full"
-                    :class="statusDotClass"
-                  ></span>
-                  {{ statusLabel }}
-                </div>
-                <div
-                  v-for="badge in profileBadges"
-                  :key="badge"
-                  class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium"
-                >
-                  {{ badge }}
+              <h2 class="text-xl font-bold mb-2">张同学</h2>
+              <p class="text-gray-600 mb-3">专注于教育科技领域，热衷于学习新技术，致力于打造高效的学习工具。</p>
+              <div class="flex items-center gap-4">
+                <div class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">技术项目经理</div>
+                <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
+                  <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                  在线
                 </div>
               </div>
             </div>
@@ -70,55 +31,44 @@
           <div class="space-y-4">
             <h3 class="font-bold text-lg">基本信息</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <ProfileReadonlyInput label="姓名" :value="profile.basic_info?.real_name" />
-              <ProfileReadonlyInput label="邮箱" :value="profile.basic_info?.email" />
-              <ProfileReadonlyInput label="学校" :value="profile.basic_info?.school" />
-              <ProfileReadonlyInput label="专业" :value="profile.basic_info?.major" />
-              <ProfileReadonlyInput label="地区" :value="profile.basic_info?.location" />
-              <ProfileReadonlyInput label="加入时间" :value="profile.basic_info?.join_date" />
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+                <input type="text" value="张同学" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" readonly>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+                <input type="email" value="zhang@example.com" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" readonly>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">学校</label>
+                <input type="text" value="北京大学" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" readonly>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">专业</label>
+                <input type="text" value="计算机科学与技术" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" readonly>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">地区</label>
+                <input type="text" value="北京市" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" readonly>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">加入时间</label>
+                <input type="text" value="2023年9月" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" readonly>
+              </div>
             </div>
           </div>
 
           <!-- 技能标签 -->
           <div class="mt-6">
             <h3 class="font-bold text-lg mb-3">技能标签</h3>
-            <div v-if="allSkills.length" class="flex flex-wrap gap-2">
-              <span
-                v-for="skill in allSkills"
-                :key="skill"
-                class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm"
-              >
-                {{ skill }}
-              </span>
+            <div class="flex flex-wrap gap-2">
+              <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">Vue.js</span>
+              <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">JavaScript</span>
+              <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm">Node.js</span>
+              <span class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm">项目管理</span>
+              <span class="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-sm">UI设计</span>
+              <span class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">数据分析</span>
             </div>
-            <div v-else class="text-sm text-gray-500">暂无技能标签</div>
-          </div>
-
-          <!-- 账户操作 -->
-          <div class="mt-8 border border-gray-100 rounded-xl p-5 bg-gray-50">
-            <h3 class="font-bold text-lg mb-1">账户与安全</h3>
-            <p class="text-sm text-gray-500">
-              管理您的账户，退出登录后需要重新验证才能访问受限页面。
-            </p>
-            <div class="flex flex-wrap gap-3 mt-4">
-              <button
-                class="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition"
-                disabled
-                title="功能开发中"
-              >
-                修改密码 (开发中)
-              </button>
-              <button
-                class="px-4 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
-                @click="handleLogout"
-                :disabled="loggingOut"
-              >
-                {{ loggingOut ? "退出中..." : "退出登录" }}
-              </button>
-            </div>
-            <p v-if="logoutError" class="text-sm text-red-500 mt-2">
-              {{ logoutError }}
-            </p>
           </div>
         </div>
 
@@ -126,83 +76,79 @@
         <div class="space-y-4">
           <div class="bg-blue-50 p-4 rounded-lg">
             <div class="text-center">
-              <div class="text-2xl font-bold text-blue-600">
-                {{ studyStats.level_label }}
-              </div>
+              <div class="text-2xl font-bold text-blue-600">学霸 Lv.4</div>
               <div class="text-sm text-gray-600 mt-1">当前等级</div>
               <div class="mt-3">
                 <div class="progress-bar">
-                  <div
-                    class="progress-fill"
-                    :style="{ width: `${studyStats.progress_percent || 0}%` }"
-                  ></div>
+                  <div class="progress-fill" style="width: 75%"></div>
                 </div>
-                <div class="text-xs text-gray-600 mt-1">
-                  距离下一级还需 {{ studyStats.distance_to_next || 0 }} 积分
-                </div>
+                <div class="text-xs text-gray-600 mt-1">距离下一级还需 250 积分</div>
               </div>
             </div>
           </div>
 
           <div class="space-y-3">
-            <ProfileStatCard
-              icon="mdi:clock"
-              icon-class="text-blue-600"
-              label="总学习时长"
-              :value="`${studyStats.total_study_hours || 0}h`"
-              value-class="text-blue-600"
-            />
-            <ProfileStatCard
-              icon="mdi:check-circle"
-              icon-class="text-green-600"
-              label="完成任务"
-              :value="studyStats.tasks_completed || 0"
-              value-class="text-green-600"
-            />
-            <ProfileStatCard
-              icon="mdi:certificate"
-              icon-class="text-purple-600"
-              label="获得证书"
-              :value="studyStats.certificates_count || 0"
-              value-class="text-purple-600"
-            />
-            <ProfileStatCard
-              icon="mdi:account-group"
-              icon-class="text-orange-600"
-              label="学习小组"
-              :value="studyStats.study_groups || 0"
-              value-class="text-orange-600"
-            />
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div class="flex items-center gap-3">
+                <iconify-icon icon="mdi:clock" width="20" height="20" class="text-blue-600"></iconify-icon>
+                <span class="font-medium">总学习时长</span>
+              </div>
+              <span class="font-bold text-blue-600">87.5h</span>
+            </div>
+
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div class="flex items-center gap-3">
+                <iconify-icon icon="mdi:check-circle" width="20" height="20" class="text-green-600"></iconify-icon>
+                <span class="font-medium">完成任务</span>
+              </div>
+              <span class="font-bold text-green-600">156</span>
+            </div>
+
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div class="flex items-center gap-3">
+                <iconify-icon icon="mdi:certificate" width="20" height="20" class="text-purple-600"></iconify-icon>
+                <span class="font-medium">获得证书</span>
+              </div>
+              <span class="font-bold text-purple-600">24</span>
+            </div>
+
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div class="flex items-center gap-3">
+                <iconify-icon icon="mdi:account-group" width="20" height="20" class="text-orange-600"></iconify-icon>
+                <span class="font-medium">学习小组</span>
+              </div>
+              <span class="font-bold text-orange-600">3</span>
+            </div>
           </div>
 
           <!-- 最近成就 -->
           <div class="mt-6">
             <h3 class="font-bold text-lg mb-3">最近成就</h3>
-            <div v-if="achievements.length" class="space-y-2">
-              <div
-                v-for="achievement in achievements"
-                :key="achievement.id"
-                class="flex items-center gap-3 p-3 rounded-lg"
-                :class="achievementClassMap[achievement.type] || 'bg-gray-50'"
-              >
-                <iconify-icon
-                  :icon="achievementIconMap[achievement.type] || 'mdi:star'"
-                  width="20"
-                  height="20"
-                  class="text-blue-600"
-                ></iconify-icon>
+            <div class="space-y-2">
+              <div class="flex items-center gap-3 p-2 bg-yellow-50 rounded-lg">
+                <iconify-icon icon="mdi:trophy" width="20" height="20" class="text-yellow-600"></iconify-icon>
                 <div>
-                  <div class="font-medium text-sm">{{ achievement.title }}</div>
-                  <div class="text-xs text-gray-600">
-                    {{ achievement.awarded_at }}
-                  </div>
-                  <div v-if="achievement.description" class="text-xs text-gray-500 mt-1">
-                    {{ achievement.description }}
-                  </div>
+                  <div class="font-medium text-sm">连续学习7天</div>
+                  <div class="text-xs text-gray-600">2024-01-15</div>
+                </div>
+              </div>
+              
+              <div class="flex items-center gap-3 p-2 bg-blue-50 rounded-lg">
+                <iconify-icon icon="mdi:star" width="20" height="20" class="text-blue-600"></iconify-icon>
+                <div>
+                  <div class="font-medium text-sm">完成Vue项目</div>
+                  <div class="text-xs text-gray-600">2024-01-12</div>
+                </div>
+              </div>
+              
+              <div class="flex items-center gap-3 p-2 bg-green-50 rounded-lg">
+                <iconify-icon icon="mdi:medal" width="20" height="20" class="text-green-600"></iconify-icon>
+                <div>
+                  <div class="font-medium text-sm">团队协作达人</div>
+                  <div class="text-xs text-gray-600">2024-01-10</div>
                 </div>
               </div>
             </div>
-            <div v-else class="text-sm text-gray-500">暂无成就记录</div>
           </div>
         </div>
       </div>
@@ -210,178 +156,16 @@
   </div>
 </template>
 
-<script setup>
-import { computed, onMounted, reactive, ref } from "vue";
-import { useRouter } from "vue-router";
-import {
-  getUserProfile,
-  getUserStudyStats,
-  getUserAchievements,
-  getUserSkills,
-} from "@/api/modules/user";
-import { DEFAULT_USER_ID, useCurrentUser } from "@/composables/useCurrentUser";
-import { logout as logoutApi } from "@/api/modules/auth";
-import { clearAuth } from "@/utils/auth";
-
-const loading = ref(false);
-const error = ref("");
-const profile = reactive({});
-const studyStats = reactive({});
-const achievements = ref([]);
-const skills = reactive({
-  primary: [],
-  secondary: [],
-});
-const loggingOut = ref(false);
-const logoutError = ref("");
-
-const achievementIconMap = {
-  streak: "mdi:trophy",
-  project: "mdi:star",
-  team: "mdi:account-group",
-};
-
-const achievementClassMap = {
-  streak: "bg-yellow-50",
-  project: "bg-blue-50",
-  team: "bg-green-50",
-};
-
-const statusLabel = computed(() => {
-  if (profile.status === "offline") return "离线";
-  if (profile.status === "busy") return "忙碌";
-  return "在线";
-});
-
-const statusDotClass = computed(() => {
-  switch (profile.status) {
-    case "offline":
-      return "bg-gray-400";
-    case "busy":
-      return "bg-yellow-500";
-    default:
-      return "bg-green-500";
-  }
-});
-
-const allSkills = computed(() => [
-  ...(skills.primary || []),
-  ...(skills.secondary || []),
-]);
-
-const profileBadges = computed(() => profile.badges || []);
-
-const router = useRouter();
-const { clearCurrentUser } = useCurrentUser();
-
-const ProfileReadonlyInput = {
-  name: "ProfileReadonlyInput",
-  props: {
-    label: {
-      type: String,
-      required: true,
-    },
-    value: {
-      type: [String, Number],
-      default: "",
-    },
-  },
-  template: `
-    <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">{{ label }}</label>
-      <input
-        type="text"
-        :value="value || '未填写'"
-        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50"
-        readonly
-      />
-    </div>
-  `,
-};
-
-const ProfileStatCard = {
-  name: "ProfileStatCard",
-  props: {
-    icon: {
-      type: String,
-      required: true,
-    },
-    iconClass: {
-      type: String,
-      default: "",
-    },
-    label: {
-      type: String,
-      required: true,
-    },
-    value: {
-      type: [String, Number],
-      default: "",
-    },
-    valueClass: {
-      type: String,
-      default: "",
-    },
-  },
-  template: `
-    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-      <div class="flex items-center gap-3">
-        <iconify-icon :icon="icon" width="20" height="20" :class="iconClass"></iconify-icon>
-        <span class="font-medium">{{ label }}</span>
-      </div>
-      <span class="font-bold" :class="valueClass">{{ value }}</span>
-    </div>
-  `,
-};
-
-async function fetchProfileData() {
-  loading.value = true;
-  error.value = "";
-  try {
-    const [profileRes, statsRes, achievementsRes, skillsRes] = await Promise.all([
-      getUserProfile(DEFAULT_USER_ID),
-      getUserStudyStats(DEFAULT_USER_ID),
-      getUserAchievements(DEFAULT_USER_ID),
-      getUserSkills(DEFAULT_USER_ID),
-    ]);
-
-    Object.assign(profile, profileRes.data || {});
-    Object.assign(studyStats, statsRes.data || {});
-    achievements.value = achievementsRes.data?.items || [];
-    Object.assign(skills, skillsRes.data || { primary: [], secondary: [] });
-  } catch (err) {
-    console.error("加载个人资料失败:", err);
-    error.value = err?.message || "加载个人资料失败，请稍后重试。";
-  } finally {
-    loading.value = false;
-  }
+<script>
+export default {
+  name: 'Profile'
 }
-
-onMounted(() => {
-  fetchProfileData();
-});
-
-async function handleLogout() {
-  if (loggingOut.value) return;
-  loggingOut.value = true;
-  logoutError.value = "";
-  try {
-    await logoutApi();
-  } catch (err) {
-    console.error("退出登录失败:", err);
-    logoutError.value = err?.message || "退出登录失败，请稍后重试。";
-  } finally {
-    clearAuth();
-    clearCurrentUser();
-    loggingOut.value = false;
-    router.push({
-      name: "Login",
-      query: { redirect: router.currentRoute.value.fullPath },
-    });
-  }
-}
-
-defineOptions({
-  name: "Profile",
-});
 </script>
+
+<style scoped>
+.container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 20px;
+}
+</style>

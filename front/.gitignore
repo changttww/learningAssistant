@@ -64,7 +64,7 @@ web_modules/
 .yarn-integrity
 
 # dotenv environment variable files
-# .env
+.env
 .env.development.local
 .env.test.local
 .env.production.local
@@ -167,8 +167,12 @@ storybook-static
 
 # Temporary folders
 tmp/
+<<<<<<< HEAD
 temp/
 
 
 
 *.puml
+=======
+temp/
+>>>>>>> 7e3dda1 (first commit)
