@@ -27,12 +27,11 @@ func SetupRoutes(r *gin.Engine) {
 		users := v1.Group("/users")
 		registerUserRoutes(users)
 
-		// 任务相关路由
+		// 任务相关路由（团队任务）
 		tasks := v1.Group("/tasks")
 		{
-			tasks.GET("/", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{"message": "Tasks endpoint"})
-			})
+			// 注册团队任务路由处理器（在 routes/teamtasks.go 中实现）
+			registerTeamTaskRoutes(tasks)
 		}
 
 		// 团队相关路由
