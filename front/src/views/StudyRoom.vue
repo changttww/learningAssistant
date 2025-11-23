@@ -33,38 +33,68 @@
       </div>
 
       <!-- 房间列表 -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div
-          v-for="room in rooms"
-          :key="room.id"
-          class="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow cursor-pointer"
-          @click="enterRoom(room.id)"
-        >
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="font-medium">{{ room.name }}</h3>
-            <span :class="['px-2 py-1 rounded text-xs', room.statusClass]">
-              {{ room.status }}
-            </span>
-          </div>
-          <p class="text-sm text-gray-600 mb-3">{{ room.description }}</p>
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <iconify-icon
-                icon="mdi:account-group"
-                width="16"
-                height="16"
-                class="text-gray-500"
-              ></iconify-icon>
-              <span class="text-sm">{{ room.currentUsers }}/{{ room.maxUsers }}</span>
+      <div>
+        <div v-if="roomsLoading" class="py-12 text-center text-gray-500">
+          正在加载房间数据...
+        </div>
+        <div v-else-if="roomsError" class="py-12 text-center text-red-500">
+          {{ roomsError }}
+        </div>
+        <div v-else-if="rooms.length === 0" class="py-12 text-center text-gray-500">
+          暂无房间，点击右上角创建一个吧～
+        </div>
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div
+            v-for="room in rooms"
+            :key="room.id"
+            class="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+            @click="enterRoom(room.id)"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <h3 class="font-medium">{{ room.name }}</h3>
+                <span
+                  v-if="room.isPrivate"
+                  class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600"
+                >
+                  私密
+                </span>
+              </div>
+              <span :class="['px-2 py-1 rounded text-xs', room.statusClass]">
+                {{ room.status }}
+              </span>
             </div>
-            <div class="flex items-center gap-2">
-              <iconify-icon
-                icon="mdi:clock"
-                width="16"
-                height="16"
-                class="text-gray-500"
-              ></iconify-icon>
-              <span class="text-sm">{{ room.studyTime }}</span>
+            <p class="text-sm text-gray-600 mb-3">{{ room.description }}</p>
+            <div v-if="room.tags?.length" class="flex flex-wrap gap-2 mb-3">
+              <span
+                v-for="tag in room.tags"
+                :key="tag"
+                class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full"
+              >
+                {{ tag }}
+              </span>
+            </div>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <iconify-icon
+                  icon="mdi:account-group"
+                  width="16"
+                  height="16"
+                  class="text-gray-500"
+                ></iconify-icon>
+                <span class="text-sm">
+                  {{ room.currentUsers }}/{{ formatCapacity(room.maxUsers) }}
+                </span>
+              </div>
+              <div class="flex items-center gap-2">
+                <iconify-icon
+                  icon="mdi:clock"
+                  width="16"
+                  height="16"
+                  class="text-gray-500"
+                ></iconify-icon>
+                <span class="text-sm">{{ room.studyTime }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -112,7 +142,9 @@
 </template>
 
 <script>
+import { ElMessage } from 'element-plus'
 import CreateRoom from '@/components/StudyRoom/CreateRoom.vue'
+import { getStudyRooms } from '@/api/modules/study'
 
 export default {
   name: 'StudyRoom',
@@ -122,87 +154,65 @@ export default {
   data() {
     return {
       showCreateRoom: false,
-      rooms: [
-        {
-          id: 1,
-          name: '前端学习小组',
-          status: '进行中',
-          statusClass: 'bg-green-100 text-green-800',
-          description: '专注于前端技术学习和交流',
-          currentUsers: 12,
-          maxUsers: 20,
-          studyTime: '2.5h'
-        },
-        {
-          id: 2,
-          name: '算法刷题房',
-          status: '热门',
-          statusClass: 'bg-blue-100 text-blue-800',
-          description: '一起刷算法题，提升编程能力',
-          currentUsers: 8,
-          maxUsers: 15,
-          studyTime: '1.8h'
-        },
-        {
-          id: 3,
-          name: '设计师工作室',
-          status: '创意',
-          statusClass: 'bg-purple-100 text-purple-800',
-          description: 'UI/UX设计学习和作品分享',
-          currentUsers: 6,
-          maxUsers: 10,
-          studyTime: '3.2h'
-        },
-        {
-          id: 4,
-          name: '考研冲刺班',
-          status: '紧急',
-          statusClass: 'bg-red-100 text-red-800',
-          description: '考研最后冲刺，互相监督学习',
-          currentUsers: 25,
-          maxUsers: 30,
-          studyTime: '4.1h'
-        },
-        {
-          id: 5,
-          name: '英语角',
-          status: '语言',
-          statusClass: 'bg-yellow-100 text-yellow-800',
-          description: '英语口语练习和交流',
-          currentUsers: 9,
-          maxUsers: 12,
-          studyTime: '1.5h'
-        },
-        {
-          id: 6,
-          name: '安静学习室',
-          status: '静音',
-          statusClass: 'bg-gray-100 text-gray-800',
-          description: '专注学习，禁止聊天',
-          currentUsers: 18,
-          maxUsers: 25,
-          studyTime: '2.8h'
-        }
-      ]
+      rooms: [],
+      roomsLoading: false,
+      roomsError: ''
     }
   },
+  created() {
+    this.fetchRooms()
+  },
   methods: {
-    showCreateRoomModal() {
-      this.showCreateRoom = true
-    },
     hideCreateRoomModal() {
       this.showCreateRoom = false
+    },
+    async fetchRooms() {
+      this.roomsLoading = true
+      this.roomsError = ''
+      try {
+        const res = await getStudyRooms()
+        const rooms = res?.data?.rooms || res?.data || []
+        this.rooms = rooms.map((room) => this.transformRoom(room)).filter(Boolean)
+      } catch (error) {
+        console.error('加载学习房间失败:', error)
+        this.roomsError = error?.message || '加载学习房间失败'
+        ElMessage.error(this.roomsError)
+      } finally {
+        this.roomsLoading = false
+      }
+    },
+    transformRoom(room) {
+      if (!room) return null
+      return {
+        id: room.id,
+        name: room.name,
+        status: room.status || '进行中',
+        statusClass: room.status_class || 'bg-green-100 text-green-800',
+        description: room.description || '这个房间暂未填写介绍',
+        currentUsers: room.current_users ?? room.currentUsers ?? 0,
+        maxUsers: room.max_users ?? room.maxUsers ?? 0,
+        studyTime: room.study_time || room.studyTime || '0h',
+        tags: room.tags || [],
+        isPrivate: room.is_private ?? room.isPrivate ?? false
+      }
+    },
+    formatCapacity(maxUsers) {
+      if (!maxUsers || maxUsers <= 0) {
+        return '不限'
+      }
+      return maxUsers
     },
     enterRoom(roomId) {
       // 跳转到视频会议室
       this.$router.push({ name: 'VideoRoom', params: { roomId } })
     },
     onRoomCreated(roomData) {
-      // 处理房间创建成功后的逻辑
-      console.log('房间创建成功:', roomData)
+      const normalized = this.transformRoom(roomData)
+      if (normalized) {
+        this.rooms = [normalized, ...this.rooms]
+        this.enterRoom(normalized.id)
+      }
       this.hideCreateRoomModal()
-      // 可以添加新房间到列表或跳转到新房间
-      this.enterRoom(roomData.id)
     }
   }
 }
