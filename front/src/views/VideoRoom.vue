@@ -16,7 +16,7 @@
       <div class="action-area">
         <div class="action-item">
           <iconify-icon icon="mdi:users" width="16"></iconify-icon>
-          <span>{{ roomInfo.currentUsers }}/{{ roomInfo.maxUsers }}人在线</span>
+          <span>{{ roomInfo.currentUsers }}/{{ roomCapacityLabel }}人在线</span>
         </div>
         <div class="action-item">
           <iconify-icon icon="mdi:clock-outline" width="16"></iconify-icon>
@@ -32,29 +32,48 @@
     <div class="main-content">
       <!-- 左侧视频容器 -->
       <div class="video-container">
-        <div 
-          v-for="(video, index) in renderedVideos" 
-          :key="index"
-          class="video-box"
-          @dblclick="switchVideoLayout(index)"
-        >
-          <div class="video-user-info">
-            <span>{{ video.userName }} - {{ video.role }}</span>
+        <div class="video-grid">
+          <div class="video-box">
+            <video ref="localVideo" autoplay playsinline muted class="video-element"></video>
+            <div class="video-overlay">
+              <span>{{ currentUserName }}</span>
+              <span>{{ currentUserRole }}</span>
+            </div>
+            <div class="video-status" v-if="callStatus === 'idle' && !localStream">
+              摄像头暂未开启，通话建立时自动开启
+            </div>
           </div>
-          <div class="video-controls">
-            <iconify-icon
-              class="control-icon"
-              :icon="video.micOn ? 'mdi:microphone' : 'mdi:microphone-off'"
-              width="20"
-              :style="{ color: video.micOn ? 'white' : '#ff4d4f' }"
-            ></iconify-icon>
-            <iconify-icon
-              class="control-icon"
-              :icon="video.videoOn ? 'mdi:video' : 'mdi:video-off'"
-              width="20"
-              :style="{ color: video.videoOn ? 'white' : '#d9d9d9' }"
-            ></iconify-icon>
+          <div class="video-box">
+            <video ref="remoteVideo" autoplay playsinline class="video-element"></video>
+            <div class="video-overlay">
+              <span>{{ activePartnerName || '等待成员' }}</span>
+              <span>远端成员</span>
+            </div>
+            <div class="video-status" v-if="!remoteStream">
+              {{ callStatusText }}
+            </div>
           </div>
+        </div>
+        <div class="call-panel">
+          <div class="panel-row">
+            <label class="panel-label">通话状态</label>
+            <div class="peer-id-box">
+              <span>{{ callStatusText }}</span>
+              <button
+                class="panel-btn danger"
+                :disabled="!isCalling"
+                @click="endCall"
+              >
+                结束通话
+              </button>
+            </div>
+          </div>
+          <p class="panel-hint">
+            点击右侧成员列表发起或接听通话，系统会自动匹配并交换通话ID。
+          </p>
+        </div>
+        <div v-if="callError" class="error-banner">
+          {{ callError }}
         </div>
       </div>
 
@@ -62,14 +81,14 @@
       <div class="members-container">
         <div class="members-header">
           房间成员
-          <span class="online-count">({{ members.length }}人)</span>
+          <span class="online-count">({{ renderedMembers.length }}人)</span>
         </div>
 
         <div class="members-list">
-          <div 
-            v-for="member in renderedMembers" 
+          <div
+            v-for="member in renderedMembers"
             :key="member.id"
-            :class="['member-item', { active: member.id === activeMemberId }]"
+            :class="['member-item', { active: member.id === activeMemberId, busy: member.isBusy }]"
             @click="selectMember(member.id)"
           >
             <div :class="['avatar', `avatar-${member.avatarType}`]"></div>
@@ -77,7 +96,7 @@
               <div class="member-name">{{ member.name }}</div>
               <div class="member-title">{{ member.role }}</div>
             </div>
-            <div :class="['status-indicator', member.online ? 'status-online' : 'status-offline']"></div>
+            <div :class="['status-indicator', member.isBusy ? 'status-busy' : 'status-online']"></div>
           </div>
         </div>
       </div>
@@ -88,8 +107,8 @@
       <div class="messages-container" ref="messagesContainer">
         <div v-for="(group, index) in groupedMessages" :key="index">
           <div class="time-divider">{{ group.time }}</div>
-          <div 
-            v-for="message in group.messages" 
+          <div
+            v-for="message in group.messages"
             :key="message.id"
             :class="['message-item', { self: message.isSelf }]"
           >
@@ -107,15 +126,15 @@
       </div>
 
       <div class="input-area">
-        <input 
+        <input
           v-model="newMessage"
-          type="text" 
-          class="message-input" 
-          placeholder="输入消息..." 
+          type="text"
+          class="message-input"
+          placeholder="输入消息..."
           @keydown.enter="sendMessage"
         />
-        <button 
-          class="send-btn" 
+        <button
+          class="send-btn"
           :disabled="!newMessage.trim()"
           @click="sendMessage"
         >
@@ -128,10 +147,14 @@
 
 <script>
 import { computed, onMounted } from "vue";
+import Peer from "peerjs";
+import { ElMessage } from "element-plus";
 import { useCurrentUser } from "@/composables/useCurrentUser";
+import { getStudyRoomDetail } from "@/api/modules/study";
+import { apiConfig } from "@/config";
 
 export default {
-  name: 'VideoRoom',
+  name: "VideoRoom",
   setup() {
     const { profile, loadCurrentUser } = useCurrentUser();
 
@@ -141,219 +164,449 @@ export default {
       });
     });
 
-    const currentUserName = computed(() => profile.value?.display_name || "学习者");
+    const currentUserName = computed(
+      () => profile.value?.display_name || "学习者"
+    );
     const currentUserRole = computed(() => profile.value?.role || "组长");
+    const currentUserId = computed(() => profile.value?.id || 1);
 
     return {
       currentUserName,
       currentUserRole,
+      currentUserId,
     };
   },
   data() {
     return {
       roomInfo: {
-        name: '前端学习小组',
-        status: '进行中',
-        currentUsers: 12,
-        maxUsers: 20,
-        studyTime: '2.5h'
+        id: null,
+        name: "在线学习房间",
+        status: "进行中",
+        currentUsers: 0,
+        maxUsers: 0,
+        studyTime: "0h",
       },
-      activeVideos: [
-        {
-          userName: '',
-          role: '组长',
-          micOn: false,
-          videoOn: false
-        },
-        {
-          userName: '张小雨',
-          role: '组员',
-          micOn: true,
-          videoOn: true
-        }
-      ],
-      activeMemberId: 1,
-      members: [
-        { id: 1, name: '', role: '组长', online: true, avatarType: 1 },
-        { id: 2, name: '张小雨', role: '副组长', online: true, avatarType: 2 },
-        { id: 3, name: '王浩然', role: '核心成员', online: true, avatarType: 3 },
-        { id: 4, name: '赵舒雅', role: '新人', online: true, avatarType: 4 },
-        { id: 5, name: '孙哲', role: '组员', online: true, avatarType: 5 },
-        { id: 6, name: '刘佳琪', role: '新人', online: true, avatarType: 6 },
-        { id: 7, name: '陈宇', role: '组员', online: false, avatarType: 1 }
-      ],
-      messages: [
-        {
-          id: 1,
-          senderName: '',
-          senderRole: '组长',
-          content: '大家早上好！今天我们的目标是完成React组件库的设计文档，建议先进行1小时的代码实践',
-          time: '09:30',
-          timeGroup: '今天 09:30',
-          avatarType: 1,
-          isSelf: false
-        },
-        {
-          id: 2,
-          senderName: '孙哲',
-          senderRole: '组员',
-          content: '收到，我已经开始研究Form组件的设计模式了，稍后和大家讨论设计方案',
-          time: '09:32',
-          timeGroup: '今天 09:30',
-          avatarType: 5,
-          isSelf: false
-        },
-        {
-          id: 3,
-          senderName: '赵舒雅',
-          senderRole: '新人',
-          content: '遇到一个问题，React Hooks中用useReducer管理复杂状态时怎么避免重复渲染？',
-          time: '10:15',
-          timeGroup: '今天 10:15',
-          avatarType: 4,
-          isSelf: true
-        },
-        {
-          id: 4,
-          senderName: '张小雨',
-          senderRole: '副组长',
-          content: '舒雅，建议使用上下文+useMemo进行优化。另外建议阅读我们共享文档中的性能优化部分，里面专门分析了这个情况',
-          time: '10:18',
-          timeGroup: '今天 10:15',
-          avatarType: 2,
-          isSelf: false
-        },
-        {
-          id: 5,
-          senderName: '王浩然',
-          senderRole: '核心成员',
-          content: '我刚更新了代码库，添加了新的DatePicker组件基础结构，大家可以拉取最新代码',
-          time: '10:20',
-          timeGroup: '今天 10:15',
-          avatarType: 3,
-          isSelf: false
-        }
-      ],
-      newMessage: ''
-    }
+      members: [],
+      messages: [],
+      newMessage: "",
+      peer: null,
+      peerId: "",
+      callInstance: null,
+      callStatus: "idle",
+      callError: "",
+      mediaReady: false,
+      localStream: null,
+      remoteStream: null,
+      ws: null,
+      wsConnected: false,
+      activePartnerId: null,
+      activePartnerName: "",
+      activeMemberId: null,
+    };
   },
   computed: {
-    currentMemberId() {
-      return this.members.length ? this.members[0].id : null;
-    },
-    renderedVideos() {
-      return this.activeVideos.map((video, index) => {
-        if (index === 0) {
-          return {
-            ...video,
-            userName: this.currentUserName,
-            role: this.currentUserRole || video.role || "组员",
-          };
-        }
-        return video;
-      });
-    },
     renderedMembers() {
-      return this.members.map((member) => {
-        if (member.id === this.currentMemberId) {
-          return {
-            ...member,
-            name: this.currentUserName,
-            role: this.currentUserRole || member.role || "组员",
-          };
-        }
-        return member;
-      });
+      return this.members;
     },
     groupedMessages() {
       const groups = {};
       this.messages.forEach((message) => {
-        const timeGroup = message.timeGroup;
+        const timeGroup = message.timeGroup || message.sentAt || "最新消息";
         if (!groups[timeGroup]) {
           groups[timeGroup] = {
             time: timeGroup,
             messages: [],
           };
         }
-        groups[timeGroup].messages.push({
-          ...message,
-          senderName: message.isSelf
-            ? this.currentUserName
-            : message.senderName,
-          senderRole: message.isSelf
-            ? this.currentUserRole
-            : message.senderRole,
-        });
+        groups[timeGroup].messages.push(message);
       });
       return Object.values(groups);
     },
+    callStatusText() {
+      switch (this.callStatus) {
+        case "dialing":
+          return "正在呼叫对方...";
+        case "incoming":
+          return "收到通话请求";
+        case "connected":
+          return "通话中";
+        default:
+          return "等待通话";
+      }
+    },
+    isCalling() {
+      return this.callStatus === "dialing" || this.callStatus === "connected";
+    },
+    roomCapacityLabel() {
+      return this.formatCapacity(this.roomInfo.maxUsers);
+    },
   },
   mounted() {
-    // 获取房间ID并加载房间信息
-    const roomId = this.$route.params.roomId
+    const roomId = this.$route.params.roomId;
     if (roomId) {
-      this.loadRoomInfo(roomId)
+      this.loadRoomInfo(roomId);
+    }
+    this.initPeerInstance();
+    this.connectWebSocket();
+  },
+  beforeUnmount() {
+    this.cleanupPeer();
+    if (this.ws) {
+      this.ws.close();
     }
   },
   methods: {
     goBack() {
-      this.$router.push('/study-room')
+      this.$router.push("/study-room");
     },
-    
     showSettings() {
-      alert('房间设置功能开发中...')
+      ElMessage.info("房间设置功能开发中");
     },
-    
-    switchVideoLayout(index) {
-      // 视频布局切换逻辑
-      console.log('切换视频布局:', index)
+    formatCapacity(maxUsers) {
+      if (!maxUsers || maxUsers <= 0) {
+        return "不限";
+      }
+      return maxUsers;
     },
-    
+    async loadRoomInfo(roomId) {
+      try {
+        const res = await getStudyRoomDetail(roomId);
+        const room = res?.data?.room || res?.data;
+        if (room) {
+          this.roomInfo = {
+            id: room.id,
+            name: room.name || this.roomInfo.name,
+            status: room.status || "进行中",
+            currentUsers: room.current_users ?? room.currentUsers ?? 0,
+            maxUsers: room.max_users ?? room.maxUsers ?? 0,
+            studyTime: room.study_time || room.studyTime || "0h",
+          };
+        }
+      } catch (error) {
+        console.error("加载房间信息失败:", error);
+      }
+    },
+    initPeerInstance() {
+      if (this.peer) {
+        this.peer.destroy();
+      }
+      this.peer = new Peer();
+      this.peer.on("open", (id) => {
+        this.peerId = id;
+        this.registerPeerId();
+      });
+      this.peer.on("call", async (call) => {
+        await this.ensureLocalStream();
+        if (!this.localStream) {
+          call.close();
+          return;
+        }
+        call.answer(this.localStream);
+        this.handleCallLifecycle(call);
+      });
+      this.peer.on("error", (err) => {
+        const message = err?.message || "通话服务出现问题";
+        this.callError = message;
+        ElMessage.error(message);
+      });
+    },
+    async ensureLocalStream() {
+      if (this.localStream) return;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+        this.localStream = stream;
+        this.mediaReady = true;
+        this.attachLocalStream();
+      } catch (error) {
+        this.callError = "无法获取摄像头或麦克风权限";
+        ElMessage.error(this.callError);
+      }
+    },
+    attachLocalStream() {
+      const videoEl = this.$refs.localVideo;
+      if (videoEl && this.localStream) {
+        videoEl.srcObject = this.localStream;
+        videoEl.muted = true;
+        const playPromise = videoEl.play();
+        if (playPromise?.catch) {
+          playPromise.catch(() => {});
+        }
+      }
+    },
+    attachRemoteStream(stream) {
+      this.remoteStream = stream;
+      const videoEl = this.$refs.remoteVideo;
+      if (videoEl) {
+        videoEl.srcObject = stream;
+        const playPromise = videoEl.play();
+        if (playPromise?.catch) {
+          playPromise.catch(() => {});
+        }
+      }
+    },
+    handleCallLifecycle(call) {
+      this.callInstance = call;
+      call.on("stream", (remoteStream) => {
+        this.callStatus = "connected";
+        this.attachRemoteStream(remoteStream);
+      });
+      call.on("close", () => {
+        this.resetCallState();
+      });
+      call.on("error", (error) => {
+        this.callError = error?.message || "通话过程中出现错误";
+        ElMessage.error(this.callError);
+        this.resetCallState();
+      });
+    },
+    async beginCallWithPeer(peerId, isInitiator) {
+      this.callError = "";
+      this.callStatus = isInitiator ? "dialing" : "incoming";
+      this.remoteStream = null;
+      await this.ensureLocalStream();
+      if (!this.localStream || !this.peer) {
+        this.callError = "无法建立通话";
+        this.callStatus = "idle";
+        return;
+      }
+      if (isInitiator) {
+        try {
+          const call = this.peer.call(peerId, this.localStream);
+          if (!call) {
+            throw new Error("发起通话失败");
+          }
+          this.handleCallLifecycle(call);
+        } catch (error) {
+          this.callError = error?.message || "发起通话失败";
+          this.resetCallState(true);
+        }
+      }
+    },
+    endCall() {
+      if (this.activePartnerId) {
+        this.sendWs("call_end", { partner_id: this.activePartnerId });
+      }
+      if (this.callInstance) {
+        this.callInstance.close();
+      }
+      this.resetCallState(true);
+    },
+    resetCallState(manual = false) {
+      if (this.$refs.remoteVideo) {
+        this.$refs.remoteVideo.srcObject = null;
+      }
+      if (this.remoteStream) {
+        const tracks = this.remoteStream.getTracks?.() || [];
+        tracks.forEach((track) => track.stop());
+      }
+      this.remoteStream = null;
+      this.callInstance = null;
+      this.callStatus = "idle";
+      this.activePartnerId = null;
+      this.activePartnerName = "";
+      if (manual) {
+        this.callError = "";
+      }
+    },
+    cleanupPeer() {
+      if (this.callInstance) {
+        this.callInstance.close();
+      }
+      if (this.peer) {
+        this.peer.destroy();
+        this.peer = null;
+      }
+      if (this.localStream) {
+        this.localStream.getTracks().forEach((track) => track.stop());
+        this.localStream = null;
+      }
+      this.resetCallState(true);
+    },
+    wsUrl() {
+      const roomId = this.$route.params.roomId;
+      const base = new URL(apiConfig.baseURL);
+      const protocol = base.protocol === "https:" ? "wss:" : "ws:";
+      const host = base.host;
+      const params = new URLSearchParams({
+        user_id: this.currentUserId,
+        display_name: this.currentUserName,
+      });
+      return `${protocol}//${host}/api/study/rooms/${roomId}/ws?${params.toString()}`;
+    },
+    connectWebSocket() {
+      try {
+        this.ws = new WebSocket(this.wsUrl());
+      } catch (error) {
+        console.error("WS 创建失败", error);
+        return;
+      }
+      this.ws.onopen = () => {
+        this.wsConnected = true;
+        this.registerPeerId();
+        this.sendWs("state_request", {});
+      };
+      this.ws.onclose = () => {
+        this.wsConnected = false;
+      };
+      this.ws.onerror = (err) => {
+        console.error("WS error", err);
+      };
+      this.ws.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          this.handleWsMessage(payload);
+        } catch (error) {
+          console.error("WS parse error", error);
+        }
+      };
+    },
+    sendWs(type, data = {}) {
+      if (!this.wsConnected || !this.ws) return;
+      this.ws.send(JSON.stringify({ type, data }));
+    },
+    registerPeerId() {
+      if (this.wsConnected && this.peerId) {
+        this.sendWs("register_peer", { peer_id: this.peerId });
+      }
+    },
+    handleWsMessage(message) {
+      const { type, data } = message;
+      switch (type) {
+        case "state":
+          this.applyState(data);
+          break;
+        case "member_joined":
+          this.applyMemberJoined(data);
+          break;
+        case "member_left":
+          this.members = this.members.filter((m) => m.user_id !== data.user_id);
+          break;
+        case "incoming_call":
+          this.handleIncomingCall(data);
+          break;
+        case "call_start":
+          this.handleCallStart(data);
+          break;
+        case "call_denied":
+          this.callError = data?.reason || "对方忙线";
+          ElMessage.warning(this.callError);
+          this.resetCallState(true);
+          break;
+        case "call_ended":
+          this.resetCallState(true);
+          break;
+        case "chat":
+          this.handleIncomingChat(data);
+          break;
+      }
+    },
+    applyState(data) {
+      if (!data?.members) return;
+      this.members = data.members.map((m, index) => ({
+        id: m.user_id,
+        user_id: m.user_id,
+        name: m.display_name,
+        role: m.is_busy ? "通话中" : "空闲",
+        online: true,
+        avatarType: (index % 6) + 1,
+        isBusy: !!m.is_busy,
+        partnerId: m.partner_id || null,
+        peerId: m.peer_id || "",
+      }));
+    },
+    applyMemberJoined(data) {
+      if (!data) return;
+      const exists = this.members.find((m) => m.user_id === data.user_id);
+      if (!exists) {
+        this.members.push({
+          id: data.user_id,
+          user_id: data.user_id,
+          name: data.display_name,
+          role: "空闲",
+          online: true,
+          avatarType: (this.members.length % 6) + 1,
+          isBusy: false,
+          partnerId: null,
+          peerId: data.peer_id || "",
+        });
+      }
+    },
+    handleIncomingCall(data) {
+      if (!data?.from_id) return;
+      const accept = window.confirm(`是否接听 ${data.from_name || "对方"} 的通话请求？`);
+      if (accept) {
+        this.sendWs("call_accept", { from_id: data.from_id });
+      } else {
+        this.sendWs("call_reject", { from_id: data.from_id, reason: "rejected" });
+      }
+    },
+    handleCallStart(data) {
+      const { caller_id, callee_id, caller_peer_id, callee_peer_id, caller_name, callee_name } =
+        data || {};
+      if (!caller_id || !callee_id) return;
+      const isInitiator = caller_id === this.currentUserId;
+      const partnerId = isInitiator ? callee_id : caller_id;
+      this.activePartnerId = partnerId;
+      this.activeMemberId = partnerId;
+      this.activePartnerName = isInitiator ? callee_name : caller_name;
+      const partnerPeerId = isInitiator ? callee_peer_id : caller_peer_id;
+      this.beginCallWithPeer(partnerPeerId, isInitiator);
+    },
     selectMember(memberId) {
-      if (this.activeMemberId === memberId) return
-      
-      const member = this.renderedMembers.find(m => m.id === memberId)
-      if (member && confirm(`将与${member.name}开始视频通话，当前通话将结束`)) {
-        this.activeMemberId = memberId
+      if (!memberId || memberId === this.currentUserId) return;
+      const member = this.members.find((m) => m.user_id === memberId);
+      if (!member) return;
+      if (this.isCalling) {
+        ElMessage.warning("您已在通话中");
+        return;
       }
+      if (member.isBusy) {
+        ElMessage.warning("对方正在通话中");
+        return;
+      }
+      if (!this.peerId) {
+        ElMessage.warning("通话ID生成中，请稍候");
+        return;
+      }
+      this.sendWs("call_request", { target_id: memberId });
+      this.callStatus = "dialing";
+      this.activePartnerId = memberId;
+      this.activeMemberId = memberId;
+      this.activePartnerName = member.name;
     },
-    
-    sendMessage() {
-      if (!this.newMessage.trim()) return
-      
-      const now = new Date()
-      const hours = now.getHours().toString().padStart(2, '0')
-      const minutes = now.getMinutes().toString().padStart(2, '0')
-      const timeStr = `${hours}:${minutes}`
-      
-      const newMsg = {
-        id: this.messages.length + 1,
-        senderName: this.currentUserName,
-        senderRole: this.currentUserRole,
-        content: this.newMessage,
-        time: timeStr,
-        timeGroup: `今天 ${timeStr}`,
-        avatarType: 4,
-        isSelf: true
-      }
-      
-      this.messages.push(newMsg)
-      this.newMessage = ''
-      
-      // 滚动到底部
+    handleIncomingChat(data) {
+      const senderName = data?.display_name || "成员";
+      const content = data?.content || "";
+      if (!content) return;
+      const timeLabel = data?.sent_at
+        ? new Date(data.sent_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        : "";
+      this.messages.push({
+        id: data.id || Date.now(),
+        senderName,
+        senderRole: "",
+        content,
+        time: timeLabel,
+        timeGroup: data?.sent_at || "实时消息",
+        avatarType: 2,
+        isSelf: data.user_id === this.currentUserId,
+      });
       this.$nextTick(() => {
-        const container = this.$refs.messagesContainer
-        container.scrollTop = container.scrollHeight
-      })
+        const container = this.$refs.messagesContainer;
+        if (container) container.scrollTop = container.scrollHeight;
+      });
     },
-    
-    loadRoomInfo(roomId) {
-      // 根据房间ID加载房间信息
-      console.log('加载房间信息:', roomId)
-      // 这里可以调用API获取房间详情
-    }
-  }
-}
+    sendMessage() {
+      const content = this.newMessage.trim();
+      if (!content) return;
+      this.sendWs("chat", { content });
+      this.newMessage = "";
+    },
+  },
+};
 </script>
 
 <style scoped>
@@ -450,47 +703,145 @@ export default {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   padding: 16px;
   display: flex;
-  gap: 4%;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  min-height: 320px;
 }
 
 .video-box {
-  width: 48%;
-  height: 100%;
-  background: black;
-  border-radius: 8px;
-  border: 1px solid #e5e9f2;
-  overflow: hidden;
   position: relative;
-  cursor: pointer;
+  border: 1px solid #e5e9f2;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+  min-height: 240px;
 }
 
-.video-user-info {
+.video-box .video-element {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+.video-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-  font-size: 16px;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #fff;
+  font-size: 14px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.video-status {
+  position: absolute;
+  top: 12px;
+  left: 12px;
   padding: 4px 8px;
-  display: flex;
-  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  border-radius: 4px;
+  font-size: 12px;
 }
 
-.video-controls {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
+.call-panel {
+  background: #f7f9fc;
+  border: 1px dashed #d9e2ec;
+  border-radius: 8px;
+  padding: 16px;
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel-row {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
-.control-icon {
-  cursor: pointer;
-  transition: transform 0.2s;
+.panel-label {
+  font-size: 13px;
+  color: #555;
 }
-.control-icon:hover {
-  transform: scale(1.1);
+
+.peer-id-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #e5e9f2;
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: #fff;
+  font-size: 14px;
+  color: #333;
+  gap: 12px;
+}
+
+.peer-id-box span {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.call-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.panel-btn {
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  background: #e5e9f2;
+  color: #333;
+  transition: background 0.2s;
+}
+.panel-btn.primary {
+  background: #2d5bff;
+  color: #fff;
+}
+.panel-btn.primary:hover:not(:disabled) {
+  background: #1d47e0;
+}
+.panel-btn.danger {
+  background: #ff4d4f;
+  color: #fff;
+}
+.panel-btn.danger:hover:not(:disabled) {
+  background: #d9363e;
+}
+.panel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.panel-hint {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.error-banner {
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  color: #d4380d;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-top: 4px;
 }
 
 .members-container {
@@ -536,6 +887,9 @@ export default {
 .member-item.active {
   background: #e6f7ff;
   border-left: 3px solid #1890ff;
+}
+.member-item.busy {
+  opacity: 0.7;
 }
 
 .avatar {
@@ -592,6 +946,9 @@ export default {
 }
 .status-online {
   background: #00b42a;
+}
+.status-busy {
+  background: #faad14;
 }
 .status-offline {
   background: #8c8c8c;

@@ -110,6 +110,9 @@
 </template>
 
 <script>
+import { ElMessage } from 'element-plus'
+import { createStudyRoom } from '@/api/modules/study'
+
 export default {
   name: 'CreateRoom',
   props: {
@@ -202,23 +205,27 @@ export default {
       if (!this.validateForm()) {
         return
       }
-      
+
       this.isCreating = true
-      
+
+      const payload = {
+        name: this.formData.roomName.trim(),
+        room_type: this.formData.roomType,
+        description: this.formData.description.trim(),
+        password: this.formData.roomType === 'private' ? this.formData.password : '',
+        max_members: this.formData.maxUsers === 'unlimited' ? 0 : Number(this.formData.maxUsers),
+        tags: [...this.formData.tags]
+      }
+
       try {
-        // 模拟API请求
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        
-        // 发送创建成功事件
-        this.$emit('created', this.formData)
-        
-        // 显示成功消息
-        alert('房间创建成功！')
-        
+        const response = await createStudyRoom(payload)
+        const room = response?.data?.room || response?.data
+        this.$emit('created', room)
+        ElMessage.success('房间创建成功')
         this.closeModal()
       } catch (error) {
         console.error('创建房间失败:', error)
-        alert('创建房间失败，请重试')
+        ElMessage.error(error?.message || '创建房间失败，请稍后重试')
       } finally {
         this.isCreating = false
       }
