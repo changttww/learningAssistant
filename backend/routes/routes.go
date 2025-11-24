@@ -44,12 +44,9 @@ func SetupRoutes(r *gin.Engine) {
 		}
 
 		// 学习室相关路由
-		studyRooms := v1.Group("/study-rooms")
-		{
-			studyRooms.GET("/", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{"message": "Study rooms endpoint"})
-			})
-		}
+		study := v1.Group("/study")
+		registerStudyRoutes(study)
+		registerStudyWebsocketRoutes(study)
 	}
 
 	// 兼容旧版未带版本号的前缀 /api/**
@@ -60,5 +57,9 @@ func SetupRoutes(r *gin.Engine) {
 
 		usersLegacy := legacy.Group("/users")
 		registerUserRoutes(usersLegacy)
+
+		studyLegacy := legacy.Group("/study")
+		registerStudyRoutes(studyLegacy)
+		registerStudyWebsocketRoutes(studyLegacy)
 	}
 }

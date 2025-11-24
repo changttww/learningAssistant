@@ -25,11 +25,19 @@ export function createStudyRoom(data) {
   return request.post("/study/rooms", data);
 }
 
-/**
- * 加入学习房间
- */
-export function joinStudyRoom(roomId) {
-  return request.post(`/study/rooms/${roomId}/join`);
+// 加入学习房间（支持私密房间密码）
+export function joinStudyRoom(roomId, data = {}) {
+  return request.post(`/study/rooms/${roomId}/join`, data);
+}
+
+// 学习房间汇总数据
+export function getStudySummary(params = {}) {
+  return request.get("/study/summary", params);
+}
+
+// 用户学习记录
+export function getStudyRecords(params = {}) {
+  return request.get("/study/records", params);
 }
 
 /**
