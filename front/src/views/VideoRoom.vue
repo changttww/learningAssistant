@@ -602,24 +602,6 @@ export default {
     sendMessage() {
       const content = this.newMessage.trim();
       if (!content) return;
-      // 先本地展示，再通过WS广播
-      const now = new Date();
-      const timeLabel = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      const localMsg = {
-        id: Date.now(),
-        senderName: this.currentUserName,
-        senderRole: "",
-        content,
-        time: timeLabel,
-        timeGroup: now.toISOString(),
-        avatarType: 1,
-        isSelf: true,
-      };
-      this.messages.push(localMsg);
-      this.$nextTick(() => {
-        const container = this.$refs.messagesContainer;
-        if (container) container.scrollTop = container.scrollHeight;
-      });
       this.sendWs("chat", { content });
       this.newMessage = "";
     },
