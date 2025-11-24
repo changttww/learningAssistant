@@ -146,7 +146,7 @@
 </template>
 
 <script>
-import { computed, onMounted } from "vue";
+import { computed } from "vue";
 import Peer from "peerjs";
 import { ElMessage } from "element-plus";
 import { useCurrentUser } from "@/composables/useCurrentUser";
@@ -158,12 +158,6 @@ export default {
   setup() {
     const { profile, loadCurrentUser } = useCurrentUser();
 
-    onMounted(() => {
-      loadCurrentUser().catch((error) => {
-        console.error("加载用户信息失败:", error);
-      });
-    });
-
     const currentUserName = computed(
       () => profile.value?.display_name || "学习者"
     );
@@ -174,6 +168,7 @@ export default {
       currentUserName,
       currentUserRole,
       currentUserId,
+      loadCurrentUser,
     };
   },
   data() {
@@ -242,12 +237,7 @@ export default {
     },
   },
   mounted() {
-    const roomId = this.$route.params.roomId;
-    if (roomId) {
-      this.loadRoomInfo(roomId);
-    }
-    this.initPeerInstance();
-    this.connectWebSocket();
+    this.initVideoRoom();
   },
   beforeUnmount() {
     this.cleanupPeer();
@@ -256,6 +246,19 @@ export default {
     }
   },
   methods: {
+    async initVideoRoom() {
+      const roomId = this.$route.params.roomId;
+      if (roomId) {
+        await this.loadRoomInfo(roomId);
+      }
+      try {
+        await this.loadCurrentUser();
+      } catch (error) {
+        console.error("加载用户信息失败:", error);
+      }
+      this.initPeerInstance();
+      this.connectWebSocket();
+    },
     goBack() {
       this.$router.push("/study-room");
     },
@@ -354,11 +357,13 @@ export default {
         this.attachRemoteStream(remoteStream);
       });
       call.on("close", () => {
+        this.notifyCallEnd();
         this.resetCallState();
       });
       call.on("error", (error) => {
         this.callError = error?.message || "通话过程中出现错误";
         ElMessage.error(this.callError);
+        this.notifyCallEnd();
         this.resetCallState();
       });
     },
@@ -386,9 +391,7 @@ export default {
       }
     },
     endCall() {
-      if (this.activePartnerId) {
-        this.sendWs("call_end", { partner_id: this.activePartnerId });
-      }
+      this.notifyCallEnd();
       if (this.callInstance) {
         this.callInstance.close();
       }
@@ -424,6 +427,11 @@ export default {
         this.localStream = null;
       }
       this.resetCallState(true);
+    },
+    notifyCallEnd() {
+      if (this.activePartnerId) {
+        this.sendWs("call_end", { partner_id: this.activePartnerId });
+      }
     },
     wsUrl() {
       const roomId = this.$route.params.roomId;
@@ -536,6 +544,11 @@ export default {
     },
     handleIncomingCall(data) {
       if (!data?.from_id) return;
+      if (!this.peerId) {
+        ElMessage.warning("通话ID未就绪，暂无法接听");
+        this.sendWs("call_reject", { from_id: data.from_id, reason: "peer_not_ready" });
+        return;
+      }
       const accept = window.confirm(`是否接听 ${data.from_name || "对方"} 的通话请求？`);
       if (accept) {
         this.sendWs("call_accept", { from_id: data.from_id });
