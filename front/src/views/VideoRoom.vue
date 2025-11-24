@@ -197,6 +197,8 @@ export default {
       activePartnerId: null,
       activePartnerName: "",
       activeMemberId: null,
+      wsReconnectTimer: null,
+      mediaErrorDetail: "",
     };
   },
   computed: {
@@ -243,6 +245,10 @@ export default {
     this.cleanupPeer();
     if (this.ws) {
       this.ws.close();
+    }
+    if (this.wsReconnectTimer) {
+      clearTimeout(this.wsReconnectTimer);
+      this.wsReconnectTimer = null;
     }
   },
   methods: {
@@ -299,8 +305,8 @@ export default {
         this.registerPeerId();
       });
       this.peer.on("call", async (call) => {
-        await this.ensureLocalStream();
-        if (!this.localStream) {
+        const ok = await this.ensureLocalStream();
+        if (!ok || !this.localStream) {
           call.close();
           return;
         }
@@ -314,7 +320,9 @@ export default {
       });
     },
     async ensureLocalStream() {
-      if (this.localStream) return;
+      if (this.localStream) return true;
+      const isSecureContext =
+        window.location.protocol === "https:" || window.location.hostname === "localhost";
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: true,
@@ -322,10 +330,17 @@ export default {
         });
         this.localStream = stream;
         this.mediaReady = true;
+        this.mediaErrorDetail = "";
         this.attachLocalStream();
+        return true;
       } catch (error) {
-        this.callError = "无法获取摄像头或麦克风权限";
+        this.mediaErrorDetail =
+          !isSecureContext && error?.name === "NotAllowedError"
+            ? "请在 HTTPS 或 localhost 环境下使用摄像头"
+            : error?.message || "无法获取摄像头或麦克风权限";
+        this.callError = this.mediaErrorDetail;
         ElMessage.error(this.callError);
+        return false;
       }
     },
     attachLocalStream() {
@@ -371,9 +386,9 @@ export default {
       this.callError = "";
       this.callStatus = isInitiator ? "dialing" : "incoming";
       this.remoteStream = null;
-      await this.ensureLocalStream();
-      if (!this.localStream || !this.peer) {
-        this.callError = "无法建立通话";
+      const mediaOk = await this.ensureLocalStream();
+      if (!mediaOk || !this.localStream || !this.peer) {
+        this.callError = this.mediaErrorDetail || "无法建立通话";
         this.callStatus = "idle";
         return;
       }
@@ -427,6 +442,10 @@ export default {
         this.localStream = null;
       }
       this.resetCallState(true);
+      if (this.wsReconnectTimer) {
+        clearTimeout(this.wsReconnectTimer);
+        this.wsReconnectTimer = null;
+      }
     },
     notifyCallEnd() {
       if (this.activePartnerId) {
@@ -455,9 +474,19 @@ export default {
         this.wsConnected = true;
         this.registerPeerId();
         this.sendWs("state_request", {});
+        if (this.wsReconnectTimer) {
+          clearTimeout(this.wsReconnectTimer);
+          this.wsReconnectTimer = null;
+        }
       };
       this.ws.onclose = () => {
         this.wsConnected = false;
+        if (!this.wsReconnectTimer) {
+          this.wsReconnectTimer = setTimeout(() => {
+            this.wsReconnectTimer = null;
+            this.connectWebSocket();
+          }, 2000);
+        }
       };
       this.ws.onerror = (err) => {
         console.error("WS error", err);
@@ -551,6 +580,8 @@ export default {
       }
       const accept = window.confirm(`是否接听 ${data.from_name || "对方"} 的通话请求？`);
       if (accept) {
+        // 被叫方在同意时提前准备本地媒体，触发权限弹窗
+        this.ensureLocalStream();
         this.sendWs("call_accept", { from_id: data.from_id });
       } else {
         this.sendWs("call_reject", { from_id: data.from_id, reason: "rejected" });
@@ -584,6 +615,8 @@ export default {
         ElMessage.warning("通话ID生成中，请稍候");
         return;
       }
+      // 主动呼叫方先准备好本地媒体，触发浏览器权限弹窗
+      this.ensureLocalStream();
       this.sendWs("call_request", { target_id: memberId });
       this.callStatus = "dialing";
       this.activePartnerId = memberId;
