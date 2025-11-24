@@ -46,6 +46,7 @@ func SetupRoutes(r *gin.Engine) {
 		// 学习室相关路由
 		study := v1.Group("/study")
 		registerStudyRoutes(study)
+		registerStudyWebsocketRoutes(study)
 	}
 
 	// 兼容旧版未带版本号的前缀 /api/**
@@ -59,5 +60,6 @@ func SetupRoutes(r *gin.Engine) {
 
 		studyLegacy := legacy.Group("/study")
 		registerStudyRoutes(studyLegacy)
+		registerStudyWebsocketRoutes(studyLegacy)
 	}
 }

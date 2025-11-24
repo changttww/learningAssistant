@@ -15,19 +15,19 @@
       <!-- 自习室统计 -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div class="stat-card bg-blue-50">
-          <div class="text-2xl font-bold text-blue-600">15</div>
+          <div class="text-2xl font-bold text-blue-600">{{ summary.active_rooms }}</div>
           <div class="text-gray-600 mt-1">活跃房间</div>
         </div>
         <div class="stat-card bg-green-50">
-          <div class="text-2xl font-bold text-green-600">128</div>
+          <div class="text-2xl font-bold text-green-600">{{ summary.online_users }}</div>
           <div class="text-gray-600 mt-1">在线用户</div>
         </div>
         <div class="stat-card bg-orange-50">
-          <div class="text-2xl font-bold text-orange-600">3.5h</div>
+          <div class="text-2xl font-bold text-orange-600">{{ summary.today_study_hours }}h</div>
           <div class="text-gray-600 mt-1">今日学习</div>
         </div>
         <div class="stat-card bg-purple-50">
-          <div class="text-2xl font-bold text-purple-600">7</div>
+          <div class="text-2xl font-bold text-purple-600">{{ summary.streak_days }}</div>
           <div class="text-gray-600 mt-1">连续天数</div>
         </div>
       </div>
@@ -103,33 +103,23 @@
       <!-- 我的学习记录 -->
       <div class="mt-8">
         <h2 class="font-bold text-xl mb-4">我的学习记录</h2>
-        <div class="space-y-3">
+        <div class="space-y-3" v-if="records.length">
           <div
+            v-for="record in records"
+            :key="record.id"
             class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
           >
             <div class="flex items-center gap-3">
               <div class="w-3 h-3 rounded-full bg-green-500"></div>
               <div>
-                <span class="font-medium">前端学习小组</span>
-                <span class="text-sm text-gray-600 ml-2">学习了 2.5 小时</span>
+                <span class="font-medium">{{ record.title || '学习记录' }}</span>
+                <span class="text-sm text-gray-600 ml-2">学习了 {{ (record.duration / 60).toFixed(1) }} 小时</span>
               </div>
             </div>
-            <span class="text-sm text-gray-500">今天 14:30 - 17:00</span>
-          </div>
-
-          <div
-            class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-          >
-            <div class="flex items-center gap-3">
-              <div class="w-3 h-3 rounded-full bg-blue-500"></div>
-              <div>
-                <span class="font-medium">算法刷题房</span>
-                <span class="text-sm text-gray-600 ml-2">学习了 1.8 小时</span>
-              </div>
-            </div>
-            <span class="text-sm text-gray-500">昨天 19:00 - 20:48</span>
+            <span class="text-sm text-gray-500">{{ formatRecordTime(record.recorded_at) }}</span>
           </div>
         </div>
+        <div v-else class="text-gray-500 text-sm">暂无学习记录</div>
       </div>
     </div>
     <!-- 创建房间弹窗 -->
@@ -138,29 +128,69 @@
       @close="hideCreateRoomModal"
       @created="onRoomCreated"
     />
+
+    <!-- 私密房间密码弹窗 -->
+    <div v-if="passwordDialogVisible" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+      <div class="bg-white rounded-lg shadow-lg w-80 p-5">
+        <h3 class="text-lg font-semibold mb-3">输入房间密码</h3>
+        <div v-if="passwordError" class="text-red-500 text-xs mb-2">{{ passwordError }}</div>
+        <input
+          v-model="passwordInput"
+          type="password"
+          class="w-full border border-gray-200 rounded px-3 py-2 mb-4 outline-none focus:border-blue-500"
+          placeholder="请输入房间密码"
+          @keydown.enter="confirmPassword"
+        />
+        <div class="flex justify-end gap-3 text-sm">
+          <button class="px-3 py-1.5 rounded border border-gray-200" @click="cancelPassword">取消</button>
+          <button class="px-3 py-1.5 rounded bg-blue-600 text-white" @click="confirmPassword">确认</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import { ElMessage } from 'element-plus'
 import CreateRoom from '@/components/StudyRoom/CreateRoom.vue'
-import { getStudyRooms } from '@/api/modules/study'
+import { getStudyRooms, getStudySummary, getStudyRecords, joinStudyRoom } from '@/api/modules/study'
+import { useCurrentUser } from '@/composables/useCurrentUser'
 
 export default {
   name: 'StudyRoom',
   components: {
     CreateRoom
   },
+  setup() {
+    const { profile } = useCurrentUser()
+    return {
+      profile
+    }
+  },
   data() {
     return {
       showCreateRoom: false,
       rooms: [],
       roomsLoading: false,
-      roomsError: ''
+      roomsError: '',
+      summary: {
+        active_rooms: 0,
+        online_users: 0,
+        today_study_hours: 0,
+        streak_days: 0
+      },
+      records: [],
+      recordsLoading: false,
+      passwordDialogVisible: false,
+      passwordInput: '',
+      pendingRoomId: null,
+      passwordError: ''
     }
   },
   created() {
     this.fetchRooms()
+    this.fetchSummary()
+    this.fetchRecords()
   },
   methods: {
     hideCreateRoomModal() {
@@ -188,7 +218,7 @@ export default {
         name: room.name,
         status: room.status || '进行中',
         statusClass: room.status_class || 'bg-green-100 text-green-800',
-        description: room.description || '这个房间暂未填写介绍',
+        description: room.is_private ? '私密房间，加入后可见' : (room.description || '这个房间暂未填写介绍'),
         currentUsers: room.current_users ?? room.currentUsers ?? 0,
         maxUsers: room.max_users ?? room.maxUsers ?? 0,
         studyTime: room.study_time || room.studyTime || '0h',
@@ -202,9 +232,25 @@ export default {
       }
       return maxUsers
     },
+    formatRecordTime(timeStr) {
+      if (!timeStr) return ''
+      const date = new Date(timeStr)
+      const today = new Date()
+      const isToday = date.toDateString() === today.toDateString()
+      const label = isToday ? '今天' : date.toLocaleDateString()
+      const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      return `${label} ${time}`
+    },
     enterRoom(roomId) {
-      // 跳转到视频会议室
-      this.$router.push({ name: 'VideoRoom', params: { roomId } })
+      const room = this.rooms.find(r => r.id === roomId)
+      if (room?.isPrivate) {
+        this.pendingRoomId = roomId
+        this.passwordInput = ''
+        this.passwordError = ''
+        this.passwordDialogVisible = true
+        return
+      }
+      this.tryJoinRoom(roomId, '')
     },
     onRoomCreated(roomData) {
       const normalized = this.transformRoom(roomData)
@@ -213,6 +259,50 @@ export default {
         this.enterRoom(normalized.id)
       }
       this.hideCreateRoomModal()
+    },
+    async tryJoinRoom(roomId, password) {
+      try {
+        await joinStudyRoom(roomId, { password, user_id: this.profile?.value?.id || 1 })
+        this.passwordDialogVisible = false
+        this.passwordError = ''
+        this.$router.push({ name: 'VideoRoom', params: { roomId } })
+      } catch (error) {
+        const msg = error?.response?.data?.message || error?.message || '加入房间失败'
+        this.passwordError = msg
+      }
+    },
+    async fetchSummary() {
+      try {
+        const res = await getStudySummary({ user_id: this.profile?.value?.id || 1 })
+        this.summary = res?.data || this.summary
+      } catch (error) {
+        console.error('获取学习汇总失败:', error)
+      }
+    },
+    async fetchRecords() {
+      this.recordsLoading = true
+      try {
+        const res = await getStudyRecords({ user_id: this.profile?.value?.id || 1 })
+        this.records = res?.data?.records || []
+      } catch (error) {
+        console.error('获取学习记录失败:', error)
+      } finally {
+        this.recordsLoading = false
+      }
+    },
+    confirmPassword() {
+      if (!this.passwordInput.trim()) {
+        ElMessage.warning('请输入房间密码')
+        return
+      }
+      const roomId = this.pendingRoomId
+      this.tryJoinRoom(roomId, this.passwordInput.trim())
+    },
+    cancelPassword() {
+      this.passwordDialogVisible = false
+      this.passwordInput = ''
+      this.pendingRoomId = null
+      this.passwordError = ''
     }
   }
 }

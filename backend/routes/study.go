@@ -14,13 +14,37 @@ import (
 	"learningAssistant-backend/models"
 )
 
+type studySummaryResponse struct {
+	ActiveRooms     int     `json:"active_rooms"`
+	OnlineUsers     int     `json:"online_users"`
+	TodayStudyHours float64 `json:"today_study_hours"`
+	StreakDays      int     `json:"streak_days"`
+}
+
 func registerStudyRoutes(router *gin.RouterGroup) {
 	rooms := router.Group("/rooms")
 	{
 		rooms.GET("", handleListStudyRooms)
 		rooms.GET("/:roomId", handleGetStudyRoomDetail)
 		rooms.POST("", handleCreateStudyRoom)
+		rooms.POST("/:roomId/join", handleJoinStudyRoom)
 	}
+
+	router.GET("/summary", handleStudySummary)
+	router.GET("/records", handleStudyRecords)
+}
+
+func registerStudyWebsocketRoutes(router *gin.RouterGroup) {
+	router.GET("/rooms/:roomId/ws", func(c *gin.Context) {
+		roomIDParam := c.Param("roomId")
+		roomID, err := strconv.ParseUint(roomIDParam, 10, 64)
+		if err != nil || roomID == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "房间ID不正确"})
+			return
+		}
+		hub := studyHubRegistry.getHub(roomID)
+		hub.handleWebSocket(c)
+	})
 }
 
 type createStudyRoomRequest struct {
@@ -367,4 +391,152 @@ func formatStudyDuration(minutes int) string {
 		return fmt.Sprintf("%dh", hours)
 	}
 	return fmt.Sprintf("%dh%dm", hours, remain)
+}
+
+func handleJoinStudyRoom(c *gin.Context) {
+	roomIDParam := c.Param("roomId")
+	roomID, err := strconv.ParseUint(roomIDParam, 10, 64)
+	if err != nil || roomID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "房间ID不正确"})
+		return
+	}
+
+	var payload struct {
+		Password string `json:"password"`
+		UserID   uint64 `json:"user_id"`
+	}
+	_ = c.ShouldBindJSON(&payload)
+
+	db := database.GetDB()
+	var room models.StudyRoom
+	if err := db.First(&room, roomID).Error; err != nil {
+		status := http.StatusInternalServerError
+		msg := "加载房间失败"
+		if errorsIsNotFound(err) {
+			status = http.StatusNotFound
+			msg = "房间不存在"
+		}
+		c.JSON(status, gin.H{"code": status, "message": msg})
+		return
+	}
+
+	if room.IsPrivate {
+		if strings.TrimSpace(payload.Password) == "" {
+			c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "私密房间需要密码"})
+			return
+		}
+		if !verifyPassword(room.AccessCode, payload.Password) {
+			c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "房间密码错误"})
+			return
+		}
+	}
+
+	if payload.UserID != 0 {
+		member := models.StudyRoomMember{
+			RoomID: room.ID,
+			UserID: payload.UserID,
+		}
+		_ = db.Where("room_id = ? AND user_id = ?", room.ID, payload.UserID).
+			FirstOrCreate(&member).Error
+	}
+
+	online := studyHubRegistry.getHub(room.ID)
+	memberCount, _ := countStudyRoomMembers(db, room.ID)
+	response := buildStudyRoomListItem(&room, memberCount)
+	response.CurrentUsers = int(memberCount)
+	if online != nil {
+		response.CurrentUsers = int(memberCount) + online.currentOnline()
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "加入成功",
+		"data": gin.H{
+			"room": response,
+		},
+	})
+}
+
+func handleStudySummary(c *gin.Context) {
+	db := database.GetDB()
+
+	var activeCount int64
+	db.Model(&models.StudyRoom{}).Where("status = ?", 1).Count(&activeCount)
+
+	todayStart := time.Now().Truncate(24 * time.Hour)
+	var totalMinutes int64
+	db.Model(&models.StudyRoom{}).
+		Where("updated_at >= ?", todayStart).
+		Select("SUM(focus_minutes_today)").Scan(&totalMinutes)
+	// 加上当前在线未结束会话的时长
+	activeMins := studyHubRegistry.activeMinutes()
+	totalMinutes += int64(activeMins)
+
+	userIDParam := c.Query("user_id")
+	var streak int
+	if userIDParam != "" {
+		if userID, err := strconv.ParseUint(userIDParam, 10, 64); err == nil {
+			var profile models.UserProfile
+			if err := db.Where("user_id = ?", userID).First(&profile).Error; err == nil {
+				streak = profile.StreakDays
+			}
+		}
+	}
+	if streak == 0 {
+		streak = 1
+	}
+
+	summary := studySummaryResponse{
+		ActiveRooms:     int(activeCount),
+		OnlineUsers:     studyHubRegistry.totalOnline(),
+		TodayStudyHours: float64(totalMinutes) / 60.0,
+		StreakDays:      streak,
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "success",
+		"data":    summary,
+	})
+}
+
+func handleStudyRecords(c *gin.Context) {
+	userIDParam := c.Query("user_id")
+	if userIDParam == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "缺少用户ID"})
+		return
+	}
+	userID, err := strconv.ParseUint(userIDParam, 10, 64)
+	if err != nil || userID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "用户ID不正确"})
+		return
+	}
+
+	db := database.GetDB()
+	var records []models.LearningRecord
+	if err := db.Where("user_id = ?", userID).
+		Order("session_end DESC").
+		Limit(20).
+		Find(&records).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取学习记录失败"})
+		return
+	}
+
+	payload := make([]map[string]interface{}, 0, len(records))
+	for _, rec := range records {
+		payload = append(payload, map[string]interface{}{
+			"id":          rec.ID,
+			"title":       fmt.Sprintf("任务 %d", rec.TaskID),
+			"duration":    rec.DurationMinutes,
+			"recorded_at": rec.SessionStart.Format(time.RFC3339),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "success",
+		"data": gin.H{
+			"records": payload,
+		},
+	})
 }
