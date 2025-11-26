@@ -323,10 +323,19 @@ export default {
       if (this.localStream) return true;
       const isSecureContext =
         window.location.protocol === "https:" || window.location.hostname === "localhost";
+      const mediaDevices = navigator.mediaDevices;
+      if (!mediaDevices || !mediaDevices.getUserMedia) {
+        this.mediaErrorDetail = isSecureContext
+          ? "当前浏览器不支持 WebRTC，或未启用摄像头权限"
+          : "需在 HTTPS 或 localhost 下使用摄像头";
+        this.callError = this.mediaErrorDetail;
+        ElMessage.error(this.callError);
+        return false;
+      }
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        const stream = await mediaDevices.getUserMedia({
           video: true,
-          audio: true,
+          audio: false,
         });
         this.localStream = stream;
         this.mediaReady = true;
