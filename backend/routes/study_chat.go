@@ -2,7 +2,6 @@ package routes
 
 import (
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -55,10 +54,6 @@ func handleGetRoomChatHistory(c *gin.Context) {
 			"sent_at":      msg.SentAt,
 		})
 	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i]["sent_at"].(time.Time).Before(result[j]["sent_at"].(time.Time))
-	})
-
 	c.JSON(http.StatusOK, gin.H{
 		"code": 200,
 		"data": gin.H{"messages": result},

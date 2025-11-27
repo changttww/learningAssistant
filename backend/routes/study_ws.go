@@ -382,9 +382,22 @@ func (h *studyRoomHub) handleEvent(client *studyClient, env wsEnvelope) {
 		if content == "" {
 			return
 		}
-		sentAt := time.Now().Format(time.RFC3339)
+		now := time.Now()
+		db := database.GetDB()
+		chat := models.ChatMessage{
+			SessionID: 0,
+			RoomID:    h.roomID,
+			UserID:    client.userID,
+			Content:   content,
+			MsgType:   0,
+			SentAt:    now,
+		}
+		if err := db.Create(&chat).Error; err != nil {
+			log.Println("store chat failed:", err)
+		}
+		sentAt := now.Format(time.RFC3339)
 		msg := map[string]interface{}{
-			"id":           time.Now().UnixNano(),
+			"id":           chat.ID,
 			"user_id":      client.userID,
 			"display_name": client.displayName,
 			"content":      content,

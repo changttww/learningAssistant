@@ -564,17 +564,17 @@ export default {
     async sendMessage() {
       const content = this.newMessage.trim();
       if (!content) return;
+      // WebSocket 实时广播
+      this.sendWs("chat", { content });
+
+      // 持久化存储（异步，不阻塞实时发送）
       const roomId = this.$route.params.roomId;
       if (!roomId) return;
       try {
-        const res = await sendRoomChatMessage(roomId, {
+        await sendRoomChatMessage(roomId, {
           user_id: this.currentUserId,
           content,
         });
-        const msg = res?.data?.message || null;
-        if (msg) {
-          this.handleIncomingChat(msg);
-        }
       } catch (error) {
         console.error("发送消息失败", error);
         ElMessage.error("发送消息失败");
@@ -588,24 +588,11 @@ export default {
       try {
         const res = await getRoomChatHistory(roomId, { limit: 100 });
         const items = res?.data?.messages || [];
-        const normalized = items
-          .map((item) => {
-            const sentAt = item.sent_at ? new Date(item.sent_at) : new Date();
-            const timeStr = sentAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-            const dateLabel = sentAt.toLocaleDateString();
-            return {
-              id: item.id || `${item.user_id}-${item.sent_at}`,
-              senderName: item.display_name || "成员",
-              senderRole: '',
-              content: item.content || "",
-              time: timeStr,
-              timeGroup: `${dateLabel} ${timeStr}`,
-              avatarType: (item.user_id % 6) + 1,
-              isSelf: item.user_id === this.currentUserId
-            }
-          })
+        // 后端按时间倒序返回，前端翻转为时间正序，旧消息在上，新消息在下
+        this.messages = items
+          .slice()
           .reverse()
-        this.messages = normalized
+          .map((item) => this.normalizeMessage(item));
       } catch (error) {
         console.error('加载聊天记录失败', error)
       }
@@ -617,6 +604,7 @@ export default {
       const sentAt = data?.sent_at ? new Date(data.sent_at) : new Date()
       const timeStr = sentAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       const dateLabel = sentAt.toLocaleDateString()
+      // 将新消息追加到底部，保持时间正序（旧上新下）
       this.messages.push({
         id: data.id || Date.now(),
         senderName: data.display_name || '成员',
@@ -632,6 +620,22 @@ export default {
         const container = this.$refs.messagesContainer
         if (container) container.scrollTop = container.scrollHeight
       })
+    },
+
+    normalizeMessage(item) {
+      const sentAt = item.sent_at ? new Date(item.sent_at) : new Date();
+      const timeStr = sentAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const dateLabel = sentAt.toLocaleDateString();
+      return {
+        id: item.id || `${item.user_id}-${item.sent_at}`,
+        senderName: item.display_name || "成员",
+        senderRole: '',
+        content: item.content || "",
+        time: timeStr,
+        timeGroup: `${dateLabel} ${timeStr}`,
+        avatarType: (item.user_id % 6) + 1,
+        isSelf: item.user_id === this.currentUserId
+      }
     },
   }
 }
