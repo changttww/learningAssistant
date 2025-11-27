@@ -2,7 +2,7 @@
   <div class="min-h-full bg-gray-50">
     <div class="w-full py-8">
       <!-- 顶部统计卡片 -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-4">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-5 mb-4">
         <div
           class="stat-card bg-blue-50 rounded-lg p-4 flex flex-col items-center justify-center"
         >
@@ -32,6 +32,17 @@
             stats.inProgress
           }}</span>
           <span class="text-gray-700 text-sm mt-1 font-medium">进行中</span>
+        </button>
+        <button
+          type="button"
+          @click="setStatusFilter('pending')"
+          class="stat-card bg-gray-200 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow focus:outline-none focus:ring-2 focus:ring-gray-500 active:scale-95 transition"
+          aria-label="待处理任务"
+        >
+          <span class="text-2xl font-bold text-gray-700">{{
+            stats.pending
+          }}</span>
+          <span class="text-gray-800 text-sm mt-1 font-medium">待处理</span>
         </button>
         <button
           type="button"
@@ -170,7 +181,7 @@
               :key="date.dateString"
               @click="selectDate(date)"
               :class="[
-                'modern-date-cell cursor-pointer relative h-20 transition-all flex flex-col items-center justify-center p-1',
+                'modern-date-cell cursor-pointer relative h-24 transition-all flex flex-col items-center justify-center p-1',
                 {
                   'bg-blue-50 border-2 border-blue-600': date.isSelected,
                   'hover:bg-blue-50': !date.isSelected,
@@ -190,19 +201,33 @@
               >
                 {{ date.day }}
               </div>
-              <div v-if="date.tasks && date.tasks.length > 0" class="mt-1 flex">
-                <span
-                  v-for="(task, index) in date.tasks.slice(0, 3)"
-                  :key="index"
-                  :class="[
-                    'task-dot inline-block w-1.5 h-1.5 rounded-full mx-0.5',
-                    {
-                      'bg-green-500': task.status === 'completed',
-                      'bg-orange-500': task.status === 'in-progress',
-                      'bg-red-500': task.status === 'overdue',
-                    },
-                  ]"
-                ></span>
+              <div v-if="date.tasks && date.tasks.length > 0" class="mt-1 flex flex-col items-center gap-0.5">
+                <!-- 任务状态圆点 -->
+                <div class="flex items-center justify-center">
+                  <span
+                    v-for="(task, index) in date.tasks.slice(0, 3)"
+                    :key="index"
+                    :class="[
+                      'task-dot inline-block w-2 h-2 rounded-full mx-0.5',
+                      getTaskDotColor(task)
+                    ]"
+                    :title="`${task.title} - ${getTaskActualStatus(task)}`"
+                  ></span>
+                </div>
+                <!-- 任务数量标记 -->
+                <span 
+                  v-if="date.tasks.length > 3" 
+                  class="text-xs text-blue-600 font-medium"
+                  :title="`共${date.tasks.length}个任务`"
+                >
+                  +{{ date.tasks.length - 3 }}
+                </span>
+                <span 
+                  v-else-if="date.tasks.length > 0"
+                  class="text-xs text-gray-500"
+                >
+                  {{ date.tasks.length }}
+                </span>
               </div>
             </div>
           </div>
@@ -861,7 +886,12 @@ const calendarDates = computed(() => {
     date.setDate(startDate.getDate() + i);
 
     const dateString = formatLocalDate(date);
-    const dateTasks = tasks.value.filter((t) => t.date === dateString);
+    // 修改：任务在其持续周期内的所有日期都显示
+    const dateTasks = tasks.value.filter((t) => {
+      const taskStart = t.startDate || t.date;
+      const taskEnd = t.endDate || t.date;
+      return dateString >= taskStart && dateString <= taskEnd;
+    });
 
     dates.push({
       date: new Date(date),
@@ -882,12 +912,37 @@ const calendarDates = computed(() => {
 const selectedDateTasks = computed(() => {
   if (!selectedDate.value) return [];
   const dateStr = formatLocalDate(selectedDate.value);
-  return tasks.value.filter((task) => task.date === dateStr);
+  // 修改：显示在任务持续周期内的所有任务
+  return tasks.value.filter((task) => {
+    const taskStart = task.startDate || task.date;
+    const taskEnd = task.endDate || task.date;
+    return dateStr >= taskStart && dateStr <= taskEnd;
+  });
 });
 
 const filteredTasksByStatus = computed(() => {
   if (!statusFilter.value) return [];
-  return tasks.value.filter((t) => t.status === statusFilter.value);
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = formatLocalDate(today);
+  
+  return tasks.value.filter((task) => {
+    const taskStartDate = task.startDate || task.date;
+    const taskEndDate = task.endDate || task.date;
+    
+    // 根据实际状态过滤
+    if (statusFilter.value === 'completed') {
+      return task.status === 'completed';
+    } else if (statusFilter.value === 'overdue') {
+      return task.status !== 'completed' && taskEndDate < todayStr;
+    } else if (statusFilter.value === 'in-progress') {
+      return task.status !== 'completed' && taskStartDate <= todayStr && todayStr <= taskEndDate;
+    } else if (statusFilter.value === 'pending') {
+      return task.status !== 'completed' && taskStartDate > todayStr;
+    }
+    return false;
+  });
 });
 
 const getStartMinutes = (task) => {
@@ -930,11 +985,34 @@ const sortedNotes = computed(() => {
 });
 
 const stats = computed(() => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = formatLocalDate(today);
+  
   const total = tasks.value.length;
-  const completed = tasks.value.filter((t) => t.status === "completed").length;
-  const inProgress = tasks.value.filter((t) => t.status === "in-progress").length;
-  const overdue = tasks.value.filter((t) => t.status === "overdue").length;
-  return { total, completed, inProgress, overdue };
+  
+  // 使用动态计算的实际状态进行统计
+  let completed = 0;
+  let inProgress = 0;
+  let pending = 0;
+  let overdue = 0;
+  
+  tasks.value.forEach((task) => {
+    const taskStartDate = task.startDate || task.date;
+    const taskEndDate = task.endDate || task.date;
+    
+    if (task.status === 'completed') {
+      completed++;
+    } else if (taskEndDate < todayStr) {
+      overdue++;
+    } else if (taskStartDate <= todayStr && todayStr <= taskEndDate) {
+      inProgress++;
+    } else if (taskStartDate > todayStr) {
+      pending++;
+    }
+  });
+  
+  return { total, completed, inProgress, pending, overdue };
 });
 
 // 方法
@@ -1022,7 +1100,9 @@ const saveTask = () => {
     id: Date.now(),
     title: newTask.value.title,
     description: newTask.value.description,
-    date: newTask.value.endDate,
+    date: newTask.value.startDate, // 保留兼容性
+    startDate: newTask.value.startDate, // 任务开始日期
+    endDate: newTask.value.endDate, // 任务结束日期
     time: newTask.value.endTime || "全天",
     status: "pending",
     notes: "",
@@ -1103,6 +1183,77 @@ const getTaskCardBackground = (category) => {
   return style.split(' ')[0];
 };
 
+const getStatusText = (status) => {
+  const statusMap = {
+    'completed': '已完成',
+    'in-progress': '进行中',
+    'pending': '待处理',
+    'overdue': '已逾期',
+  };
+  return statusMap[status] || '未知状态';
+};
+
+// 动态计算任务的实际状态和颜色
+const getTaskDotColor = (task) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // 设置为当天的开始时间
+  
+  const todayStr = formatLocalDate(today);
+  const taskStartDate = task.startDate || task.date;
+  const taskEndDate = task.endDate || task.date;
+  
+  // 如果任务已完成，永远显示绿色
+  if (task.status === 'completed') {
+    return 'bg-green-500';
+  }
+  
+  // 如果任务结束时间小于当前时间且未完成，显示红色（已逾期）
+  if (taskEndDate < todayStr) {
+    return 'bg-red-500';
+  }
+  
+  // 如果当前时间处于任务起始时间和结束时间之间且未完成，显示橙色（进行中）
+  if (taskStartDate <= todayStr && todayStr <= taskEndDate) {
+    return 'bg-orange-500';
+  }
+  
+  // 如果任务起始时间晚于当前时间，显示灰色（待处理）
+  if (taskStartDate > todayStr) {
+    return 'bg-gray-500';
+  }
+  
+  // 默认紫色
+  return 'bg-gray-500';
+};
+
+// 获取任务的实际状态文本（用于tooltip）
+const getTaskActualStatus = (task) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const todayStr = formatLocalDate(today);
+  const taskStartDate = task.startDate || task.date;
+  const taskEndDate = task.endDate || task.date;
+  
+  if (task.status === 'completed') {
+    return '已完成';
+  }
+  
+  if (taskEndDate < todayStr) {
+    return '已逾期';
+  }
+  
+  if (taskStartDate <= todayStr && todayStr <= taskEndDate) {
+    return '进行中';
+  }
+  
+  if (taskStartDate > todayStr) {
+    return '待处理';
+  }
+  
+  return '未知状态';
+};
+
 const setStatusFilter = (status) => {
   statusFilter.value = status;
 };
@@ -1115,6 +1266,7 @@ const getStatusLabel = (status) => {
   const map = {
     completed: "已完成",
     "in-progress": "进行中",
+    pending: "待处理",
     overdue: "已逾期",
   };
   return map[status] || "任务";
@@ -1122,36 +1274,78 @@ const getStatusLabel = (status) => {
 
 // 初始化
 onMounted(() => {
+  // 使用当前日期作为基准
+  const today = new Date();
+  const todayStr = formatLocalDate(today);
+  
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = formatLocalDate(yesterday);
+  
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = formatLocalDate(tomorrow);
+  
+  const dayAfterTomorrow = new Date(today);
+  dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+  const dayAfterTomorrowStr = formatLocalDate(dayAfterTomorrow);
+  
+  const threeDaysAgo = new Date(today);
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+  const threeDaysAgoStr = formatLocalDate(threeDaysAgo);
+  
+  const twoDaysAgo = new Date(today);
+  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+  const twoDaysAgoStr = formatLocalDate(twoDaysAgo);
+  
   tasks.value = [
     {
       id: 1,
       title: "完成数学作业",
-      description: "复习高数第三章知识点",
-      date: "2024-03-05",
+      description: "复习高数第三章知识点（已完成）",
+      date: todayStr,
+      startDate: todayStr,
+      endDate: todayStr,
       time: "13:30前",
-      status: "completed",
+      status: "completed", // 已完成 - 绿色圆点
       notes: "",
       category: "数学",
     },
     {
       id: 2,
       title: "准备英语报告",
-      description: "关于气候变化的影响与应对",
-      date: "2024-03-05",
+      description: "关于气候变化的影响与应对（持续3天的任务 - 正在进行）",
+      date: yesterdayStr,
+      startDate: yesterdayStr,
+      endDate: tomorrowStr, // 从昨天到明天，今天处于中间
       time: "15:00前",
-      status: "in-progress",
+      status: "pending", // 状态为pending，但因为今天在任务周期内，会显示橙色
       notes: "",
       category: "英语",
     },
     {
       id: 3,
       title: "物理实验预习",
-      description: "波动光学实验操作流程",
-      date: "2024-03-05",
+      description: "下周的任务（还未开始 - 待处理）",
+      date: tomorrowStr,
+      startDate: tomorrowStr,
+      endDate: dayAfterTomorrowStr, // 从明天到后天
       time: "17:00前",
-      status: "pending",
+      status: "pending", // 因为开始时间晚于今天，会显示灰色
       notes: "",
       category: "物理",
+    },
+    {
+      id: 4,
+      title: "提交作业报告",
+      description: "截止日期已过，需要立即处理（已逾期）",
+      date: threeDaysAgoStr,
+      startDate: threeDaysAgoStr,
+      endDate: twoDaysAgoStr, // 3天前到2天前的任务，已经逾期
+      time: "23:59前",
+      status: "pending", // 状态为pending，但因为结束时间早于今天，会显示红色
+      notes: "",
+      category: "研究",
     },
   ];
   notes.value = [
@@ -1189,6 +1383,12 @@ watch(selectedDate, (d) => {
 
   .task-dot {
     transition: all 0.2s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  .task-dot:hover {
+    transform: scale(1.3);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
   .line-clamp-2 {
