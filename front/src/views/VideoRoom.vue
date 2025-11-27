@@ -150,7 +150,7 @@ import { computed, onMounted } from "vue";
 import Peer from "peerjs";
 import { ElMessage } from "element-plus";
 import { useCurrentUser } from "@/composables/useCurrentUser";
-import { getStudyRoomDetail } from "@/api/modules/study";
+import { getStudyRoomDetail, getRoomChatHistory, sendRoomChatMessage } from "@/api/modules/study";
 import { apiConfig } from "@/config";
 
 export default {
@@ -245,6 +245,7 @@ export default {
     const roomId = this.$route.params.roomId;
     if (roomId) {
       this.loadRoomInfo(roomId);
+      this.loadChatHistory();
     }
     this.initPeerInstance();
     this.connectWebSocket();
@@ -556,57 +557,84 @@ export default {
       this.beginCallWithPeer(partnerPeerId, isInitiator);
     },
     selectMember(memberId) {
-      if (!memberId || memberId === this.currentUserId) return;
-      const member = this.members.find((m) => m.user_id === memberId);
-      if (!member) return;
-      if (this.isCalling) {
-        ElMessage.warning("您已在通话中");
-        return;
-      }
-      if (member.isBusy) {
-        ElMessage.warning("对方正在通话中");
-        return;
-      }
-      if (!this.peerId) {
-        ElMessage.warning("通话ID生成中，请稍候");
-        return;
-      }
-      this.sendWs("call_request", { target_id: memberId });
-      this.callStatus = "dialing";
-      this.activePartnerId = memberId;
+      alert('语音/视频通话功能待开发');
       this.activeMemberId = memberId;
-      this.activePartnerName = member.name;
     },
-    handleIncomingChat(data) {
-      const senderName = data?.display_name || "成员";
-      const content = data?.content || "";
-      if (!content) return;
-      const timeLabel = data?.sent_at
-        ? new Date(data.sent_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-        : "";
-      this.messages.push({
-        id: data.id || Date.now(),
-        senderName,
-        senderRole: "",
-        content,
-        time: timeLabel,
-        timeGroup: data?.sent_at || "实时消息",
-        avatarType: 2,
-        isSelf: data.user_id === this.currentUserId,
-      });
-      this.$nextTick(() => {
-        const container = this.$refs.messagesContainer;
-        if (container) container.scrollTop = container.scrollHeight;
-      });
-    },
-    sendMessage() {
+
+    async sendMessage() {
       const content = this.newMessage.trim();
       if (!content) return;
-      this.sendWs("chat", { content });
+      const roomId = this.$route.params.roomId;
+      if (!roomId) return;
+      try {
+        const res = await sendRoomChatMessage(roomId, {
+          user_id: this.currentUserId,
+          content,
+        });
+        const msg = res?.data?.message || null;
+        if (msg) {
+          this.handleIncomingChat(msg);
+        }
+      } catch (error) {
+        console.error("发送消息失败", error);
+        ElMessage.error("发送消息失败");
+      }
       this.newMessage = "";
     },
-  },
-};
+
+    async loadChatHistory() {
+      const roomId = this.$route.params.roomId;
+      if (!roomId) return;
+      try {
+        const res = await getRoomChatHistory(roomId, { limit: 100 });
+        const items = res?.data?.messages || [];
+        const normalized = items
+          .map((item) => {
+            const sentAt = item.sent_at ? new Date(item.sent_at) : new Date();
+            const timeStr = sentAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+            const dateLabel = sentAt.toLocaleDateString();
+            return {
+              id: item.id || `${item.user_id}-${item.sent_at}`,
+              senderName: item.display_name || "成员",
+              senderRole: '',
+              content: item.content || "",
+              time: timeStr,
+              timeGroup: `${dateLabel} ${timeStr}`,
+              avatarType: (item.user_id % 6) + 1,
+              isSelf: item.user_id === this.currentUserId
+            }
+          })
+          .reverse()
+        this.messages = normalized
+      } catch (error) {
+        console.error('加载聊天记录失败', error)
+      }
+    },
+
+    async handleIncomingChat(data) {
+      const content = data?.content || ''
+      if (!content) return
+      const sentAt = data?.sent_at ? new Date(data.sent_at) : new Date()
+      const timeStr = sentAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      const dateLabel = sentAt.toLocaleDateString()
+      this.messages.push({
+        id: data.id || Date.now(),
+        senderName: data.display_name || '成员',
+        senderRole: '',
+        content,
+        time: timeStr,
+        timeGroup: `${dateLabel} ${timeStr}`,
+        avatarType: (data.user_id % 6) + 1,
+        isSelf: data.user_id === this.currentUserId,
+      })
+      
+      this.$nextTick(() => {
+        const container = this.$refs.messagesContainer
+        if (container) container.scrollTop = container.scrollHeight
+      })
+    },
+  }
+}
 </script>
 
 <style scoped>
