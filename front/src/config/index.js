@@ -11,7 +11,8 @@ const getEnvValue = (key, defaultValue = "") => {
 // API 配置
 export const apiConfig = {
   baseURL: getEnvValue("VITE_API_BASE_URL", "http://localhost:8080/api"),
-  timeout: parseInt(getEnvValue("VITE_API_TIMEOUT", "10000")),
+  // 默认超时从 10s 提升到 60s，避免 AI 接口响应较慢时前端过早中断
+  timeout: parseInt(getEnvValue("VITE_API_TIMEOUT", "60000")),
   enableMock: getEnvValue("VITE_ENABLE_MOCK", "false") === "true",
 };
 
