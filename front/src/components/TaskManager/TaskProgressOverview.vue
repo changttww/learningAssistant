@@ -6,9 +6,9 @@
     >
       <div class="flex justify-between mb-3">
         <div>
-          <p class="text-gray-500 mb-2">整体完成率</p>
+          <p class="text-gray-500 mb-2">今日整体完成率</p>
           <h3 class="text-3xl font-bold text-blue-600">
-            {{ currentTimeData.completionRate }}%
+            {{ dailyOverview.completionRate }}%
           </h3>
         </div>
         <div class="h-16 w-16" ref="ringProgress"></div>
@@ -17,13 +17,13 @@
         <div class="flex justify-between text-sm text-gray-500 mb-1">
           <span>已完成</span>
           <span>
-            {{ currentTimeData.completedTasks }}/{{ currentTimeData.totalTasks }}
+            {{ dailyOverview.completedTasks }}/{{ dailyOverview.totalTasks }}
           </span>
         </div>
         <div class="w-full h-3 bg-gray-200 rounded-full">
           <div
             class="h-full rounded-full bg-green-500"
-            :style="`width: ${currentTimeData.completionRate}%`"
+            :style="`width: ${dailyOverview.completionRate}%`"
           ></div>
         </div>
       </div>
@@ -41,6 +41,10 @@
   export default {
     name: "TaskProgressOverview",
     props: {
+      dailyOverview: {
+        type: Object,
+        required: true,
+      },
       currentTimeData: {
         type: Object,
         required: true,
@@ -71,10 +75,16 @@
       }
     },
     watch: {
+      dailyOverview: {
+        deep: true,
+        handler() {
+          this.renderRingChart();
+        },
+      },
       currentTimeData: {
         deep: true,
         handler() {
-          this.renderCharts();
+          this.renderProgressChart();
         },
       },
       activeTimeFilter() {
@@ -98,9 +108,8 @@
         this.renderProgressChart();
       },
       renderRingChart() {
-        if (!this.ringChart || !this.currentTimeData) return;
-        const completionRate =
-          (this.currentTimeData.completionRate ?? 0) / 100;
+        if (!this.ringChart || !this.dailyOverview) return;
+        const completionRate = (this.dailyOverview.completionRate ?? 0) / 100;
         this.ringChart.setOption({
           tooltip: { show: false },
           series: [
@@ -132,9 +141,7 @@
       },
       renderProgressChart() {
         if (!this.progressChart || !this.currentTimeData) return;
-        const isLineChart =
-          this.activeTimeFilter === "month" ||
-          this.activeTimeFilter === "quarter";
+        const isLineChart = this.activeTimeFilter === "month";
 
         this.progressChart.setOption({
           tooltip: {

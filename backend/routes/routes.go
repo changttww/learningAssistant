@@ -30,6 +30,7 @@ func SetupRoutes(r *gin.Engine) {
 		// 任务相关路由
 		tasks := v1.Group("/tasks")
 		registerTaskRoutes(tasks)
+		registerTaskStatRoutes(tasks)
 
 		// 团队相关路由
 		teams := v1.Group("/teams")
@@ -62,6 +63,7 @@ func SetupRoutes(r *gin.Engine) {
 
 		tasksLegacy := legacy.Group("/tasks")
 		registerTaskRoutes(tasksLegacy)
+		registerTaskStatRoutes(tasksLegacy)
 
 		studyLegacy := legacy.Group("/study")
 		registerStudyRoutes(studyLegacy)
