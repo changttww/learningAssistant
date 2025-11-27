@@ -264,16 +264,23 @@
             <div
               v-for="task in sortedSelectedDateTasks"
               :key="task.id"
-              class="bg-white border border-gray-200 rounded p-3 mb-3"
+              :class="[
+                'rounded-lg p-4 mb-3 shadow-sm transition-all duration-200 hover:shadow-lg hover:brightness-95',
+                getTaskCardBackground(task.category),
+              ]"
             >
               <div class="flex items-start">
-                <div
+                <button
+                  type="button"
+                  role="checkbox"
+                  :aria-checked="task.status === 'completed' ? 'true' : 'false'"
+                  :aria-label="'Mark task ' + task.title + ' as ' + (task.status === 'completed' ? 'incomplete' : 'complete')"
                   @click="toggleTaskComplete(task)"
                   :class="[
-                    'w-4 h-4 rounded border border-gray-300 flex items-center justify-center mr-2 cursor-pointer',
-                    {
-                      'bg-green-500': task.status === 'completed',
-                    },
+                    'w-4 h-4 rounded border flex-shrink-0 items-center justify-center mr-3 cursor-pointer transition-colors duration-200',
+                    task.status === 'completed'
+                      ? 'bg-green-500 border-green-500'
+                      : 'border-gray-300 hover:border-blue-500',
                   ]"
                 >
                   <svg
@@ -291,7 +298,7 @@
                       stroke-linejoin="round"
                     />
                   </svg>
-                </div>
+                </button>
                 <div class="flex-1">
                   <div class="flex items-center">
                     <span
@@ -322,23 +329,7 @@
                 </div>
               </div>
 
-              <div class="mt-3">
-                <div class="text-sm font-bold text-blue-600 mb-1">笔记本</div>
-                <textarea
-                  v-model="task.notes"
-                  class="w-full h-20 p-2 text-xs border border-gray-300 rounded text-gray-800 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                  placeholder="输入笔记或心得..."
-                ></textarea>
-                <div class="flex items-center mt-2">
-                  <button
-                    @click="openNotebookModal(task)"
-                    class="text-xs text-blue-600 hover:underline"
-                  >
-                    打开笔记本
-                  </button>
-                  <button class="text-xs text-gray-500 ml-4">评论</button>
-                </div>
-              </div>
+
             </div>
           </div>
         </div>
@@ -347,7 +338,10 @@
       <!-- 笔记列表 -->
       <div class="mt-4 mb-2">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold text-gray-800">我的笔记</h2>
+                    <div class="flex items-center">
+            <h2 class="text-lg font-bold text-gray-800">我的笔记</h2>
+            <button @click="openNotebookModal({ title: '新笔记', category: '默认', content: '', date: new Date().toLocaleDateString() })" class="bg-blue-600 text-white text-sm px-3 py-1 rounded shadow-lg hover:bg-blue-700 ml-2 transition-colors duration-200">+新建笔记</button>
+          </div>
           <div class="flex space-x-4">
             <button
               :class="[
@@ -566,28 +560,24 @@
     <div
       v-if="showNotebookModal"
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      @click="closeNotebookModal"
     >
       <div
-        :class="[
-          'bg-white rounded-lg shadow-xl transition-all',
-          isNotebookFullscreen ? 'w-11/12 h-5/6' : 'w-1/2 h-4/5',
-        ]"
-        @click.stop
+        class="bg-white rounded-lg shadow-xl w-full max-w-2xl h-[80vh] flex flex-col"
       >
         <div
-          class="flex items-center justify-between p-4 border-b border-gray-200"
+          class="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg"
         >
           <div class="flex items-center">
             <h2 class="text-lg font-bold text-gray-800">
-              {{ currentNotebook.title }}
+              {{ currentNote && currentNote.id ? "编辑笔记" : "新建笔记" }}
             </h2>
             <span
+              v-if="currentNote && currentNote.category"
               :class="[
                 'ml-2 text-xs px-2 py-0.5 rounded-full',
-                getCategoryStyle(currentNotebook.category),
+                getCategoryStyle(currentNote.category),
               ]"
-              >{{ currentNotebook.category }}</span
+              >{{ currentNote.category }}</span
             >
           </div>
           <div class="flex items-center space-x-2">
@@ -607,63 +597,135 @@
             </button>
             <button
               @click="closeNotebookModal"
-              class="text-gray-500 hover:text-gray-700"
+              class="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 hover:text-gray-800 transition-colors"
+              aria-label="关闭笔记"
             >
-              <iconify-icon
-                icon="mdi:close"
-                width="20"
-                height="20"
-              ></iconify-icon>
+              <iconify-icon icon="mdi:close" width="22"></iconify-icon>
             </button>
           </div>
         </div>
         <div class="p-4 h-full overflow-hidden flex flex-col">
-          <div class="flex items-center justify-between mb-4">
-            <div class="text-sm text-gray-500">
-              最后更新: {{ currentNotebook.lastUpdated }}
+          <div class="flex-1 overflow-y-auto pr-2 space-y-4">
+            <div>
+              <label class="block text-sm text-gray-600 mb-1 font-medium">笔记标题</label>
+              <input
+                v-model="currentNote.title"
+                type="text"
+                class="w-full border border-gray-300 p-2 rounded text-sm focus:border-blue-600 focus:outline-none"
+                placeholder="输入笔记标题"
+              />
             </div>
-            <div class="flex space-x-2">
-              <button
-                class="text-xs text-blue-600 py-1 px-2 border border-blue-600 rounded hover:bg-blue-50"
+            <div>
+              <label class="block text-sm text-gray-600 mb-1 font-medium">笔记分类</label>
+              <select
+                v-model="currentNote.category"
+                class="w-full border border-gray-300 p-2 rounded text-sm focus:border-blue-600 focus:outline-none"
               >
-                <iconify-icon
-                  icon="mdi:format-bold"
-                  width="16"
-                  height="16"
-                ></iconify-icon>
-              </button>
-              <button
-                class="text-xs text-blue-600 py-1 px-2 border border-blue-600 rounded hover:bg-blue-50"
+                <option value="学习">学习</option>
+                <option value="工作">工作</option>
+                <option value="数学">数学</option>
+                <option value="英语">英语</option>
+                <option value="物理">物理</option>
+                <option value="研究">研究</option>
+                <option value="其他">其他</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-600 mb-1 font-medium">笔记内容</label>
+              <div
+                v-if="editor"
+                class="border border-gray-300 rounded-lg focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-shadow shadow-sm"
               >
-                <iconify-icon
-                  icon="mdi:format-italic"
-                  width="16"
-                  height="16"
-                ></iconify-icon>
-              </button>
-              <button
-                class="text-xs text-blue-600 py-1 px-2 border border-blue-600 rounded hover:bg-blue-50"
-              >
-                <iconify-icon
-                  icon="mdi:format-list-bulleted"
-                  width="16"
-                  height="16"
-                ></iconify-icon>
-              </button>
+                <div
+                  class="flex items-center p-2 border-b border-gray-200 bg-gray-50 rounded-t-md flex-wrap gap-1"
+                >
+                  <button
+                    @click="editor.chain().focus().toggleBold().run()"
+                    :class="{
+                      'bg-blue-500 text-white': editor.isActive('bold'),
+                      'hover:bg-gray-200': !editor.isActive('bold'),
+                    }"
+                    class="p-2 rounded transition-colors"
+                    aria-label="加粗"
+                  >
+                    <iconify-icon icon="mdi:format-bold" width="20"></iconify-icon>
+                  </button>
+                  <button
+                    @click="editor.chain().focus().toggleItalic().run()"
+                    :class="{
+                      'bg-blue-500 text-white': editor.isActive('italic'),
+                      'hover:bg-gray-200': !editor.isActive('italic'),
+                    }"
+                    class="p-2 rounded transition-colors"
+                    aria-label="斜体"
+                  >
+                    <iconify-icon
+                      icon="mdi:format-italic"
+                      width="20"
+                    ></iconify-icon>
+                  </button>
+                  <button
+                    @click="
+                      editor.chain().focus().toggleHeading({ level: 2 }).run()
+                    "
+                    :class="{
+                      'bg-blue-500 text-white': editor.isActive('heading',
+                      { level: 2 }),
+                      'hover:bg-gray-200': !editor.isActive('heading', {
+                        level: 2,
+                      }),
+                    }"
+                    class="p-2 rounded transition-colors"
+                    aria-label="二级标题"
+                  >
+                    <iconify-icon icon="mdi:format-header-2" width="20"></iconify-icon>
+                  </button>
+                  <button
+                    @click="addImage"
+                    class="p-2 rounded hover:bg-gray-200 transition-colors"
+                    aria-label="插入图片"
+                  >
+                    <iconify-icon icon="mdi:image-plus" width="20"></iconify-icon>
+                  </button>
+                  <div class="border-l border-gray-300 h-6 mx-2"></div>
+                  <button
+                    @click="editor.chain().focus().undo().run()"
+                    :disabled="!editor.can().undo()"
+                    class="p-2 rounded transition-colors"
+                    :class="{
+                      'text-gray-400 cursor-not-allowed': !editor.can().undo(),
+                      'hover:bg-gray-200': editor.can().undo(),
+                    }"
+                    aria-label="撤销"
+                  >
+                    <iconify-icon icon="mdi:undo" width="20"></iconify-icon>
+                  </button>
+                  <button
+                    @click="editor.chain().focus().redo().run()"
+                    :disabled="!editor.can().redo()"
+                    class="p-2 rounded transition-colors"
+                    :class="{
+                      'text-gray-400 cursor-not-allowed': !editor.can().redo(),
+                      'hover:bg-gray-200': editor.can().redo(),
+                    }"
+                    aria-label="重做"
+                  >
+                    <iconify-icon icon="mdi:redo" width="20"></iconify-icon>
+                  </button>
+                </div>
+                <editor-content
+                  :editor="editor"
+                  class="p-4 min-h-[300px] bg-white rounded-b-md focus:outline-none prose max-w-none"
+                />
+              </div>
             </div>
           </div>
 
-          <textarea
-            v-model="currentNotebook.content"
-            class="w-full flex-1 p-3 border border-gray-300 rounded text-sm resize-none focus:border-blue-600 focus:outline-none"
-          ></textarea>
-
-          <div class="mt-4 flex items-center justify-between">
-            <div v-if="currentNotebook.relatedTask">
-              <span class="text-sm text-gray-600 mr-2">关联任务:</span>
-              <span class="text-sm text-blue-600">{{
-                currentNotebook.relatedTask
-              }}</span>
+          <div
+             class="mt-auto flex items-center justify-between pt-3 border-t border-gray-200"
+           >
+            <div class="text-sm text-gray-500">
+              最后更新: {{ currentNote.lastUpdated }}
             </div>
             <div>
               <button
@@ -672,11 +734,11 @@
                 插入图片
               </button>
               <button
-                @click="saveNotebook"
-                class="ml-2 text-sm text-white bg-blue-600 py-1 px-3 rounded hover:bg-blue-700"
-              >
-                保存笔记
-              </button>
+                  @click="closeAndSaveNote"
+                  class="ml-2 text-sm text-white bg-blue-600 py-1 px-3 rounded hover:bg-blue-700"
+                >
+                  关闭
+                </button>
             </div>
           </div>
         </div>
@@ -685,521 +747,426 @@
   </div>
 </template>
 
-<script>
-  import { ref, computed, onMounted, watch } from "vue";
+<script setup>
+import { ref, computed, onMounted, watch } from "vue";
+import { useEditor, EditorContent } from "@tiptap/vue-3";
+import StarterKit from "@tiptap/starter-kit";
+import { debounce } from "lodash";
+import Image from "@tiptap/extension-image";
 
-  export default {
-    name: "PersonalTasks",
-    setup() {
-      // 响应式数据
-      const currentDate = ref(new Date());
-      const selectedDate = ref(null);
-      const showTaskModal = ref(false);
-      const showNotebookModal = ref(false);
-      const isNotebookFullscreen = ref(false);
-      const notesSortBy = ref("category");
-      const naturalLanguageInput = ref("");
-      const statusFilter = ref(null);
-      const modalDateMode = ref('system');
+// Name
+defineOptions({
+  name: "PersonalTasks",
+});
 
-      // 统计数据
-      const stats = ref({
-        total: 12,
-        completed: 8,
-        inProgress: 3,
-        overdue: 1,
-      });
+// 响应式数据
+const currentDate = ref(new Date());
+const selectedDate = ref(new Date());
+const showTaskModal = ref(false);
+const showNotebookModal = ref(false);
+const isNotebookFullscreen = ref(false);
+const notesSortBy = ref("category");
+const naturalLanguageInput = ref("");
+const statusFilter = ref(null);
+const modalDateMode = ref('system');
+const sortMode = ref("time");
+const tasks = ref([]);
+const notes = ref([]);
+const newTask = ref({
+  title: "",
+  description: "",
+  startDate: "",
+  startTime: "",
+  endDate: "",
+  endTime: "",
+  category: "",
+});
 
-      // 新任务表单
-      const newTask = ref({
-        title: "",
-        description: "",
-        startDate: "",
-        startTime: "",
-        endDate: "",
-        endTime: "",
-        category: "",
-      });
+// 当前笔记
+const currentNote = ref(null);
 
-      // 当前笔记本
-      const currentNotebook = ref({
-        title: "",
-        category: "",
-        content: "",
-        lastUpdated: "",
-        relatedTask: "",
-      });
+const autosave = debounce(() => {
+  if (currentNote.value) {
+    currentNote.value.lastUpdated = new Date().toLocaleString("zh-CN");
+  }
+}, 1500);
 
-      // 任务数据
-      const tasks = ref([
-        {
-          id: 1,
-          title: "完成数学作业",
-          description: "复习高数第三章知识点",
-          date: "2024-03-05",
-          time: "13:30前",
-          status: "completed",
-          notes: "今天掌握了导数应用部分，重点练习了极值求法题目。",
-          category: "数学",
-        },
-        {
-          id: 2,
-          title: "准备英语报告",
-          description: "关于气候变化的严重影响与应对",
-          date: "2024-03-05",
-          time: "15:00前",
-          status: "in-progress",
-          notes: "",
-          category: "英语",
-        },
-        {
-          id: 3,
-          title: "物理实验预习",
-          description: "波动光学实验操作流程",
-          date: "2024-03-05",
-          time: "17:00前",
-          status: "pending",
-          notes: "",
-          category: "物理",
-        },
-        {
-          id: 4,
-          title: "阅读文献",
-          description: "机器学习相关论文",
-          date: "2024-03-06",
-          time: "10:00前",
-          status: "overdue",
-          notes: "",
-          category: "研究",
-        },
-        // 示例任务：2025年10月5日
-        {
-          id: 1001,
-          title: "项目规划会议",
-          description: "讨论季度目标与里程碑安排",
-          date: "2025-10-05",
-          time: "09:00 - 11:00",
-          status: "in-progress",
-          notes: "",
-          category: "工作",
-        },
-        // 示例任务：2025年10月5日
-        {
-          id: 1002,
-          title: "编程课",
-          description: "学习循环与函数基础，完成课堂练习",
-          date: "2025-10-05",
-          time: "08:00 - 09:00",
-          status: "in-progress",
-          notes: "",
-          category: "学习",
-        },
-        // 示例任务：2025年10月5日
-        {
-          id: 1003,
-          title: "项目管理",
-          description: "协调团队成员，分配任务，监控进度",
-          date: "2025-10-05",
-          time: "10:00 - 12:00",
-          status: "in-progress",
-          notes: "",
-          category: "其它",
-        },
-      ]);
+const editor = useEditor({
+  content: "",
+  extensions: [StarterKit, Image],
+  editable: true,
+  onUpdate: ({ editor }) => {
+    if (currentNote.value) {
+      if (currentNote.value.content !== editor.getHTML()) {
+        currentNote.value.content = editor.getHTML();
+        autosave();
+      }
+    }
+  },
+});
 
-      // 笔记数据
-      const notes = ref([
-        {
-          id: 1,
-          title: "数学笔记",
-          content: "今天掌握了导数应用部分，重点练习了极值求法题目。",
-          date: "3月5日",
-          category: "数学",
-          lastUpdated: "2024年3月5日 14:35",
-          relatedTask: "完成数学作业",
-        },
-        {
-          id: 2,
-          title: "英语演讲准备",
-          content: "气候变化的报告的关键论点和数据整理。需要补充更多实例。",
-          date: "3月3日",
-          category: "英语",
-          lastUpdated: "2024年3月3日 16:20",
-          relatedTask: "准备英语报告",
-        },
-        {
-          id: 3,
-          title: "物理实验记录",
-          content:
-            "波动光学实验的预习材料和关键步骤记录。需要注意的实验误差来源。",
-          date: "2月28日",
-          category: "物理",
-          lastUpdated: "2024年2月28日 09:15",
-          relatedTask: "物理实验预习",
-        },
-      ]);
+const addImage = () => {
+  const url = window.prompt("请输入图片URL");
+  if (url && editor.value) {
+    editor.value.chain().focus().setImage({ src: url }).run();
+  }
+};
 
-      // 排序模式：none | time | category（默认按开始时间）
-      const sortMode = ref("time");
+watch(
+  () => currentNote.value,
+  (newNote) => {
+    if (newNote && editor.value) {
+      const currentContent = editor.value.getHTML();
+      if (currentContent !== newNote.content) {
+        editor.value.commands.setContent(newNote.content || "");
+      }
+    }
+  },
+  { deep: true }
+);
 
-      // 解析开始时间为分钟数
-      const getStartMinutes = (task) => {
-        const t = task.time || "";
-        // 格式：HH:MM - HH:MM
-        const rangeMatch = t.match(/^(\d{2}):(\d{2})\s*-\s*(\d{2}):(\d{2})$/);
-        if (rangeMatch) {
-          const h = parseInt(rangeMatch[1], 10);
-          const m = parseInt(rangeMatch[2], 10);
-          return h * 60 + m;
-        }
-        // 格式：HH:MM 或 HH:MM前
-        const singleMatch = t.match(/^(\d{2}):(\d{2})/);
-        if (singleMatch) {
-          const h = parseInt(singleMatch[1], 10);
-          const m = parseInt(singleMatch[2], 10);
-          return h * 60 + m;
-        }
-        // 全天或无法解析，排在最后
-        return Number.POSITIVE_INFINITY;
-      };
+// 计算属性
+const currentMonthYear = computed(() => {
+  return currentDate.value.toLocaleString("default", {
+    month: "long",
+    year: "numeric",
+  });
+});
 
-      // 本地日期格式化（避免 toISOString 的 UTC 偏移）
-      const formatLocalDate = (d) => {
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, "0");
-        const day = String(d.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
-      };
+const selectedDateFormatted = computed(() => {
+  return selectedDate.value
+    ? selectedDate.value.toLocaleDateString()
+    : "未选择日期";
+});
 
-      // 计算属性
-      const currentMonthYear = computed(() => {
-        return `${currentDate.value.getFullYear()}年${
-          currentDate.value.getMonth() + 1
-        }月`;
-      });
+const formatLocalDate = (d) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
-      const selectedDateFormatted = computed(() => {
-        if (!selectedDate.value) return "未选择日期";
-        return `${selectedDate.value.getFullYear()}年${
-          selectedDate.value.getMonth() + 1
-        }月${selectedDate.value.getDate()}日`;
-      });
+const calendarDates = computed(() => {
+  const year = currentDate.value.getFullYear();
+  const month = currentDate.value.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startDate = new Date(firstDay);
+  startDate.setDate(startDate.getDate() - firstDay.getDay());
 
-      const calendarDates = computed(() => {
-        const year = currentDate.value.getFullYear();
-        const month = currentDate.value.getMonth();
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
-        const startDate = new Date(firstDay);
-        startDate.setDate(startDate.getDate() - firstDay.getDay());
+  const dates = [];
+  const today = new Date();
 
-        const dates = [];
-        const today = new Date();
+  for (let i = 0; i < 42; i++) {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + i);
 
-        for (let i = 0; i < 42; i++) {
-          const date = new Date(startDate);
-          date.setDate(startDate.getDate() + i);
+    const dateString = formatLocalDate(date);
+    const dateTasks = tasks.value.filter((t) => t.date === dateString);
 
-          const dateString = formatLocalDate(date);
-          const dateTasks = tasks.value.filter(
-            (task) => task.date === dateString
-          );
+    dates.push({
+      date: new Date(date),
+      day: date.getDate(),
+      dateString,
+      isCurrentMonth: date.getMonth() === month,
+      isToday: date.toDateString() === today.toDateString(),
+      isSelected: selectedDate.value
+        ? date.toDateString() === selectedDate.value.toDateString()
+        : false,
+      tasks: dateTasks,
+    });
+  }
 
-          dates.push({
-            date: new Date(date),
-            day: date.getDate(),
-            dateString,
-            isCurrentMonth: date.getMonth() === month,
-            isToday: date.toDateString() === today.toDateString(),
-            isSelected: selectedDate.value
-              ? date.toDateString() === selectedDate.value.toDateString()
-              : false,
-            tasks: dateTasks,
-          });
-        }
+  return dates;
+});
 
-        return dates;
-      });
+const selectedDateTasks = computed(() => {
+  if (!selectedDate.value) return [];
+  const dateStr = formatLocalDate(selectedDate.value);
+  return tasks.value.filter((task) => task.date === dateStr);
+});
 
-      const selectedDateTasks = computed(() => {
-        if (!selectedDate.value) return [];
-        const dateString = formatLocalDate(selectedDate.value);
-        return tasks.value.filter((task) => task.date === dateString);
-      });
+const filteredTasksByStatus = computed(() => {
+  if (!statusFilter.value) return [];
+  return tasks.value.filter((t) => t.status === statusFilter.value);
+});
 
-      // 根据排序模式返回排序后的任务
-      const sortedSelectedDateTasks = computed(() => {
-        const list = [...selectedDateTasks.value];
-        if (sortMode.value === "time") {
-          return list.sort((a, b) => getStartMinutes(a) - getStartMinutes(b));
-        }
-        if (sortMode.value === "category") {
-          return list.sort((a, b) =>
-            (a.category || "").localeCompare(b.category || "")
-          );
-        }
-        return list;
-      });
+const getStartMinutes = (task) => {
+  const t = task.time || "";
+  const rangeMatch = t.match(/^(\d{2}):(\d{2})\s*-\s*(\d{2}):(\d{2})$/);
+  if (rangeMatch) {
+    const h = parseInt(rangeMatch[1], 10);
+    const m = parseInt(rangeMatch[2], 10);
+    return h * 60 + m;
+  }
+  const singleMatch = t.match(/^(\d{2}):(\d{2})/);
+  if (singleMatch) {
+    const h = parseInt(singleMatch[1], 10);
+    const m = parseInt(singleMatch[2], 10);
+    return h * 60 + m;
+  }
+  return Number.POSITIVE_INFINITY;
+};
 
-      const sortedNotes = computed(() => {
-        if (notesSortBy.value === "time") {
-          return [...notes.value].sort(
-            (a, b) => new Date(b.lastUpdated) - new Date(a.lastUpdated)
-          );
-        }
-        return [...notes.value].sort((a, b) =>
-          a.category.localeCompare(b.category)
-        );
-      });
+const sortedSelectedDateTasks = computed(() => {
+  const list = [...selectedDateTasks.value];
+  if (sortMode.value === "time") {
+    return list.sort((a, b) => getStartMinutes(a) - getStartMinutes(b));
+  }
+  if (sortMode.value === "category") {
+    return list.sort((a, b) => (a.category || "").localeCompare(b.category || ""));
+  }
+  return list;
+});
 
-      const filteredTasksByStatus = computed(() => {
-        if (!statusFilter.value) return [];
-        return tasks.value.filter((t) => t.status === statusFilter.value);
-      });
+const sortedNotes = computed(() => {
+  return [...notes.value].sort((a, b) => {
+    if (notesSortBy.value === "category") {
+      return a.category.localeCompare(b.category);
+    } else if (notesSortBy.value === "lastUpdated") {
+      return new Date(b.lastUpdated) - new Date(a.lastUpdated);
+    }
+    return 0;
+  });
+});
 
-      // 方法
-      const previousMonth = () => {
-        currentDate.value = new Date(
-          currentDate.value.getFullYear(),
-          currentDate.value.getMonth() - 1,
-          1
-        );
-      };
+const stats = computed(() => {
+  const total = tasks.value.length;
+  const completed = tasks.value.filter((t) => t.status === "completed").length;
+  const inProgress = tasks.value.filter((t) => t.status === "in-progress").length;
+  const overdue = tasks.value.filter((t) => t.status === "overdue").length;
+  return { total, completed, inProgress, overdue };
+});
 
-      const nextMonth = () => {
-        currentDate.value = new Date(
-          currentDate.value.getFullYear(),
-          currentDate.value.getMonth() + 1,
-          1
-        );
-      };
+// 方法
+const previousMonth = () => {
+  currentDate.value = new Date(
+    currentDate.value.getFullYear(),
+    currentDate.value.getMonth() - 1,
+    1
+  );
+};
 
-      const selectDate = (date) => {
-        selectedDate.value = new Date(date.date);
-      };
+const nextMonth = () => {
+  currentDate.value = new Date(
+    currentDate.value.getFullYear(),
+    currentDate.value.getMonth() + 1,
+    1
+  );
+};
 
-      const openTaskModalSystem = () => {
-        modalDateMode.value = 'system';
-        const today = formatLocalDate(new Date());
-        newTask.value = {
-          title: "",
-          description: "",
-          startDate: today,
-          startTime: "",
-          endDate: today,
-          endTime: "",
-          category: "",
-        };
-        showTaskModal.value = true;
-      };
+const selectDate = (date) => {
+  selectedDate.value = new Date(date.date);
+};
 
-      const openTaskModalSelected = () => {
-        if (!selectedDate.value) {
-          alert("请先在日历中选择日期");
-          return;
-        }
-        modalDateMode.value = 'selected';
-        const dateString = formatLocalDate(selectedDate.value);
-        newTask.value = {
-          title: "",
-          description: "",
-          startDate: dateString,
-          startTime: "",
-          endDate: dateString,
-          endTime: "",
-          category: "",
-        };
-        showTaskModal.value = true;
-      };
-
-      // 弹窗打开时，与日历选中日期保持同步（若用户更换选中日期）
-      watch(selectedDate, (d) => {
-        if (!showTaskModal.value || !d) return;
-        if (modalDateMode.value !== 'selected') return;
-        const ds = formatLocalDate(d);
-        newTask.value.startDate = ds;
-        newTask.value.endDate = ds;
-      });
-
-        const closeTaskModal = () => {
-          showTaskModal.value = false;
-          naturalLanguageInput.value = "";
-          modalDateMode.value = 'system';
-        };
-
-      const parseNaturalLanguage = () => {
-        // 简单的自然语言解析示例
-        const input = naturalLanguageInput.value.toLowerCase();
-        if (input.includes("数学")) {
-          newTask.value.category = "study";
-          newTask.value.title = "数学作业";
-        }
-        if (input.includes("明天")) {
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          newTask.value.startDate = formatLocalDate(tomorrow);
-          newTask.value.endDate = formatLocalDate(tomorrow);
-        }
-        if (input.includes("下午3点") || input.includes("15:00")) {
-          newTask.value.endTime = "15:00";
-        }
-      };
-
-      const saveTask = () => {
-        if (
-          !newTask.value.title ||
-          !newTask.value.startDate ||
-          !newTask.value.endDate
-        ) {
-          alert("请填写必填项");
-          return;
-        }
-
-        const task = {
-          id: Date.now(),
-          title: newTask.value.title,
-          description: newTask.value.description,
-          date: newTask.value.endDate,
-          time: newTask.value.endTime || "全天",
-          status: "pending",
-          notes: "",
-          category: newTask.value.category || "其他",
-        };
-
-        tasks.value.push(task);
-        stats.value.total++;
-        closeTaskModal();
-      };
-
-      const toggleTaskComplete = (task) => {
-        if (task.status === "completed") {
-          task.status = "pending";
-          stats.value.completed--;
-        } else {
-          task.status = "completed";
-          stats.value.completed++;
-          if (task.status === "in-progress") {
-            stats.value.inProgress--;
-          }
-        }
-      };
-
-      const openNotebookModal = (item) => {
-        if (item.title) {
-          // 从任务打开
-          currentNotebook.value = {
-            title: item.title,
-            category: item.category || "学习",
-            content: item.notes || "",
-            lastUpdated: new Date().toLocaleString("zh-CN"),
-            relatedTask: item.title,
-          };
-        } else {
-          // 从笔记列表打开
-          currentNotebook.value = { ...item };
-        }
-        showNotebookModal.value = true;
-      };
-
-      const closeNotebookModal = () => {
-        showNotebookModal.value = false;
-        isNotebookFullscreen.value = false;
-      };
-
-      const toggleNotebookFullscreen = () => {
-        isNotebookFullscreen.value = !isNotebookFullscreen.value;
-      };
-
-      const saveNotebook = () => {
-        // 保存笔记逻辑
-        alert("笔记已保存");
-      };
-
-      const getCategoryStyle = (category) => {
-        const styles = {
-          // 中文类别
-          数学: "bg-blue-50 text-blue-600",
-          英语: "bg-orange-50 text-orange-600",
-          物理: "bg-red-50 text-red-600",
-          研究: "bg-purple-50 text-purple-600",
-          学习: "bg-blue-50 text-blue-600",
-          工作: "bg-teal-50 text-teal-600",
-          其他: "bg-gray-50 text-gray-600",
-          // 英文代码类别（表单值）
-          study: "bg-blue-50 text-blue-600",
-          exam: "bg-red-50 text-red-600",
-          project: "bg-purple-50 text-purple-600",
-          reading: "bg-green-50 text-green-600",
-          other: "bg-gray-50 text-gray-600",
-        };
-        return styles[category] || "bg-gray-50 text-gray-600";
-      };
-
-      const setStatusFilter = (status) => {
-        statusFilter.value = status;
-      };
-      const clearStatusFilter = () => {
-        statusFilter.value = null;
-      };
-      const getStatusLabel = (status) => {
-        const map = {
-          completed: "已完成",
-          "in-progress": "进行中",
-          overdue: "已逾期",
-        };
-        return map[status] || "任务";
-      };
-
-      // 初始化
-      onMounted(() => {
-        selectedDate.value = new Date();
-      });
-
-      return {
-        currentDate,
-        selectedDate,
-        showTaskModal,
-        showNotebookModal,
-        isNotebookFullscreen,
-        notesSortBy,
-        naturalLanguageInput,
-        sortMode,
-        stats,
-        newTask,
-        currentNotebook,
-        tasks,
-        notes,
-        currentMonthYear,
-        selectedDateFormatted,
-        calendarDates,
-        selectedDateTasks,
-        sortedSelectedDateTasks,
-        sortedNotes,
-        previousMonth,
-        nextMonth,
-        selectDate,
-        closeTaskModal,
-        parseNaturalLanguage,
-        saveTask,
-        toggleTaskComplete,
-        openNotebookModal,
-        closeNotebookModal,
-        toggleNotebookFullscreen,
-        saveNotebook,
-        getCategoryStyle,
-        // 状态筛选
-        statusFilter,
-        filteredTasksByStatus,
-        setStatusFilter,
-        clearStatusFilter,
-        getStatusLabel,
-        // 新建任务打开模式
-        modalDateMode,
-        openTaskModalSystem,
-        openTaskModalSelected,
-      };
-    },
+const openTaskModalSystem = () => {
+  modalDateMode.value = 'system';
+  const today = formatLocalDate(new Date());
+  newTask.value = {
+    title: "",
+    description: "",
+    startDate: today,
+    startTime: "",
+    endDate: today,
+    endTime: "",
+    category: "",
   };
+  showTaskModal.value = true;
+};
+
+const openTaskModalSelected = () => {
+  if (!selectedDate.value) {
+    const today = new Date();
+    selectedDate.value = today;
+  }
+  modalDateMode.value = 'selected';
+  const dateString = formatLocalDate(selectedDate.value);
+  newTask.value = {
+    title: "",
+    description: "",
+    startDate: dateString,
+    startTime: "",
+    endDate: dateString,
+    endTime: "",
+    category: "",
+  };
+  showTaskModal.value = true;
+};
+
+const closeTaskModal = () => {
+  showTaskModal.value = false;
+};
+
+const parseNaturalLanguage = () => {
+  const input = (naturalLanguageInput.value || "").toLowerCase();
+  if (input.includes("数学")) {
+    newTask.value.category = "study";
+    newTask.value.title = "数学作业";
+  }
+  if (input.includes("明天")) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const ds = formatLocalDate(tomorrow);
+    newTask.value.startDate = ds;
+    newTask.value.endDate = ds;
+  }
+  if (input.includes("下午3点") || input.includes("15:00")) {
+    newTask.value.endTime = "15:00";
+  }
+};
+
+const saveTask = () => {
+  if (!newTask.value.title || !newTask.value.startDate || !newTask.value.endDate) {
+    return;
+  }
+  const task = {
+    id: Date.now(),
+    title: newTask.value.title,
+    description: newTask.value.description,
+    date: newTask.value.endDate,
+    time: newTask.value.endTime || "全天",
+    status: "pending",
+    notes: "",
+    category: newTask.value.category || "其他",
+  };
+  tasks.value.push(task);
+  closeTaskModal();
+  naturalLanguageInput.value = "";
+  modalDateMode.value = 'system';
+};
+
+const toggleTaskComplete = (task) => {
+  task.status = task.status === "completed" ? "pending" : "completed";
+};
+
+const openNotebookModal = (note = null) => {
+  if (note) {
+    currentNote.value = { ...note };
+  } else {
+    currentNote.value = {
+      id: null,
+      title: "新笔记",
+      content: "",
+      category: "默认",
+      tags: [],
+      lastUpdated: new Date().toLocaleString("zh-CN"),
+    };
+  }
+  showNotebookModal.value = true;
+};
+
+const closeNotebookModal = () => {
+  showNotebookModal.value = false;
+  currentNote.value = null;
+};
+
+const toggleNotebookFullscreen = () => {
+  isNotebookFullscreen.value = !isNotebookFullscreen.value;
+};
+
+const closeAndSaveNote = () => {
+  if (currentNote.value) {
+    if (currentNote.value.id) {
+      const index = notes.value.findIndex((n) => n.id === currentNote.value.id);
+      if (index !== -1) {
+        notes.value[index] = { ...currentNote.value };
+      }
+    } else {
+      notes.value.push({
+        ...currentNote.value,
+        id: Date.now(),
+      });
+    }
+  }
+  closeNotebookModal();
+};
+
+const getCategoryStyle = (category) => {
+  const styles = {
+    数学: "bg-blue-50 text-blue-600",
+    英语: "bg-orange-50 text-orange-600",
+    物理: "bg-red-50 text-red-600",
+    研究: "bg-purple-50 text-purple-600",
+    学习: "bg-blue-50 text-blue-600",
+    工作: "bg-teal-50 text-teal-600",
+    其他: "bg-gray-50 text-gray-600",
+    study: "bg-blue-50 text-blue-600",
+    exam: "bg-red-50 text-red-600",
+    project: "bg-purple-50 text-purple-600",
+    reading: "bg-green-50 text-green-600",
+    other: "bg-gray-50 text-gray-600",
+  };
+  return styles[category] || "bg-gray-50 text-gray-600";
+};
+
+const getTaskCardBackground = (category) => {
+  const style = getCategoryStyle(category);
+  return style.split(' ')[0];
+};
+
+const setStatusFilter = (status) => {
+  statusFilter.value = status;
+};
+
+const clearStatusFilter = () => {
+  statusFilter.value = null;
+};
+
+const getStatusLabel = (status) => {
+  const map = {
+    completed: "已完成",
+    "in-progress": "进行中",
+    overdue: "已逾期",
+  };
+  return map[status] || "任务";
+};
+
+// 初始化
+onMounted(() => {
+  tasks.value = [
+    {
+      id: 1,
+      title: "完成数学作业",
+      description: "复习高数第三章知识点",
+      date: "2024-03-05",
+      time: "13:30前",
+      status: "completed",
+      notes: "",
+      category: "数学",
+    },
+    {
+      id: 2,
+      title: "准备英语报告",
+      description: "关于气候变化的影响与应对",
+      date: "2024-03-05",
+      time: "15:00前",
+      status: "in-progress",
+      notes: "",
+      category: "英语",
+    },
+    {
+      id: 3,
+      title: "物理实验预习",
+      description: "波动光学实验操作流程",
+      date: "2024-03-05",
+      time: "17:00前",
+      status: "pending",
+      notes: "",
+      category: "物理",
+    },
+  ];
+  notes.value = [
+    { id: 1, title: "关于Vue 3组合式API的思考", content: "<h1>Vue 3</h1><p>组合式 API 非常强大...</p>", category: "学习", tags: ["Vue", "Frontend"], lastUpdated: "2024-07-21 10:30:00" },
+    { id: 2, title: "购物清单", content: "<p>牛奶、面包、鸡蛋</p>", category: "生活", tags: ["shopping"], lastUpdated: "2024-07-22 09:00:00" },
+  ];
+});
+
+watch(selectedDate, (d) => {
+  if (!showTaskModal.value || !d) return;
+  if (modalDateMode.value !== 'selected') return;
+  const ds = formatLocalDate(d);
+  newTask.value.startDate = ds;
+  newTask.value.endDate = ds;
+});
 </script>
 
 <style scoped>
