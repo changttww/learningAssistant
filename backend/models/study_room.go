@@ -5,11 +5,17 @@ import "time"
 // StudyRoom 学习室模型
 type StudyRoom struct {
 	BaseModel
-	Name        string  `gorm:"type:varchar(64);not null" json:"name"`
-	OwnerUserID uint64  `json:"owner_user_id"`
-	TeamID      *uint64 `json:"team_id"`
-	IsPrivate   bool    `gorm:"default:false" json:"is_private"`
-	Status      int8    `gorm:"default:1" json:"status"`
+	Name               string     `gorm:"type:varchar(64);not null" json:"name"`
+	OwnerUserID        uint64     `json:"owner_user_id"`
+	TeamID             *uint64    `json:"team_id"`
+	Description        string     `gorm:"type:varchar(256)" json:"description"`
+	Tags               string     `gorm:"type:varchar(128)" json:"tags"`
+	MaxMembers         int        `gorm:"default:0" json:"max_members"`
+	IsPrivate          bool       `gorm:"default:false" json:"is_private"`
+	AccessCode         string     `gorm:"type:varchar(256)" json:"-"`
+	Status             int8       `gorm:"default:1" json:"status"`
+	LastSessionStarted *time.Time `gorm:"precision:3" json:"last_session_started"`
+	FocusMinutesToday  int        `gorm:"default:0" json:"focus_minutes_today"`
 }
 
 // StudyRoomMember 学习室成员模型

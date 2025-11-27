@@ -3,12 +3,12 @@
 		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 			<!-- 左侧主要内容 -->
 			<div class="lg:col-span-2 space-y-6">
-				<div class="card">
+				<div class="card surface-card">
 					<div class="flex items-center justify-between mb-6">
-						<h1 class="text-2xl font-bold">团队任务</h1>
+						<h1 class="page-title">团队任务</h1>
 						<button
 							@click="openCreateModal"
-							class="bg-[#2D5BFF] text-white font-medium py-2 px-4 rounded-lg text-sm hover:bg-opacity-90 transition-colors flex items-center gap-2"
+							class="primary-btn flex items-center gap-2"
 						>
 							<iconify-icon
 								icon="mdi:plus"
@@ -53,27 +53,27 @@
 
 					<!-- 团队任务进度图表 -->
 					<div class="mb-6">
-						<h2 class="font-bold text-xl mb-4">团队进度概览</h2>
+						<h2 class="section-title">团队进度概览</h2>
 						<div class="chart-container" ref="teamProgressChart"></div>
 					</div>
 
 					<!-- 任务列表 -->
 					<div class="space-y-4">
-						<h3 class="font-bold text-lg">当前任务</h3>
+						<h3 class="section-title">当前任务</h3>
 
-						<div v-for="task in tasks" :key="task.id" class="p-4 border border-gray-200 rounded-lg">
-							<div class="flex items-start justify-between">
+						<div v-for="task in tasks" :key="task.id" :class="taskCardClass(task)">
+							<div class="flex items-start justify-between gap-4">
 								<div class="flex-1">
-									<h4 class="font-medium">{{ task.title }}</h4>
-									<p class="text-sm text-gray-600 mt-1">{{ task.description }}</p>
-									<div class="flex items-center gap-4 mt-3">
-										<div class="flex items-center gap-2">
-											<iconify-icon icon="mdi:account" width="16" height="16" class="text-gray-500"></iconify-icon>
-											<span class="text-sm">{{ task.owner_name || '未知' }}</span>
+									<h4 class="task-title">{{ task.title }}</h4>
+									<p class="task-desc">{{ task.description }}</p>
+									<div class="task-meta">
+										<div class="meta-item">
+											<iconify-icon icon="mdi:account" width="16" height="16" class="text-gray-400"></iconify-icon>
+											<span>{{ task.owner_name || '未知' }}</span>
 										</div>
-										<div class="flex items-center gap-2">
-											<iconify-icon icon="mdi:calendar" width="16" height="16" class="text-gray-500"></iconify-icon>
-											<span class="text-sm">{{ task.due_date || task.created_at || '' }}</span>
+										<div class="meta-item">
+											<iconify-icon icon="mdi:calendar" width="16" height="16" class="text-gray-400"></iconify-icon>
+											<span>{{ task.due_date || task.created_at || '' }}</span>
 										</div>
 									</div>
 									<div class="mt-3">
@@ -82,17 +82,120 @@
 											<span class="text-sm font-medium">{{ computeTaskProgressLabel(task) }}</span>
 										</div>
 										<div class="progress-bar">
-											<div class="progress-fill" :style="{ width: computeTaskProgressPercent(task) + '%' }"></div>
+											<div class="progress-fill" :style="progressFillStyle(task)"></div>
 										</div>
-										<div class="flex items-center gap-2 mt-2">
-											<button @click="changeProgress(task, -10)" class="px-2 py-1 text-xs bg-gray-100 rounded">-10%</button>
-											<button @click="changeProgress(task, 10)" class="px-2 py-1 text-xs bg-gray-100 rounded">+10%</button>
-											<button @click="setCompleted(task)" class="px-2 py-1 text-xs bg-green-100 rounded">标记完成</button>
+										<div class="flex flex-wrap items-center gap-2 mt-2">
+											<button @click="openProgressModal(task)" class="ghost-btn">更新进度</button>
+											<button @click="setCompleted(task)" class="success-btn">标记完成</button>
+											<button @click="toggleTaskDetails(task.id)" class="info-btn">
+												{{ isTaskExpanded(task.id) ? '收起详情' : '查看详情' }}
+											</button>
 										</div>
 									</div>
 								</div>
-								<span :class="task.status === 'completed' ? 'bg-green-100 text-green-800 px-2 py-1 rounded text-xs' : 'bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs'">{{ task.status_label || task.status }}</span>
+								<div class="flex flex-col items-end gap-2">
+									<span :class="['badge', statusBadgeClass(task)]">{{ task.status_label || task.status }}</span>
+									<span
+										v-if="taskHealth(task)"
+										:class="['badge', getHealthBadgeClass(taskHealth(task))]"
+									>{{ taskHealth(task).label }}</span>
+								</div>
 							</div>
+							<div v-if="isTaskExpanded(task.id)" class="mt-4 rounded-lg border border-dashed border-gray-200 p-4 space-y-4">
+								<div>
+									<div class="flex items-center justify-between mb-2">
+										<h4 class="text-sm font-semibold text-gray-700">子任务</h4>
+										<span class="text-xs text-gray-400">{{ getTaskDetail(task).subtasks.length }} 个</span>
+									</div>
+									<ul class="space-y-1">
+										<li
+											v-for="sub in getTaskDetail(task).subtasks"
+											:key="sub.id"
+											class="flex items-center justify-between text-sm"
+										>
+											<span>{{ sub.title }}</span>
+											<span class="text-xs text-gray-500">{{ sub.status }}</span>
+										</li>
+									</ul>
+								</div>
+								<div>
+									<div class="flex items-center justify-between mb-2">
+										<h4 class="text-sm font-semibold text-gray-700">附件</h4>
+										<span class="text-xs text-gray-400">{{ getTaskDetail(task).attachments.length }} 个</span>
+									</div>
+									<ul class="space-y-1 text-sm">
+										<li v-for="file in getTaskDetail(task).attachments" :key="file.id" class="flex items-center justify-between">
+											<span>{{ file.name }}</span>
+											<span class="text-xs text-gray-500">{{ file.size }}</span>
+										</li>
+									</ul>
+								</div>
+								<div>
+									<div class="flex items-center justify-between mb-2">
+										<h4 class="text-sm font-semibold text-gray-700">评论</h4>
+										<span class="text-xs text-gray-400">{{ getTaskDetail(task).comments.length }} 条</span>
+									</div>
+									<ul class="space-y-2 text-sm">
+										<li v-for="comment in getTaskDetail(task).comments" :key="comment.id">
+											<div class="flex items-center justify-between">
+												<span class="font-medium">{{ comment.author }}</span>
+												<span class="text-xs text-gray-400">{{ comment.time }}</span>
+											</div>
+											<p class="text-gray-600">{{ comment.content }}</p>
+										</li>
+									</ul>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- 进度调整模态框 -->
+				<div v-if="showProgressModal" class="fixed inset-0 z-50 flex items-center justify-center">
+					<div class="absolute inset-0 bg-black opacity-40" @click="closeProgressModal"></div>
+					<div class="bg-white rounded-lg shadow-lg z-10 w-full max-w-md p-6">
+						<h3 class="text-lg font-semibold mb-4">更新任务进度</h3>
+						<div v-if="progressTargetTask" class="space-y-4">
+							<div>
+								<div class="text-sm text-gray-600">{{ progressTargetTask.title }}</div>
+								<div class="text-xs text-gray-400 mt-1">当前进度：{{ getTaskProgressValue(progressTargetTask) }}%</div>
+							</div>
+							<div>
+								<label class="text-sm font-medium" for="adjust-delta-input">调整幅度（可为正负）</label>
+								<input
+									type="number"
+									min="-100"
+									max="100"
+									step="1"
+									v-model.number="progressAdjustForm.delta"
+									id="adjust-delta-input"
+									class="w-full mt-1 p-2 border rounded"
+								/>
+							</div>
+							<div>
+								<input
+									type="range"
+									min="-50"
+									max="50"
+									step="5"
+									v-model.number="progressAdjustForm.delta"
+									class="w-full"
+								/>
+								<div class="text-xs text-gray-500 mt-1">拖动滑块快速设置（-50% ~ +50%）</div>
+							</div>
+							<p class="text-sm text-gray-700">
+								预计更新后进度：<span class="font-semibold">{{ previewAdjustedProgress }}%</span>
+							</p>
+						</div>
+						<div class="mt-6 flex justify-end gap-2">
+							<button class="px-4 py-2 rounded border" @click="closeProgressModal">取消</button>
+							<button
+								class="px-4 py-2 rounded bg-[#2D5BFF] text-white disabled:opacity-60"
+								:disabled="!progressTargetTask || progressAdjustForm.delta === 0"
+								@click="submitProgressAdjustment"
+							>
+								确认更新
+							</button>
 						</div>
 					</div>
 				</div>
@@ -100,9 +203,9 @@
 
 			<!-- 右侧栏 -->
 			<div class="space-y-5">
-				<div class="card">
+				<div class="card surface-card">
 					<div class="flex justify-between items-center">
-						<h3 class="font-bold text-lg">团队动态</h3>
+						<h3 class="section-title">团队动态</h3>
 						<span class="text-xs text-blue-600">更多</span>
 					</div>
 
@@ -154,9 +257,9 @@
 					</div>
 				</div>
 
-				<div class="card">
+				<div class="card surface-card">
 					<div class="flex justify-between items-center">
-						<h3 class="font-bold text-lg">团队积分排名</h3>
+						<h3 class="section-title">团队积分排名</h3>
 						<span class="text-xs text-blue-600">详情</span>
 					</div>
 					<div class="mt-4 space-y-3">
@@ -196,8 +299,8 @@
 					</div>
 				</div>
 
-				<div class="card">
-					<h3 class="font-bold text-lg mb-4">协作工具</h3>
+				<div class="card surface-card">
+					<h3 class="section-title mb-4">协作工具</h3>
 					<div class="grid grid-cols-2 gap-3">
 						<button
 							class="py-3 bg-blue-50 hover:bg-blue-100 rounded-lg flex flex-col items-center justify-center transition-colors"
@@ -259,13 +362,13 @@ export default {
 	data() {
 		return {
 			tasks: [
-				// 保留一些本地示例数据，loadTasks 会尝试覆盖
 				{
 					id: 1,
 					title: "登录功能开发",
 					description: "实现用户登录、注册和密码重置功能",
 					owner_name: "王同学",
 					due_date: "2024-01-18",
+					created_at: "2024-01-01",
 					status: "in-progress",
 					status_label: "进行中",
 					progress: 85,
@@ -273,18 +376,25 @@ export default {
 				{
 					id: 2,
 					title: "支付模块设计",
-					description: "设计支付流程和UI界面",
+					description: "设计支付流程和界面规范",
 					owner_name: "陈同学",
-					due_date: "2024-01-22",
+					due_date: "2026-01-22",
+					created_at: "2024-01-05",
 					status: "in-progress",
 					status_label: "设计中",
 					progress: 30,
 				},
 			],
 			chart: null,
-			// 创建任务模态相关状态
 			showCreateModal: false,
 			creating: false,
+				showProgressModal: false,
+				progressTargetTask: null,
+				progressAdjustForm: {
+					delta: 0,
+				},
+				expandedTaskIds: [],
+				taskDetailCache: {},
 			newTaskForm: {
 				title: "",
 				description: "",
@@ -293,239 +403,677 @@ export default {
 			},
 		};
 	},
+	computed: {
+		previewAdjustedProgress() {
+			if (!this.progressTargetTask) return 0;
+			const base = this.getTaskProgressValue(this.progressTargetTask);
+			const delta = Number(this.progressAdjustForm.delta) || 0;
+			return this.clampProgress(base + delta);
+		},
+	},
 	mounted() {
 		this.initChart();
 		this.loadTasks();
-		window.addEventListener("resize", () => {
-			if (this.chart) this.chart.resize();
-		});
+		window.addEventListener("resize", this.handleResize);
+	},
+	beforeUnmount() {
+		window.removeEventListener("resize", this.handleResize);
+		if (this.chart) {
+			this.chart.dispose();
+			this.chart = null;
+		}
 	},
 	methods: {
-		// 从后端拉取团队任务，若失败则保留本地示例
+		handleResize() {
+			if (this.chart) this.chart.resize();
+		},
 		async loadTasks() {
 			try {
 				const res = await getTeamTasks();
-				// response shape depends on backend: try common patterns
 				const items = res?.data?.items || res?.data || res;
-				if (Array.isArray(items)) {
-					this.tasks = items.map((t) => {
-						let status = "pending";
-						if (t.status === 2 || t.status === "completed") {
-							status = "completed";
-						} else if (t.status === 1 || t.status === "in-progress") {
-							status = "in-progress";
-						}
-						let progress;
-						if (t.progress !== undefined) progress = t.progress;
-						else if (status === "completed") progress = 100;
-						else if (status === "in-progress") progress = 50;
-						else progress = 0;
-
-						return {
-							id: t.id,
-							title: t.title || t.name,
-							description: t.description || "",
-							owner_name: t.owner_name || (t.created_by_name || "未知"),
-							due_date: t.due_at ? t.due_at.split("T")[0] : (t.due_date || ""),
-							created_at: t.created_at || "",
-							status,
-							status_label: t.status_label || "",
-							progress,
-						};
-					});
+				if (Array.isArray(items) && items.length) {
+					this.tasks = items.map((item) => this.normalizeFetchedTask(item));
 				}
-			} catch (err) {
-				// 保持本地示例并记录错误
-				console.warn("加载团队任务失败，使用本地示例：", err);
+			} catch (error) {
+				console.warn("加载团队任务失败，使用本地示例：", error);
 			} finally {
 				this.updateChart();
 			}
 		},
-
+		normalizeFetchedTask(raw) {
+			const status = this.normalizeStatus(raw?.status);
+			const progressSource = raw?.progress ?? this.statusToProgress(status);
+			const progress = this.clampProgress(Number(progressSource));
+			const due = raw?.due_at || raw?.due_date || "";
+			return {
+				id: raw?.id ?? Date.now(),
+				title: raw?.title || raw?.name || "未命名任务",
+				description: raw?.description || "",
+				owner_name: raw?.owner_name || raw?.created_by_name || "未知",
+				due_date: typeof due === "string" && due.includes("T") ? due.split("T")[0] : due,
+				created_at: raw?.created_at || "",
+				status,
+				status_label: raw?.status_label || "",
+				progress,
+			};
+		},
+		normalizeStatus(status) {
+			if (status === null || status === undefined) return "pending";
+			const numeric = Number(status);
+			if (!Number.isNaN(numeric)) {
+				if (numeric === 2) return "completed";
+				if (numeric === 1) return "in-progress";
+				return "pending";
+			}
+			const lowered = String(status).toLowerCase();
+			if (["completed", "done", "finish"].includes(lowered)) return "completed";
+			if (["in-progress", "progress", "doing"].includes(lowered)) return "in-progress";
+			return lowered;
+		},
 		computeTaskProgressPercent(task) {
-			if (typeof task.progress === "number") return Math.max(0, Math.min(100, task.progress));
-			// 根据状态映射为百分比
-			if (task.status === "completed") return 100;
-			if (task.status === "in-progress") return 50;
-			return 0;
+			return this.getTaskProgressValue(task);
 		},
-
 		computeTaskProgressLabel(task) {
-			const p = this.computeTaskProgressPercent(task);
-			return `${p}%`;
+			return `${this.getTaskProgressValue(task)}%`;
 		},
-
-		// 计算团队总体进度：使用所有任务的平均进度
 		computeTeamProgress() {
-			if (!this.tasks || this.tasks.length === 0) return 0;
-			const sum = this.tasks.reduce((s, t) => s + this.computeTaskProgressPercent(t), 0);
-			return Math.round(sum / this.tasks.length);
+			if (!this.tasks || !this.tasks.length) return 0;
+			const total = this.tasks.reduce((sum, task) => sum + this.getTaskProgressValue(task), 0);
+			return Math.round(total / this.tasks.length);
 		},
-
-		// 计算任务完成率：已完成任务数 / 总任务数 * 100
 		computeCompletionRate() {
-			if (!this.tasks || this.tasks.length === 0) return 0;
-			const completed = this.tasks.filter((t) => this.computeTaskProgressPercent(t) >= 100).length;
-			return Math.round((completed / this.tasks.length) * 100);
+			if (!this.tasks || !this.tasks.length) return 0;
+			const finished = this.tasks.filter((task) => this.getTaskProgressValue(task) >= 100).length;
+			return Math.round((finished / this.tasks.length) * 100);
 		},
-
 		initChart() {
-			const chartDom = this.$refs.teamProgressChart;
-			this.chart = echarts.init(chartDom);
+			const el = this.$refs.teamProgressChart;
+			if (!el) return;
+			this.chart = echarts.init(el);
 			this.updateChart();
 		},
-
 		updateChart() {
 			if (!this.chart) return;
-			const teamProgress = this.computeTeamProgress();
-			const completionRate = this.computeCompletionRate();
+			const { labels, progressSeries, completionSeries } = this.buildWeeklyChartData();
+			const barGradient = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+				{ offset: 0, color: "#5F7BFF" },
+				{ offset: 1, color: "#A5B4FC" },
+			]);
+			const lineGradient = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+				{ offset: 0, color: "rgba(139, 92, 246, 0.35)" },
+				{ offset: 1, color: "rgba(139, 92, 246, 0)" },
+			]);
 			const option = {
 				tooltip: {
 					trigger: "axis",
+					axisPointer: {
+						type: "cross",
+						label: { backgroundColor: "#1f2937" },
+					},
 					formatter: (params) => {
-						return `${params[0].name}<br/>进度: ${params[0].value}%<br/>任务完成率: ${completionRate}%`;
+						const progressPoint = params.find((p) => p.seriesName === "项目进度");
+						const completionPoint = params.find((p) => p.seriesName === "任务完成率");
+						const progressValue = progressPoint ? `${progressPoint.value}%` : "-";
+						const completionValue = completionPoint ? `${completionPoint.value}%` : "-";
+						return `${params[0].axisValue}<br/>进度: ${progressValue}<br/>任务完成率: ${completionValue}`;
 					},
 				},
-				legend: { data: ["项目进度", "任务完成率"], bottom: 0 },
+				legend: { data: ["项目进度", "进度趋势", "任务完成率"], bottom: 0, textStyle: { color: "#475569" } },
 				grid: { left: "3%", right: "4%", bottom: "15%", top: "10%", containLabel: true },
-				xAxis: { type: "category", data: ["第一周", "第二周", "第三周", "第四周", "当前周"] },
-				yAxis: { type: "value", axisLabel: { formatter: "{value}%" }, max: 100 },
+				xAxis: {
+					type: "category",
+					data: labels,
+					axisLine: { lineStyle: { color: "#E2E8F0" } },
+					axisLabel: { color: "#64748B" },
+				},
+				yAxis: {
+					type: "value",
+					max: 100,
+					axisLabel: { formatter: "{value}%", color: "#64748B" },
+					axisLine: { lineStyle: { color: "#E2E8F0" } },
+					splitLine: { lineStyle: { color: "#F1F5F9" } },
+				},
 				series: [
 					{
 						name: "项目进度",
 						type: "bar",
-						data: [20, 35, 45, 60, teamProgress],
-						itemStyle: { color: "#2D5BFF" },
+						data: progressSeries,
 						barWidth: "40%",
+						itemStyle: { color: barGradient, borderRadius: 0 },
+						emphasis: { itemStyle: { color: "#3755F0" } },
+					},
+					{
+						name: "进度趋势",
+						type: "line",
+						data: progressSeries,
+						smooth: true,
+						lineStyle: { width: 2, color: "#8B5CF6" },
+						symbol: "circle",
+						symbolSize: 8,
+						areaStyle: { color: lineGradient },
+						zlevel: 2,
+						z: 3,
 					},
 					{
 						name: "任务完成率",
 						type: "line",
-						data: [25, 40, 55, 70, completionRate],
+						data: completionSeries,
 						smooth: true,
-						lineStyle: { width: 3, color: "#4CAF50" },
-						symbol: "circle",
-						symbolSize: 8,
+						lineStyle: { width: 2, color: "#4CAF50", type: "dashed" },
+						symbol: "triangle",
+						symbolSize: 7,
+						zlevel: 1,
+						z: 2,
 					},
 				],
 			};
 			this.chart.setOption(option);
 		},
-
-		// 打开/关闭模态并提交创建任务
+		getTaskProgressValue(task) {
+			if (!task) return 0;
+			if (typeof task.progress === "number" && !Number.isNaN(task.progress)) {
+				return this.clampProgress(task.progress);
+			}
+			const numeric = Number(task.progress);
+			if (!Number.isNaN(numeric)) {
+				return this.clampProgress(numeric);
+			}
+			return this.statusToProgress(task.status);
+		},
+		clampProgress(value) {
+			if (Number.isNaN(value)) return 0;
+			return Math.max(0, Math.min(100, Math.round(value)));
+		},
+		statusToProgress(status) {
+			const normalized = this.normalizeStatus(status);
+			if (normalized === "completed") return 100;
+			if (normalized === "in-progress") return 50;
+			return 0;
+		},
+		buildWeeklyChartData() {
+			const buckets = this.buildWeekBuckets();
+			const fallbackProgress = this.computeTeamProgress();
+			const fallbackCompletion = this.computeCompletionRate();
+			const referenceToday = this.startOfDay(new Date());
+			const taskList = this.tasks || [];
+			for (const task of taskList) {
+				const referenceDate = this.getTaskReferenceDate(task) || referenceToday;
+				const progress = this.getTaskProgressValue(task);
+				for (const bucket of buckets) {
+					if (referenceDate >= bucket.start && referenceDate <= bucket.end) {
+						bucket.progresses.push(progress);
+						bucket.total += 1;
+						if (progress >= 100) bucket.completed += 1;
+					}
+				}
+			}
+			const progressValues = buckets.map((bucket) => {
+				if (!bucket.progresses.length) return null;
+				const sum = bucket.progresses.reduce((acc, cur) => acc + cur, 0);
+				return Math.round(sum / bucket.progresses.length);
+			});
+			const completionValues = buckets.map((bucket) => {
+				if (!bucket.total) return null;
+				return Math.round((bucket.completed / bucket.total) * 100);
+			});
+			return {
+				labels: buckets.map((bucket) => bucket.label),
+				progressSeries: this.fillSeriesGaps(progressValues, fallbackProgress),
+				completionSeries: this.fillSeriesGaps(completionValues, fallbackCompletion),
+			};
+		},
+		fillSeriesGaps(values, defaultValue) {
+			let last = typeof defaultValue === "number" && !Number.isNaN(defaultValue) ? defaultValue : 0;
+			return values.map((value) => {
+				if (typeof value === "number" && !Number.isNaN(value)) {
+					last = value;
+					return value;
+				}
+				return last;
+			});
+		},
+		buildWeekBuckets(count = 5) {
+			const buckets = [];
+			const today = this.startOfDay(new Date());
+			for (let i = count - 1; i >= 0; i -= 1) {
+				const start = new Date(today);
+				start.setDate(start.getDate() - i * 7);
+				const end = new Date(start);
+				end.setDate(end.getDate() + 6);
+				buckets.push({
+					label: this.formatWeekLabel(start, end, i === 0),
+					start: this.startOfDay(start),
+					end: this.endOfDay(end),
+					progresses: [],
+					completed: 0,
+					total: 0,
+				});
+			}
+			return buckets;
+		},
+		formatWeekLabel(start, end, isCurrentWeek) {
+			if (isCurrentWeek) return "本周";
+			return `${this.formatMonthDay(start)}-${this.formatMonthDay(end)}`;
+		},
+		formatMonthDay(date) {
+			const month = date.getMonth() + 1;
+			const day = date.getDate();
+			const paddedDay = day < 10 ? `0${day}` : `${day}`;
+			return `${month}.${paddedDay}`;
+		},
+		startOfDay(date) {
+			const d = new Date(date);
+			d.setHours(0, 0, 0, 0);
+			return d;
+		},
+		endOfDay(date) {
+			const d = new Date(date);
+			d.setHours(23, 59, 59, 999);
+			return d;
+		},
+		getTaskReferenceDate(task) {
+			return this.parseDateString(task?.due_date || task?.due_at || task?.created_at);
+		},
+		parseDateString(value) {
+			if (!value) return null;
+			if (value instanceof Date) return value;
+			const direct = new Date(value);
+			if (!Number.isNaN(direct.getTime())) return direct;
+			if (typeof value === "string") {
+				const normalized = value.replaceAll("-", "/");
+				const fallback = new Date(normalized);
+				if (!Number.isNaN(fallback.getTime())) return fallback;
+			}
+			return null;
+		},
+		taskHealth(task) {
+			const dueDate = this.parseDateString(task?.due_date || task?.due_at);
+			if (!dueDate) return null;
+			const today = this.startOfDay(new Date());
+			const diffMs = dueDate.getTime() - today.getTime();
+			const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+			const progress = this.getTaskProgressValue(task);
+			if (diffDays < 0 && progress < 100) {
+				return { type: "overdue", label: `逾期 ${Math.abs(diffDays)} 天` };
+			}
+			if (diffDays >= 0 && diffDays <= 3 && progress < 100) {
+				return { type: "warning", label: diffDays === 0 ? "今日截止" : `剩余 ${diffDays} 天` };
+			}
+			return null;
+		},
+		getHealthBadgeClass(health) {
+			if (!health) return "badge-info";
+			if (health.type === "overdue") return "badge-danger";
+			if (health.type === "warning") return "badge-warning";
+			return "badge-info";
+		},
+		taskTone(task) {
+			const health = this.taskHealth(task);
+			if (health?.type === "overdue") return "danger";
+			if (health?.type === "warning") return "warning";
+			const normalized = this.normalizeStatus(task?.status);
+			if (normalized === "completed") return "success";
+			return "info";
+		},
+		toneColors() {
+			return {
+				success: { solid: "#34D399", light: "#DCFCE7" },
+				info: { solid: "#3B82F6", light: "#DBEAFE" },
+				warning: { solid: "#F59E0B", light: "#FEF3C7" },
+				danger: { solid: "#F87171", light: "#FEE2E2" },
+			};
+		},
+		statusBadgeClass(task) {
+			return `badge-${this.taskTone(task)}`;
+		},
+		taskCardClass(task) {
+			return ["task-card", `task-card--${this.taskTone(task)}`];
+		},
+		progressFillStyle(task) {
+			const percent = this.computeTaskProgressPercent(task);
+			const tone = this.taskTone(task);
+			const toneMap = this.toneColors();
+			const color = toneMap[tone]?.solid ?? toneMap.info.solid;
+			return { width: `${percent}%`, background: color };
+		},
 		openCreateModal() {
 			this.showCreateModal = true;
-			// reset form
 			this.newTaskForm = { title: "", description: "", due_date: "", owner_name: "" };
 		},
 		closeCreateModal() {
 			if (this.creating) return;
 			this.showCreateModal = false;
 		},
+		openProgressModal(task) {
+			this.progressTargetTask = task;
+			this.progressAdjustForm = { delta: 0 };
+			this.showProgressModal = true;
+		},
+		closeProgressModal() {
+			this.showProgressModal = false;
+			this.progressTargetTask = null;
+		},
+		async submitProgressAdjustment() {
+			if (!this.progressTargetTask) {
+				this.closeProgressModal();
+				return;
+			}
+			const delta = Number(this.progressAdjustForm.delta) || 0;
+			if (delta === 0) {
+				this.closeProgressModal();
+				return;
+			}
+			await this.changeProgress(this.progressTargetTask, delta);
+			this.closeProgressModal();
+		},
 		async submitCreateTask() {
 			if (!this.newTaskForm.title || !this.newTaskForm.title.trim()) {
-				// 简单提示，可替换为内联错误提示
 				alert("任务名称不能为空");
 				return;
 			}
 			const payload = {
 				title: this.newTaskForm.title.trim(),
-				description: this.newTaskForm.description || "",
+				description: this.newTaskForm.description?.trim?.() ? this.newTaskForm.description.trim() : this.newTaskForm.description || "",
 				due_at: this.newTaskForm.due_date || null,
 				owner_name: this.newTaskForm.owner_name || null,
 				task_type: 2,
 			};
-
 			this.creating = true;
+			let newTask;
 			try {
 				const res = await createTask(payload);
 				const created = res?.data?.data || res?.data || res;
-				let status = "pending";
-				if (created.status === 2) status = "completed";
-				else if (created.status === 1) status = "in-progress";
-
-				let progress;
-				if (created.progress !== undefined) progress = created.progress;
-				else if (status === "completed") progress = 100;
-				else if (status === "in-progress") progress = 50;
-				else progress = 0;
-				let dueDate = "";
-				if (created.due_at) {
-					if (created.due_at.split) dueDate = created.due_at.split("T")[0];
-					else dueDate = created.due_at;
-				} else {
-					dueDate = created.due_date || payload.due_at || "";
-				}
-
-				const newTask = {
-					id: created.id || Date.now(),
-					title: created.title || payload.title,
-					description: created.description || payload.description,
-					owner_name: created.owner_name || payload.owner_name || "你",
-					due_date: dueDate,
-					status,
-					status_label: created.status_label || "",
-					progress,
-				};
-				this.tasks.unshift(newTask);
-				this.showCreateModal = false;
-			} catch (err) {
-				console.warn("创建任务请求失败，已在本地创建：", err);
-				const newTask = {
-					id: Date.now(),
-					title: payload.title,
-					description: payload.description,
-					owner_name: payload.owner_name || "你",
-					due_date: payload.due_at || "",
-					status: "in-progress",
-					status_label: "进行中",
-					progress: 0,
-				};
-				this.tasks.unshift(newTask);
-				this.showCreateModal = false;
+				newTask = this.normalizeFetchedTask(created);
+			} catch (error) {
+				console.warn("创建任务失败，使用本地数据：", error);
+				newTask = this.buildLocalTask(payload);
 			} finally {
+				if (newTask) {
+					this.tasks.unshift(newTask);
+				}
 				this.creating = false;
+				this.showCreateModal = false;
 				this.updateChart();
 			}
 		},
-
+		buildLocalTask(payload, extra = {}) {
+			return {
+				id: extra.id || Date.now(),
+				title: payload.title,
+				description: payload.description || "",
+				owner_name: payload.owner_name || "你",
+				due_date: payload.due_at || payload.due_date || "",
+				created_at: extra.created_at || new Date().toISOString(),
+				status: extra.status || "in-progress",
+				status_label: extra.status_label || "",
+				progress: this.clampProgress(extra.progress ?? 0),
+			};
+		},
+		toggleTaskDetails(taskId) {
+			const index = this.expandedTaskIds.indexOf(taskId);
+			if (index >= 0) {
+				this.expandedTaskIds.splice(index, 1);
+			} else {
+				this.expandedTaskIds.push(taskId);
+			}
+		},
+		isTaskExpanded(taskId) {
+			return this.expandedTaskIds.includes(taskId);
+		},
+		getTaskDetail(task) {
+			if (!task) {
+				return { subtasks: [], attachments: [], comments: [] };
+			}
+			if (!this.taskDetailCache[task.id]) {
+				const detail = this.buildTaskDetail(task);
+				this.taskDetailCache = { ...this.taskDetailCache, [task.id]: detail };
+			}
+			return this.taskDetailCache[task.id];
+		},
+		buildTaskDetail(task) {
+			const baseTitle = task.title || "任务";
+			const progress = this.getTaskProgressValue(task);
+			const subtasks = (task.subtasks && task.subtasks.length
+				? task.subtasks
+				: [
+					{ id: `${task.id}-sub1`, title: `${baseTitle} - 需求梳理`, status: progress >= 20 ? "进行中" : "待开始" },
+					{ id: `${task.id}-sub2`, title: `${baseTitle} - 开发实现`, status: progress >= 60 ? "进行中" : "待开始" },
+					{ id: `${task.id}-sub3`, title: `${baseTitle} - 测试验收`, status: progress >= 90 ? "待验收" : "待开始" },
+				]);
+			const attachments = task.attachments && task.attachments.length
+				? task.attachments
+				: [
+					{ id: `${task.id}-att1`, name: `${baseTitle}-设计稿.fig`, size: "2.3MB" },
+					{ id: `${task.id}-att2`, name: `${baseTitle}-需求文档.docx`, size: "480KB" },
+				];
+			const comments = task.comments && task.comments.length
+				? task.comments
+				: [
+					{ id: `${task.id}-c1`, author: "王同学", content: "今天把接口联调完毕了。", time: "今天 10:20" },
+					{ id: `${task.id}-c2`, author: "李同学", content: "测试脚本已准备，等你们提测。", time: "昨天 17:45" },
+				];
+			return { subtasks, attachments, comments };
+		},
 		async changeProgress(task, delta) {
-			const old = typeof task.progress === 'number' ? task.progress : 0;
-			const next = Math.max(0, Math.min(100, old + delta));
-			// 乐观更新
-			task.progress = next;
-			if (next >= 100) task.status = 'completed';
-			else if (next > 0) task.status = 'in-progress';
+			const previousProgress = this.getTaskProgressValue(task);
+			const nextProgress = this.clampProgress(previousProgress + delta);
+			const previousStatus = task.status;
+			task.progress = nextProgress;
+			let nextStatus = "pending";
+			if (nextProgress >= 100) nextStatus = "completed";
+			else if (nextProgress > 0) nextStatus = "in-progress";
+			task.status = nextStatus;
 			this.updateChart();
-
 			try {
-				await updateTaskProgress(task.id, next);
-				// 成功：可根据后端返回进一步更新（此处期待后端返回最新数据）
-			} catch (err) {
-				// 回退并提示
-				task.progress = old;
-				if (old >= 100) task.status = 'completed';
-				else if (old > 0) task.status = 'in-progress';
-				else task.status = 'pending';
+				await updateTaskProgress(task.id, nextProgress);
+			} catch (error) {
+				console.warn("更新进度失败：", error);
+				task.progress = previousProgress;
+				task.status = previousStatus;
 				this.updateChart();
-				console.warn('更新进度失败', err);
-				alert('更新进度失败，请重试');
+				alert("更新进度失败，请重试");
 			}
 		},
-
 		async setCompleted(task) {
-			const cur = typeof task.progress === 'number' ? task.progress : 0;
-			await this.changeProgress(task, 100 - cur);
+			const current = this.getTaskProgressValue(task);
+			await this.changeProgress(task, 100 - current);
 		},
 	},
 };
 </script>
 
 <style scoped>
-	.container {
-		max-width: 1440px;
-		margin: 0 auto;
-		padding: 20px;
+	:global(body) {
+		background: #f5f7fb;
+		font-family: "PingFang SC", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+	}
+
+	.surface-card {
+		background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(245, 247, 251, 0.95));
+		border-radius: 12px;
+		box-shadow: 0 10px 40px rgba(15, 23, 42, 0.08);
+		padding: 24px;
+	}
+
+	.card.surface-card + .surface-card {
+		margin-top: 16px;
+	}
+
+	.page-title {
+		font-size: 28px;
+		font-weight: 700;
+		color: #0f172a;
+	}
+
+	.section-title {
+		font-size: 18px;
+		font-weight: 600;
+		color: #1e293b;
+		margin-bottom: 12px;
+	}
+
+	.primary-btn {
+		background: linear-gradient(120deg, #4f46e5, #3b82f6);
+		color: #fff;
+		font-weight: 600;
+		padding: 10px 18px;
+		border-radius: 6px;
+		font-size: 14px;
+		transition: transform 0.2s ease, box-shadow 0.2s ease;
+	}
+
+	.primary-btn:hover {
+		transform: translateY(-1px);
+		box-shadow: 0 12px 24px rgba(79, 70, 229, 0.25);
+	}
+
+	.task-card {
+		background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(249, 250, 251, 0.9));
+		border-radius: 12px;
+		padding: 18px;
+		box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+		border: 1px solid rgba(148, 163, 184, 0.25);
+		transition: transform 0.2s ease, box-shadow 0.2s ease;
+	}
+
+	.task-card:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+	}
+
+	.task-card--success {
+		border-color: rgba(52, 211, 153, 0.4);
+	}
+
+	.task-card--info {
+		border-color: rgba(59, 130, 246, 0.35);
+	}
+
+	.task-card--warning {
+		border-color: rgba(245, 158, 11, 0.45);
+	}
+
+	.task-card--danger {
+		border-color: rgba(248, 113, 113, 0.5);
+	}
+
+	.task-title {
+		font-size: 16px;
+		font-weight: 600;
+		color: #0f172a;
+	}
+
+	.task-desc {
+		font-size: 14px;
+		color: #475569;
+		margin-top: 4px;
+	}
+
+	.task-meta {
+		display: flex;
+		gap: 16px;
+		margin-top: 12px;
+		color: #94a3b8;
+		font-size: 12px;
+	}
+
+	.meta-item {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+	}
+
+	.progress-bar {
+		width: 100%;
+		height: 8px;
+		border-radius: 9999px;
+		background: #e2e8f0;
+		overflow: hidden;
+	}
+
+	.progress-fill {
+		height: 100%;
+		border-radius: inherit;
+		transition: width 0.3s ease, background 0.3s ease;
+	}
+
+	.chart-container {
+		width: 100%;
+		height: 320px;
+		background: radial-gradient(circle at top, rgba(79, 70, 229, 0.08), transparent 45%);
+		border-radius: 12px;
+	}
+
+	.badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.25rem 0.65rem;
+		border-radius: 9999px;
+		font-size: 0.75rem;
+		font-weight: 600;
+	}
+
+	.badge-success {
+		background: #dcfce7;
+		color: #15803d;
+	}
+
+	.badge-info {
+		background: #dbeafe;
+		color: #1d4ed8;
+	}
+
+	.badge-warning {
+		background: #fef3c7;
+		color: #b45309;
+	}
+
+	.badge-danger {
+		background: #fee2e2;
+		color: #b91c1c;
+	}
+
+	.ghost-btn,
+	.success-btn,
+	.info-btn {
+		padding: 6px 14px;
+		font-size: 12px;
+		font-weight: 600;
+		border-radius: 10px;
+		transition: background 0.2s ease, color 0.2s ease;
+		border: 1px solid transparent;
+	}
+
+	.ghost-btn {
+		background: #f1f5f9;
+		color: #0f172a;
+	}
+
+	.ghost-btn:hover {
+		background: #e2e8f0;
+	}
+
+	.success-btn {
+		background: #dcfce7;
+		color: #15803d;
+	}
+
+	.success-btn:hover {
+		background: #bbf7d0;
+	}
+
+	.info-btn {
+		background: #e0e7ff;
+		color: #4338ca;
+	}
+
+	.info-btn:hover {
+		background: #c7d2fe;
+	}
+
+	.task-card :is(h4, p, span) {
+		transition: color 0.2s ease;
 	}
 </style>
 
