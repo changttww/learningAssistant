@@ -2,106 +2,263 @@
   <div class="min-h-full bg-gray-50">
     <div class="w-full py-8">
       <!-- 顶部统计卡片 -->
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-5 mb-4">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-5 mb-6">
+        <!-- 总任务数卡片 -->
         <div
-          class="stat-card bg-blue-50 rounded-lg p-4 flex flex-col items-center justify-center"
+          class="stat-card group bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-5 flex flex-col items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 border-2 border-blue-600"
         >
-          <span class="text-2xl font-bold text-blue-600">{{
-            stats.total
-          }}</span>
-          <span class="text-gray-600 text-sm mt-1">总任务数</span>
+          <div class="bg-white/20 backdrop-blur-sm w-14 h-14 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300">
+            <iconify-icon icon="mdi:format-list-checks" width="28" height="28" class="text-white"></iconify-icon>
+          </div>
+          <span class="text-3xl font-bold text-white drop-shadow-md">{{ stats.total }}</span>
+          <span class="text-blue-100 text-sm mt-1.5 font-medium">总任务数</span>
         </div>
+
+        <!-- 已完成任务卡片 -->
         <button
           type="button"
           @click="setStatusFilter('completed')"
-          class="stat-card bg-green-50 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow focus:outline-none focus:ring-2 focus:ring-green-400 active:scale-95 transition"
+          class="stat-card group bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-5 flex flex-col items-center justify-center cursor-pointer shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 active:scale-95 transition-all duration-300 transform hover:-translate-y-1 border-2 border-green-600"
           aria-label="已完成任务"
         >
-          <span class="text-2xl font-bold text-green-600">{{
-            stats.completed
-          }}</span>
-          <span class="text-gray-700 text-sm mt-1 font-medium">已完成</span>
+          <div class="bg-white/20 backdrop-blur-sm w-14 h-14 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
+            <iconify-icon icon="mdi:check-circle" width="28" height="28" class="text-white"></iconify-icon>
+          </div>
+          <span class="text-3xl font-bold text-white drop-shadow-md">{{ stats.completed }}</span>
+          <span class="text-green-100 text-sm mt-1.5 font-medium">已完成</span>
         </button>
+
+        <!-- 进行中任务卡片 -->
         <button
           type="button"
           @click="setStatusFilter('in-progress')"
-          class="stat-card bg-orange-50 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow focus:outline-none focus:ring-2 focus:ring-orange-400 active:scale-95 transition"
+          class="stat-card group bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl p-5 flex flex-col items-center justify-center cursor-pointer shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 active:scale-95 transition-all duration-300 transform hover:-translate-y-1 border-2 border-orange-600"
           aria-label="进行中任务"
         >
-          <span class="text-2xl font-bold text-orange-600">{{
-            stats.inProgress
-          }}</span>
-          <span class="text-gray-700 text-sm mt-1 font-medium">进行中</span>
+          <div class="bg-white/20 backdrop-blur-sm w-14 h-14 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300">
+            <iconify-icon icon="mdi:clock-fast" width="28" height="28" class="text-white"></iconify-icon>
+          </div>
+          <span class="text-3xl font-bold text-white drop-shadow-md">{{ stats.inProgress }}</span>
+          <span class="text-orange-100 text-sm mt-1.5 font-medium">进行中</span>
         </button>
+
+        <!-- 待处理任务卡片 -->
         <button
           type="button"
           @click="setStatusFilter('pending')"
-          class="stat-card bg-gray-200 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow focus:outline-none focus:ring-2 focus:ring-gray-500 active:scale-95 transition"
+          class="stat-card group bg-gradient-to-br from-gray-500 to-slate-600 rounded-xl p-5 flex flex-col items-center justify-center cursor-pointer shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 active:scale-95 transition-all duration-300 transform hover:-translate-y-1 border-2 border-gray-600"
           aria-label="待处理任务"
         >
-          <span class="text-2xl font-bold text-gray-700">{{
-            stats.pending
-          }}</span>
-          <span class="text-gray-800 text-sm mt-1 font-medium">待处理</span>
+          <div class="bg-white/20 backdrop-blur-sm w-14 h-14 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300">
+            <iconify-icon icon="mdi:clock-outline" width="28" height="28" class="text-white"></iconify-icon>
+          </div>
+          <span class="text-3xl font-bold text-white drop-shadow-md">{{ stats.pending }}</span>
+          <span class="text-gray-100 text-sm mt-1.5 font-medium">待处理</span>
         </button>
+
+        <!-- 已逾期任务卡片 -->
         <button
           type="button"
           @click="setStatusFilter('overdue')"
-          class="stat-card bg-red-50 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow focus:outline-none focus:ring-2 focus:ring-red-400 active:scale-95 transition"
+          class="stat-card group bg-gradient-to-br from-red-500 to-rose-600 rounded-xl p-5 flex flex-col items-center justify-center cursor-pointer shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 active:scale-95 transition-all duration-300 transform hover:-translate-y-1 border-2 border-red-600"
           aria-label="已逾期任务"
         >
-          <span class="text-2xl font-bold text-red-600">{{
-            stats.overdue
-          }}</span>
-          <span class="text-gray-700 text-sm mt-1 font-medium">已逾期</span>
+          <div class="bg-white/20 backdrop-blur-sm w-14 h-14 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
+            <iconify-icon icon="mdi:alert-circle" width="28" height="28" class="text-white"></iconify-icon>
+          </div>
+          <span class="text-3xl font-bold text-white drop-shadow-md">{{ stats.overdue }}</span>
+          <span class="text-red-100 text-sm mt-1.5 font-medium">已逾期</span>
         </button>
       </div>
 
       <!-- 状态任务详情列表 -->
-      <div v-if="statusFilter" class="mb-6">
-        <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="font-bold text-gray-800 text-lg">
-              {{ getStatusLabel(statusFilter) }} 任务
-            </h3>
-            <button
-              @click="clearStatusFilter"
-              class="text-sm px-3 py-1 rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
-              aria-label="关闭状态面板"
-            >
-              关闭
-            </button>
-          </div>
-          <div
-            v-if="filteredTasksByStatus.length === 0"
-            class="text-gray-500 text-sm py-4"
-          >
-            该状态暂无任务。
-          </div>
-          <div v-else class="space-y-3">
-            <div
-              v-for="task in filteredTasksByStatus"
-              :key="task.id"
-              class="p-3 border border-gray-200 rounded hover:border-blue-600 hover:shadow transition"
-            >
-              <div class="flex items-center justify-between">
-                <div class="flex-1">
-                  <div class="font-medium text-gray-800">{{ task.title }}</div>
-                  <div class="text-xs text-gray-500 mt-1">
-                    {{ task.date }} · {{ task.time }}
-                  </div>
-                  <div class="text-xs text-gray-600 mt-1">
-                    {{ task.description }}
-                  </div>
-                </div>
-                <span
+      <div v-if="statusFilter" class="mb-6 animate-modal-enter">
+        <div class="bg-white border-2 border-gray-200 rounded-2xl shadow-lg overflow-hidden">
+          <!-- 列表头部 -->
+          <div class="bg-gradient-to-r from-gray-50 to-gray-100 px-5 py-4 border-b-2 border-gray-200">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div 
                   :class="[
-                    'text-xs px-2 py-0.5 rounded',
-                    getCategoryStyle(task.category),
+                    'w-10 h-10 rounded-xl flex items-center justify-center shadow-md',
+                    statusFilter === 'completed' ? 'bg-gradient-to-br from-green-500 to-green-600' :
+                    statusFilter === 'in-progress' ? 'bg-gradient-to-br from-orange-500 to-orange-600' :
+                    statusFilter === 'pending' ? 'bg-gradient-to-br from-gray-500 to-gray-600' :
+                    'bg-gradient-to-br from-red-500 to-red-600'
                   ]"
                 >
-                  {{ task.category }}
-                </span>
+                  <iconify-icon 
+                    :icon="
+                      statusFilter === 'completed' ? 'mdi:check-circle' :
+                      statusFilter === 'in-progress' ? 'mdi:clock-fast' :
+                      statusFilter === 'pending' ? 'mdi:clock-outline' :
+                      'mdi:alert-circle'
+                    " 
+                    width="24" 
+                    height="24"
+                    class="text-white"
+                  ></iconify-icon>
+                </div>
+                <div>
+                  <h3 class="font-bold text-gray-800 text-lg">
+                    {{ getStatusLabel(statusFilter) }} 任务
+                  </h3>
+                  <p class="text-xs text-gray-500 mt-0.5">
+                    共 {{ filteredTasksByStatus.length }} 个任务
+                  </p>
+                </div>
+              </div>
+              <button
+                @click="clearStatusFilter"
+                class="flex items-center gap-2 text-sm px-4 py-2 rounded-lg border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all font-medium"
+                aria-label="关闭状态面板"
+              >
+                <iconify-icon icon="mdi:close" width="16" height="16"></iconify-icon>
+                关闭
+              </button>
+            </div>
+          </div>
+
+          <!-- 任务列表内容 -->
+          <div class="p-5">
+            <div
+              v-if="filteredTasksByStatus.length === 0"
+              class="flex flex-col items-center justify-center py-12 text-center"
+            >
+              <iconify-icon icon="mdi:inbox" width="64" height="64" class="text-gray-300 mb-3"></iconify-icon>
+              <p class="text-gray-400 text-sm">该状态暂无任务</p>
+            </div>
+            <div v-else class="space-y-3">
+              <div
+                v-for="task in filteredTasksByStatus"
+                :key="task.id"
+                class="group bg-gradient-to-r from-white to-gray-50 border-2 border-gray-200 rounded-xl p-4 hover:border-blue-400 hover:shadow-md transition-all duration-300"
+              >
+                <div class="flex items-start gap-4">
+                  <!-- 完成状态复选框 -->
+                  <button
+                    type="button"
+                    @click.stop="toggleTaskComplete(task)"
+                    :class="[
+                      'flex-shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1',
+                      'transition-all duration-200 hover:scale-110',
+                      task.status === 'completed'
+                        ? 'bg-gradient-to-br from-green-500 to-green-600 border-green-500 text-white shadow-md'
+                        : 'border-gray-300 hover:border-blue-500 bg-white hover:bg-blue-50',
+                    ]"
+                    :title="task.status === 'completed' ? '标记为未完成' : '标记为已完成'"
+                  >
+                    <svg
+                      v-if="task.status === 'completed'"
+                      width="14"
+                      height="10"
+                      viewBox="0 0 12 9"
+                      fill="none"
+                      class="drop-shadow-sm"
+                    >
+                      <path
+                        d="M10.5 1.5L4.5 7.5L1.5 4.5"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </button>
+
+                  <!-- 任务主要内容 -->
+                  <div class="flex-1 min-w-0">
+                    <!-- 任务标题和标签 -->
+                    <div class="flex items-start justify-between mb-2">
+                      <div class="flex-1 min-w-0 mr-3">
+                        <h4 
+                          :class="[
+                            'font-bold text-base mb-1.5',
+                            task.status === 'completed' ? 'text-gray-500 line-through' : 'text-gray-800'
+                          ]"
+                        >
+                          {{ task.title }}
+                        </h4>
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <!-- 分类标签 -->
+                          <span
+                            :class="[
+                              'text-xs px-2.5 py-1 rounded-md font-medium shadow-sm',
+                              getCategoryStyle(task.category),
+                            ]"
+                          >
+                            {{ task.category }}
+                          </span>
+                          <!-- 状态标签 -->
+                          <span 
+                            :class="[
+                              'text-xs px-2 py-1 rounded-md font-medium flex items-center gap-1',
+                              task.status === 'completed' ? 'bg-green-100 text-green-700' :
+                              getTaskActualStatus(task) === '已逾期' ? 'bg-red-100 text-red-700' :
+                              getTaskActualStatus(task) === '进行中' ? 'bg-orange-100 text-orange-700' :
+                              'bg-gray-100 text-gray-700'
+                            ]"
+                          >
+                            <div 
+                              :class="[
+                                'w-1.5 h-1.5 rounded-full',
+                                getTaskDotColor(task)
+                              ]"
+                            ></div>
+                            {{ getTaskActualStatus(task) }}
+                          </span>
+                        </div>
+                      </div>
+                      <!-- 操作按钮 -->
+                      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          @click.stop="editTask(task)"
+                          class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="编辑任务"
+                        >
+                          <iconify-icon icon="mdi:pencil-outline" width="16" height="16"></iconify-icon>
+                        </button>
+                        <button
+                          @click.stop="handleDelete(task)"
+                          class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="删除任务"
+                        >
+                          <iconify-icon icon="mdi:trash-can-outline" width="16" height="16"></iconify-icon>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- 任务描述 -->
+                    <p 
+                      v-if="task.description"
+                      :class="[
+                        'text-sm leading-relaxed mb-2',
+                        task.status === 'completed' ? 'text-gray-400' : 'text-gray-600'
+                      ]"
+                    >
+                      {{ task.description }}
+                    </p>
+
+                    <!-- 任务时间信息 -->
+                    <div class="flex items-center gap-4 text-xs text-gray-500">
+                      <div class="flex items-center gap-1">
+                        <iconify-icon icon="mdi:calendar" width="14" height="14"></iconify-icon>
+                        <span>{{ task.date }}</span>
+                      </div>
+                      <div class="flex items-center gap-1">
+                        <iconify-icon icon="mdi:clock-outline" width="14" height="14"></iconify-icon>
+                        <span>{{ task.time }}</span>
+                      </div>
+                      <div 
+                        v-if="task.startDate !== task.endDate"
+                        class="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md"
+                      >
+                        <iconify-icon icon="mdi:calendar-range" width="14" height="14"></iconify-icon>
+                        <span class="font-medium">{{ task.startDate }} ~ {{ task.endDate }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -112,104 +269,126 @@
       <div class="flex gap-5 mb-6" style="min-height: 500px">
         <!-- 左侧日历 -->
         <div
-          class="flex-1 bg-white rounded-lg border border-gray-200 overflow-hidden modern-calendar"
+          class="flex-1 bg-white rounded-2xl border-2 border-gray-200 overflow-hidden shadow-lg modern-calendar"
         >
           <!-- 日历头部 -->
           <div
-            class="flex items-center justify-between px-4 h-14 border-b border-gray-200 bg-gray-50"
+            class="flex items-center justify-between px-6 h-16 border-b-2 border-gray-200 bg-gradient-to-r from-indigo-500 to-purple-600"
           >
             <button
               @click="previousMonth"
-              class="text-blue-600 text-xl font-bold hover:bg-blue-50 w-8 h-8 rounded-full flex items-center justify-center"
+              class="group w-10 h-10 rounded-xl flex items-center justify-center bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all duration-200 text-white hover:scale-110"
+              aria-label="上个月"
             >
-              &lt;
+              <iconify-icon icon="mdi:chevron-left" width="24" height="24"></iconify-icon>
             </button>
-            <div class="font-bold text-base text-gray-800">
-              {{ currentMonthYear }}
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                <iconify-icon icon="mdi:calendar-month" width="20" height="20" class="text-white"></iconify-icon>
+              </div>
+              <div class="font-bold text-xl text-white drop-shadow-md">
+                {{ currentMonthYear }}
+              </div>
             </div>
             <button
               @click="nextMonth"
-              class="text-blue-600 text-xl font-bold hover:bg-blue-50 w-8 h-8 rounded-full flex items-center justify-center"
+              class="group w-10 h-10 rounded-xl flex items-center justify-center bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all duration-200 text-white hover:scale-110"
+              aria-label="下个月"
             >
-              &gt;
+              <iconify-icon icon="mdi:chevron-right" width="24" height="24"></iconify-icon>
             </button>
           </div>
 
           <!-- 星期标题 -->
-          <div class="grid grid-cols-7 bg-white py-3 border-b border-gray-100">
+          <div class="grid grid-cols-7 bg-gradient-to-b from-gray-50 to-white py-4 border-b border-gray-200">
             <div
-              class="flex items-center justify-center text-sm text-red-500 font-medium"
+              class="flex items-center justify-center text-sm text-red-600 font-bold"
             >
-              日
+              <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50">
+                日
+              </div>
             </div>
             <div
-              class="flex items-center justify-center text-sm text-gray-600 font-medium"
+              class="flex items-center justify-center text-sm text-gray-700 font-bold"
             >
-              一
+              <div class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors">
+                一
+              </div>
             </div>
             <div
-              class="flex items-center justify-center text-sm text-gray-600 font-medium"
+              class="flex items-center justify-center text-sm text-gray-700 font-bold"
             >
-              二
+              <div class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors">
+                二
+              </div>
             </div>
             <div
-              class="flex items-center justify-center text-sm text-gray-600 font-medium"
+              class="flex items-center justify-center text-sm text-gray-700 font-bold"
             >
-              三
+              <div class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors">
+                三
+              </div>
             </div>
             <div
-              class="flex items-center justify-center text-sm text-gray-600 font-medium"
+              class="flex items-center justify-center text-sm text-gray-700 font-bold"
             >
-              四
+              <div class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors">
+                四
+              </div>
             </div>
             <div
-              class="flex items-center justify-center text-sm text-gray-600 font-medium"
+              class="flex items-center justify-center text-sm text-gray-700 font-bold"
             >
-              五
+              <div class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors">
+                五
+              </div>
             </div>
             <div
-              class="flex items-center justify-center text-sm text-red-500 font-medium"
+              class="flex items-center justify-center text-sm text-red-600 font-bold"
             >
-              六
+              <div class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50">
+                六
+              </div>
             </div>
           </div>
 
           <!-- 日期网格 -->
-          <div class="grid grid-cols-7 grid-rows-6 gap-0 bg-white">
+          <div class="grid grid-cols-7 grid-rows-6 gap-0 bg-gradient-to-b from-white to-gray-50 p-2">
             <div
               v-for="date in calendarDates"
               :key="date.dateString"
               @click="selectDate(date)"
               :class="[
-                'modern-date-cell cursor-pointer relative h-24 transition-all flex flex-col items-center justify-center p-1',
+                'modern-date-cell group cursor-pointer relative h-24 transition-all duration-300 flex flex-col items-center justify-center p-2 m-0.5 rounded-xl',
                 {
-                  'bg-blue-50 border-2 border-blue-600': date.isSelected,
-                  'hover:bg-blue-50': !date.isSelected,
-                  today: date.isToday,
+                  'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg scale-105 border-2 border-blue-600': date.isSelected,
+                  'hover:bg-gradient-to-br hover:from-blue-50 hover:to-indigo-50 hover:shadow-md hover:scale-105 border border-transparent hover:border-blue-200': !date.isSelected,
+                  'ring-2 ring-purple-400 ring-offset-2': date.isToday && !date.isSelected,
                 },
               ]"
             >
               <div
                 :class="[
-                  'date-number w-8 h-8 flex items-center justify-center rounded-full text-xs',
+                  'date-number w-9 h-9 flex items-center justify-center rounded-xl text-sm font-bold transition-all duration-200',
                   {
-                    'bg-blue-600 text-white': date.isToday,
-                    'text-gray-400': !date.isCurrentMonth,
-                    'text-gray-800': date.isCurrentMonth && !date.isToday,
+                    'bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-md': date.isToday && !date.isSelected,
+                    'text-white': date.isSelected,
+                    'text-gray-400': !date.isCurrentMonth && !date.isSelected,
+                    'text-gray-800 group-hover:text-blue-600': date.isCurrentMonth && !date.isToday && !date.isSelected,
                   },
                 ]"
               >
                 {{ date.day }}
               </div>
-              <div v-if="date.tasks && date.tasks.length > 0" class="mt-1 flex flex-col items-center gap-0.5">
+              <div v-if="date.tasks && date.tasks.length > 0" class="mt-1.5 flex flex-col items-center gap-1">
                 <!-- 任务状态圆点 -->
-                <div class="flex items-center justify-center">
+                <div class="flex items-center justify-center gap-0.5">
                   <span
                     v-for="(task, index) in date.tasks.slice(0, 3)"
                     :key="index"
                     :class="[
-                      'task-dot inline-block w-2 h-2 rounded-full mx-0.5',
-                      getTaskDotColor(task)
+                      'task-dot inline-block w-2 h-2 rounded-full shadow-sm transition-transform duration-200 hover:scale-150',
+                      date.isSelected ? 'bg-white' : getTaskDotColor(task)
                     ]"
                     :title="`${task.title} - ${getTaskActualStatus(task)}`"
                   ></span>
@@ -217,17 +396,31 @@
                 <!-- 任务数量标记 -->
                 <span 
                   v-if="date.tasks.length > 3" 
-                  class="text-xs text-blue-600 font-medium"
+                  :class="[
+                    'text-xs font-bold px-1.5 py-0.5 rounded-md',
+                    date.isSelected ? 'text-white bg-white/20' : 'text-blue-600 bg-blue-100'
+                  ]"
                   :title="`共${date.tasks.length}个任务`"
                 >
                   +{{ date.tasks.length - 3 }}
                 </span>
                 <span 
                   v-else-if="date.tasks.length > 0"
-                  class="text-xs text-gray-500"
+                  :class="[
+                    'text-xs font-medium',
+                    date.isSelected ? 'text-white' : 'text-gray-500'
+                  ]"
                 >
                   {{ date.tasks.length }}
                 </span>
+              </div>
+              
+              <!-- 今天的特殊标记 -->
+              <div 
+                v-if="date.isToday && !date.isSelected"
+                class="absolute top-1 right-1"
+              >
+                <div class="w-2 h-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full animate-pulse"></div>
               </div>
             </div>
           </div>
@@ -239,183 +432,310 @@
         >
           <!-- 任务头 -->
           <div
-            class="h-12 flex items-center justify-between px-4 border-b border-gray-200"
+            class="bg-gradient-to-r from-blue-500 to-indigo-600 border-b border-blue-600 px-5 py-4 rounded-t-lg shadow-sm"
           >
-            <div class="font-bold text-base text-gray-800">
-              {{ selectedDateFormatted }} 任务
-            </div>
-            <div class="flex items-center gap-2">
-              <button
-                @click="sortMode = 'time'"
-                :class="[
-                  'text-sm py-1 px-2 border rounded',
-                  sortMode === 'time'
-                    ? 'text-blue-600 border-blue-600 bg-blue-50'
-                    : 'text-gray-600 border-gray-300 hover:border-blue-600 hover:text-blue-600',
-                ]"
-              >
-                按开始时间排序
-              </button>
-              <button
-                @click="sortMode = 'category'"
-                :class="[
-                  'text-sm py-1 px-2 border rounded',
-                  sortMode === 'category'
-                    ? 'text-blue-600 border-blue-600 bg-blue-50'
-                    : 'text-gray-600 border-gray-300 hover:border-blue-600 hover:text-blue-600',
-                ]"
-              >
-                按任务类别排序
-              </button>
+            <!-- 标题行 -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-1.5 h-8 bg-white rounded-full"></div>
+                <div>
+                  <h2 class="font-bold text-xl text-white">
+                    {{ selectedDateFormatted }} 
+                  </h2>
+                  <div class="flex items-center gap-3 mt-1">
+                    <span class="text-xs text-blue-100 font-medium">
+                      共 {{ selectedDateTasks.length }} 个任务
+                    </span>
+                    <div class="flex items-center gap-2 text-xs">
+                      <div class="flex items-center gap-1">
+                        <div class="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+                        <span class="text-blue-100">
+                          已完成 {{ selectedDateTasks.filter(t => t.status === 'completed').length }}
+                        </span>
+                      </div>
+                      <div class="w-px h-3 bg-blue-300"></div>
+                      <div class="flex items-center gap-1">
+                        <div class="w-1.5 h-1.5 bg-orange-400 rounded-full"></div>
+                        <span class="text-blue-100">
+                          进行中 {{ selectedDateTasks.filter(t => {
+                            const today = formatLocalDate(new Date());
+                            return t.status !== 'completed' && 
+                                   t.startDate <= today && 
+                                   today <= t.endDate;
+                          }).length }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- 快速添加按钮 -->
               <button
                 @click="openTaskModalSelected"
-                class="text-sm text-blue-600 py-1 px-2 border border-blue-600 rounded hover:bg-blue-50"
+                class="flex items-center gap-2 bg-white text-blue-600 px-4 py-2.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 font-medium"
               >
-                + 添加任务
+                <iconify-icon icon="mdi:plus-circle" width="18" height="18"></iconify-icon>
+                <span class="text-sm">新建任务</span>
               </button>
             </div>
           </div>
 
           <!-- 任务列表 -->
-          <div class="flex-1 bg-gray-50 rounded-b-lg p-3 overflow-auto">
+          <div class="flex-1 bg-gradient-to-b from-gray-50 to-white rounded-b-lg p-4 overflow-auto">
             <div
               v-if="selectedDateTasks.length === 0"
-              class="text-center text-gray-500 py-8"
+              class="flex flex-col items-center justify-center py-12 text-center"
             >
-              该日期暂无任务
+              <iconify-icon icon="mdi:calendar-check" width="48" height="48" class="text-gray-300 mb-3"></iconify-icon>
+              <p class="text-gray-400 text-sm">该日期暂无任务</p>
+              <button
+                @click="openTaskModalSelected"
+                class="mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                + 添加第一个任务
+              </button>
             </div>
 
             <!-- 任务项 -->
             <div
-              v-for="task in sortedSelectedDateTasks"
+              v-for="task in selectedDateTasks"
               :key="task.id"
               :class="[
-                'rounded-lg p-4 mb-3 shadow-sm transition-all duration-200 hover:shadow-lg hover:brightness-95',
-                getTaskCardBackground(task.category),
+                'group relative rounded-xl p-4 mb-3 border transition-all duration-300',
+                'bg-white hover:bg-gray-50',
+                'shadow-sm hover:shadow-md',
+                task.status === 'completed' ? 'opacity-60 border-gray-200' : 'opacity-100 border-gray-200 hover:border-blue-300'
               ]"
             >
-              <div class="flex items-start">
+              <!-- 顶部状态栏 -->
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <!-- 任务分类标签 -->
+                  <span
+                    :class="[
+                      'text-xs px-2.5 py-1 rounded-md font-medium shadow-sm',
+                      getCategoryStyle(task.category),
+                    ]"
+                  >
+                    {{ task.category }}
+                  </span>
+                  <!-- 任务状态标签 -->
+                  <span 
+                    :class="[
+                      'text-xs px-2 py-1 rounded-md font-medium flex items-center gap-1',
+                      task.status === 'completed' ? 'bg-green-100 text-green-700' :
+                      getTaskActualStatus(task) === '已逾期' ? 'bg-red-100 text-red-700' :
+                      getTaskActualStatus(task) === '进行中' ? 'bg-orange-100 text-orange-700' :
+                      'bg-gray-100 text-gray-700'
+                    ]"
+                  >
+                    <div 
+                      :class="[
+                        'w-1.5 h-1.5 rounded-full',
+                        getTaskDotColor(task)
+                      ]"
+                    ></div>
+                    {{ getTaskActualStatus(task) }}
+                  </span>
+                </div>
+                <!-- 时间显示 -->
+                <span class="text-xs text-gray-500 font-medium flex items-center gap-1">
+                  <iconify-icon icon="mdi:clock-outline" width="14" height="14"></iconify-icon>
+                  {{ task.time }}
+                </span>
+              </div>
+
+              <!-- 主要内容区域 -->
+              <div class="flex items-start gap-3">
+                <!-- 完成状态复选框 -->
                 <button
                   type="button"
-                  role="checkbox"
-                  :aria-checked="task.status === 'completed' ? 'true' : 'false'"
-                  :aria-label="'Mark task ' + task.title + ' as ' + (task.status === 'completed' ? 'incomplete' : 'complete')"
-                  @click="toggleTaskComplete(task)"
+                  @click.stop="toggleTaskComplete(task)"
                   :class="[
-                    'w-4 h-4 rounded border flex-shrink-0 items-center justify-center mr-3 cursor-pointer transition-colors duration-200',
+                    'flex-shrink-0 w-6 h-6 rounded-lg border-2 flex items-center justify-center',
+                    'transition-all duration-200 hover:scale-110',
                     task.status === 'completed'
-                      ? 'bg-green-500 border-green-500'
-                      : 'border-gray-300 hover:border-blue-500',
+                      ? 'bg-gradient-to-br from-green-500 to-green-600 border-green-500 text-white shadow-md'
+                      : 'border-gray-300 hover:border-blue-500 bg-white hover:bg-blue-50',
                   ]"
+                  :title="task.status === 'completed' ? '标记为未完成' : '标记为已完成'"
                 >
                   <svg
                     v-if="task.status === 'completed'"
-                    width="10"
-                    height="8"
-                    viewBox="0 0 10 8"
+                    width="14"
+                    height="10"
+                    viewBox="0 0 12 9"
                     fill="none"
+                    class="drop-shadow-sm"
                   >
                     <path
-                      d="M9 1L3.5 6.5L1 4"
-                      stroke="white"
+                      d="M10.5 1.5L4.5 7.5L1.5 4.5"
+                      stroke="currentColor"
                       stroke-width="2"
                       stroke-linecap="round"
                       stroke-linejoin="round"
                     />
                   </svg>
                 </button>
-                <div class="flex-1">
-                  <div class="flex items-center">
-                    <span
-                      :class="[
-                        'text-sm font-medium',
-                        {
-                          'text-gray-800': task.status !== 'completed',
-                          'text-gray-500 line-through':
-                            task.status === 'completed',
-                        },
-                      ]"
-                      >{{ task.title }}</span
-                    >
-                    <span class="text-xs text-gray-500 ml-2"
-                      >· {{ task.time }}</span
-                    >
-                    <span
-                      :class="[
-                        'text-xs ml-2 px-2 py-0.5 rounded',
-                        getCategoryStyle(task.category),
-                      ]"
-                      >{{ task.category }}</span
-                    >
-                  </div>
-                  <p class="text-xs text-gray-600 italic mt-1">
+
+                <!-- 任务内容 -->
+                <div class="flex-1 min-w-0">
+                  <!-- 任务标题 -->
+                  <h3
+                    :class="[
+                      'font-bold text-base leading-tight mb-1.5',
+                      {
+                        'text-gray-800': task.status !== 'completed',
+                        'text-gray-500 line-through': task.status === 'completed',
+                      },
+                    ]"
+                  >
+                    {{ task.title }}
+                  </h3>
+                  
+                  <!-- 任务描述 -->
+                  <p
+                    v-if="task.description"
+                    :class="[
+                      'text-sm leading-relaxed line-clamp-2 mb-2',
+                      task.status === 'completed' ? 'text-gray-400' : 'text-gray-600'
+                    ]"
+                  >
                     {{ task.description }}
                   </p>
+
+                  <!-- 任务日期范围（如果跨多天） -->
+                  <div 
+                    v-if="task.startDate !== task.endDate" 
+                    class="flex items-center gap-1.5 mt-2 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-md w-fit"
+                  >
+                    <iconify-icon icon="mdi:calendar-range" width="14" height="14"></iconify-icon>
+                    <span class="font-medium">{{ task.startDate }} ~ {{ task.endDate }}</span>
+                  </div>
+                </div>
+
+                <!-- 操作按钮组 -->
+                <div class="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <!-- 编辑按钮 -->
+                  <button
+                    @click.stop="editTask(task)"
+                    class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                    title="编辑任务"
+                  >
+                    <iconify-icon icon="mdi:pencil-outline" width="16" height="16"></iconify-icon>
+                  </button>
+                  <!-- 删除按钮 -->
+                  <button
+                    @click.stop="handleDelete(task)"
+                    class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                    title="删除任务"
+                  >
+                    <iconify-icon icon="mdi:trash-can-outline" width="16" height="16"></iconify-icon>
+                  </button>
                 </div>
               </div>
 
-
+              <!-- 优先级指示器（右上角） -->
+              <div 
+                v-if="task.priority && task.priority > 1"
+                :class="[
+                  'absolute top-2 right-2 w-2 h-2 rounded-full',
+                  task.priority >= 3 ? 'bg-red-500' : 'bg-orange-500'
+                ]"
+                :title="`优先级: ${task.priority >= 3 ? '高' : '中'}`"
+              ></div>
             </div>
           </div>
         </div>
       </div>
 
       <!-- 笔记列表 -->
-      <div class="mt-4 mb-2">
-        <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center">
-            <h2 class="text-lg font-bold text-gray-800">我的笔记</h2>
-            <button @click="openNotebookModal({ title: '新笔记', category: '默认', content: '', date: new Date().toLocaleDateString() })" class="bg-blue-600 text-white text-sm px-3 py-1 rounded shadow-lg hover:bg-blue-700 ml-2 transition-colors duration-200">+新建笔记</button>
-          </div>
-          <div class="flex space-x-4">
-            <button
-              :class="[
-                'text-sm py-1 px-3 border rounded',
-                notesSortBy === 'category'
-                  ? 'text-blue-600 border-blue-600 bg-blue-50'
-                  : 'text-gray-600 border-gray-300 hover:border-blue-600 hover:text-blue-600',
-              ]"
-              @click="notesSortBy = 'category'"
+      <div class="mt-8 mb-2">
+        <div class="bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-xl p-5 shadow-md">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-1.5 h-8 bg-white rounded-full"></div>
+              <div>
+                <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                  <iconify-icon icon="mdi:notebook-outline" width="24" height="24"></iconify-icon>
+                  我的笔记
+                </h2>
+                <p class="text-xs text-purple-100 mt-1">记录学习点滴，沉淀知识精华</p>
+              </div>
+            </div>
+            <!-- 新建笔记按钮 -->
+            <button 
+              @click="openNotebookModal({ title: '新笔记', category: '默认', content: '', date: new Date().toLocaleDateString() })" 
+              class="bg-white text-purple-600 px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 font-medium flex items-center gap-2"
             >
-              按主题分类
-            </button>
-            <button
-              :class="[
-                'text-sm py-1 px-3 border rounded',
-                notesSortBy === 'time'
-                  ? 'text-blue-600 border-blue-600 bg-blue-50'
-                  : 'text-gray-600 border-gray-300 hover:border-blue-600 hover:text-blue-600',
-              ]"
-              @click="notesSortBy = 'time'"
-            >
-              按时间排序
+              <iconify-icon icon="mdi:plus-circle" width="18" height="18"></iconify-icon>
+              <span class="text-sm">新建笔记</span>
             </button>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div
-            v-for="note in sortedNotes"
-            :key="note.id"
-            class="bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-600 hover:shadow-md transition-all cursor-pointer"
-            @click="openNotebookModal(note)"
+        <div class="bg-white rounded-b-xl border border-t-0 border-gray-200 p-5 shadow-sm">
+          <div 
+            v-if="notes.length === 0" 
+            class="flex flex-col items-center justify-center py-12 text-center"
           >
-            <div class="flex items-center justify-between mb-2">
-              <div class="font-medium">{{ note.title }}</div>
-              <span class="text-xs text-gray-500">{{ note.date }}</span>
-            </div>
-            <p class="text-xs text-gray-600 mb-2 line-clamp-2">
-              {{ note.content }}
-            </p>
-            <div class="flex items-center justify-between">
-              <span
-                :class="[
-                  'text-xs px-2 py-0.5 rounded-full',
-                  getCategoryStyle(note.category),
-                ]"
-                >{{ note.category }}</span
-              >
-              <button class="text-xs text-blue-600">查看详情</button>
+            <iconify-icon icon="mdi:notebook-outline" width="64" height="64" class="text-gray-300 mb-3"></iconify-icon>
+            <p class="text-gray-400 text-sm mb-2">暂无笔记</p>
+            <button 
+              @click="openNotebookModal({ title: '新笔记', category: '默认', content: '', date: new Date().toLocaleDateString() })"
+              class="text-sm text-purple-600 hover:text-purple-700 font-medium"
+            >
+              + 创建第一篇笔记
+            </button>
+          </div>
+
+          <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div
+              v-for="note in notes"
+              :key="note.id"
+              class="group bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 rounded-xl p-5 hover:border-purple-300 hover:shadow-lg transition-all duration-300 cursor-pointer transform hover:-translate-y-1"
+              @click="openNotebookModal(note)"
+            >
+              <!-- 笔记头部 -->
+              <div class="flex items-start justify-between mb-3">
+                <div class="flex-1 min-w-0">
+                  <h3 class="font-bold text-gray-800 text-base mb-1 truncate group-hover:text-purple-600 transition-colors">
+                    {{ note.title }}
+                  </h3>
+                  <div class="flex items-center gap-2 text-xs text-gray-500">
+                    <iconify-icon icon="mdi:calendar-outline" width="14" height="14"></iconify-icon>
+                    <span>{{ note.date }}</span>
+                  </div>
+                </div>
+                <span
+                  :class="[
+                    'text-xs px-2.5 py-1 rounded-lg font-medium shadow-sm flex-shrink-0',
+                    getCategoryStyle(note.category),
+                  ]"
+                >
+                  {{ note.category }}
+                </span>
+              </div>
+
+              <!-- 笔记内容预览 -->
+              <div 
+                v-if="note.content"
+                class="text-sm text-gray-600 mb-3 line-clamp-3 leading-relaxed"
+                v-html="note.content"
+              ></div>
+              <p v-else class="text-sm text-gray-400 italic mb-3">暂无内容</p>
+
+              <!-- 笔记底部 -->
+              <div class="flex items-center justify-between pt-3 border-t border-gray-200">
+                <div class="flex items-center gap-1 text-xs text-gray-500">
+                  <iconify-icon icon="mdi:clock-outline" width="14" height="14"></iconify-icon>
+                  <span>{{ note.lastUpdated }}</span>
+                </div>
+                <button class="text-xs text-purple-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                  查看详情
+                  <iconify-icon icon="mdi:arrow-right" width="14" height="14"></iconify-icon>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -433,150 +753,197 @@
     <!-- 任务弹窗 -->
     <div
       v-if="showTaskModal"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       @click="closeTaskModal"
     >
       <div
-        class="bg-white rounded-lg shadow-xl w-full max-w-md max-h-screen overflow-y-auto"
+        class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col animate-modal-enter"
         @click.stop
       >
-        <div
-          class="flex items-center justify-between p-4 border-b border-gray-200"
-        >
-          <h2 class="text-lg font-bold text-gray-800">创建新任务</h2>
-          <button
-            @click="closeTaskModal"
-            class="text-gray-500 hover:text-gray-700"
-          >
-            <iconify-icon
-              icon="mdi:close"
-              width="20"
-              height="20"
-            ></iconify-icon>
-          </button>
-        </div>
-        <div class="p-4">
-          <!-- 自然语言输入框 -->
-          <div class="mb-4 border border-blue-600 rounded bg-blue-50 p-3">
-            <label class="block text-sm text-blue-600 mb-1 font-medium"
-              >自然语言输入</label
+        <!-- 弹窗头部 -->
+        <div class="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                <iconify-icon 
+                  :icon="modalDateMode === 'edit' ? 'mdi:pencil' : 'mdi:plus-circle'" 
+                  width="20" 
+                  height="20"
+                  class="text-white"
+                ></iconify-icon>
+              </div>
+              <div>
+                <h2 class="text-xl font-bold text-white">
+                  {{ modalDateMode === 'edit' ? '编辑任务' : '创建新任务' }}
+                </h2>
+                <p class="text-xs text-blue-100 mt-0.5">
+                  {{ modalDateMode === 'edit' ? '修改任务信息' : '填写任务详细信息' }}
+                </p>
+              </div>
+            </div>
+            <button
+              @click="closeTaskModal"
+              class="w-8 h-8 rounded-lg flex items-center justify-center text-white hover:bg-white/20 transition-colors"
             >
-            <div class="flex">
+              <iconify-icon icon="mdi:close" width="22" height="22"></iconify-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- 弹窗内容 -->
+        <div class="flex-1 overflow-y-auto p-6">
+          <!-- 自然语言输入框 -->
+          <div class="mb-6 border-2 border-blue-400 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 p-4 shadow-sm">
+            <div class="flex items-center gap-2 mb-2">
+              <iconify-icon icon="mdi:magic-staff" width="18" height="18" class="text-blue-600"></iconify-icon>
+              <label class="text-sm text-blue-700 font-bold">智能解析</label>
+            </div>
+            <div class="flex gap-2">
               <input
                 v-model="naturalLanguageInput"
                 type="text"
-                class="flex-1 border-0 bg-transparent p-1 text-sm outline-none"
+                class="flex-1 border-0 bg-white px-3 py-2.5 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-400 shadow-sm"
                 placeholder="例如：明天下午3点完成数学作业第三章"
               />
               <button
                 @click="parseNaturalLanguage"
-                class="text-white bg-blue-600 px-3 py-1 rounded text-sm hover:bg-blue-700"
+                class="text-white bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 rounded-lg text-sm font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105 flex items-center gap-2"
               >
-                <iconify-icon
-                  icon="mdi:wand"
-                  width="16"
-                  height="16"
-                  class="mr-1"
-                ></iconify-icon>
+                <iconify-icon icon="mdi:wand" width="16" height="16"></iconify-icon>
                 解析
               </button>
             </div>
+            <p class="text-xs text-blue-600 mt-2 flex items-center gap-1">
+              <iconify-icon icon="mdi:information-outline" width="14" height="14"></iconify-icon>
+              支持自然语言输入，AI 将自动填充表单
+            </p>
           </div>
 
           <!-- 表单输入 -->
-          <div class="space-y-4">
+          <div class="space-y-5">
+            <!-- 任务名称 -->
             <div>
-              <label class="block text-sm text-gray-600 mb-1"
-                >任务名称 <span class="text-red-500">*</span></label
-              >
+              <label class="flex items-center gap-2 text-sm text-gray-700 font-semibold mb-2">
+                <iconify-icon icon="mdi:text" width="16" height="16" class="text-blue-600"></iconify-icon>
+                任务名称 
+                <span class="text-red-500">*</span>
+              </label>
               <input
                 v-model="newTask.title"
                 type="text"
-                class="w-full border border-gray-300 p-2 rounded text-sm focus:border-blue-600 focus:outline-none"
+                class="w-full border-2 border-gray-200 px-4 py-2.5 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all"
                 placeholder="输入任务名称"
               />
             </div>
 
+            <!-- 任务描述 -->
             <div>
-              <label class="block text-sm text-gray-600 mb-1">任务描述</label>
+              <label class="flex items-center gap-2 text-sm text-gray-700 font-semibold mb-2">
+                <iconify-icon icon="mdi:text-box-outline" width="16" height="16" class="text-blue-600"></iconify-icon>
+                任务描述
+              </label>
               <textarea
                 v-model="newTask.description"
-                class="w-full border border-gray-300 p-2 rounded text-sm h-20 focus:border-blue-600 focus:outline-none"
-                placeholder="输入任务详情描述"
+                class="w-full border-2 border-gray-200 px-4 py-2.5 rounded-lg text-sm h-24 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all resize-none"
+                placeholder="详细描述任务内容和目标"
               ></textarea>
             </div>
 
+            <!-- 开始时间 -->
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm text-gray-600 mb-1"
-                  >开始日期 <span class="text-red-500">*</span></label
-                >
+                <label class="flex items-center gap-2 text-sm text-gray-700 font-semibold mb-2">
+                  <iconify-icon icon="mdi:calendar-start" width="16" height="16" class="text-green-600"></iconify-icon>
+                  开始日期 
+                  <span class="text-red-500">*</span>
+                </label>
                 <input
                   v-model="newTask.startDate"
                   type="date"
-                  class="w-full border border-gray-300 p-2 rounded text-sm focus:border-blue-600 focus:outline-none"
+                  class="w-full border-2 border-gray-200 px-4 py-2.5 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all"
                 />
               </div>
               <div>
-                <label class="block text-sm text-gray-600 mb-1">开始时间</label>
+                <label class="flex items-center gap-2 text-sm text-gray-700 font-semibold mb-2">
+                  <iconify-icon icon="mdi:clock-start" width="16" height="16" class="text-green-600"></iconify-icon>
+                  开始时间
+                </label>
                 <input
                   v-model="newTask.startTime"
                   type="time"
-                  class="w-full border border-gray-300 p-2 rounded text-sm focus:border-blue-600 focus:outline-none"
+                  class="w-full border-2 border-gray-200 px-4 py-2.5 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all"
                 />
               </div>
             </div>
 
+            <!-- 结束时间 -->
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm text-gray-600 mb-1"
-                  >结束日期 <span class="text-red-500">*</span></label
-                >
+                <label class="flex items-center gap-2 text-sm text-gray-700 font-semibold mb-2">
+                  <iconify-icon icon="mdi:calendar-end" width="16" height="16" class="text-red-600"></iconify-icon>
+                  结束日期 
+                  <span class="text-red-500">*</span>
+                </label>
                 <input
                   v-model="newTask.endDate"
                   type="date"
-                  class="w-full border border-gray-300 p-2 rounded text-sm focus:border-blue-600 focus:outline-none"
+                  class="w-full border-2 border-gray-200 px-4 py-2.5 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all"
                 />
               </div>
               <div>
-                <label class="block text-sm text-gray-600 mb-1">结束时间</label>
+                <label class="flex items-center gap-2 text-sm text-gray-700 font-semibold mb-2">
+                  <iconify-icon icon="mdi:clock-end" width="16" height="16" class="text-red-600"></iconify-icon>
+                  结束时间
+                </label>
                 <input
                   v-model="newTask.endTime"
                   type="time"
-                  class="w-full border border-gray-300 p-2 rounded text-sm focus:border-blue-600 focus:outline-none"
+                  class="w-full border-2 border-gray-200 px-4 py-2.5 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all"
                 />
               </div>
             </div>
 
+            <!-- 任务分类 -->
             <div>
-              <label class="block text-sm text-gray-600 mb-1">任务分类</label>
+              <label class="flex items-center gap-2 text-sm text-gray-700 font-semibold mb-2">
+                <iconify-icon icon="mdi:tag-outline" width="16" height="16" class="text-blue-600"></iconify-icon>
+                任务分类
+              </label>
               <select
                 v-model="newTask.category"
-                class="w-full border border-gray-300 p-2 rounded text-sm focus:border-blue-600 focus:outline-none"
+                class="w-full border-2 border-gray-200 px-4 py-2.5 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all bg-white cursor-pointer"
               >
                 <option value="">请选择分类</option>
-                <option value="study">学习</option>
-                <option value="exam">考试</option>
-                <option value="project">项目</option>
-                <option value="reading">阅读</option>
-                <option value="other">其他</option>
+                <option value="study">📚 学习</option>
+                <option value="exam">📝 考试</option>
+                <option value="project">💼 项目</option>
+                <option value="reading">📖 阅读</option>
+                <option value="other">📌 其他</option>
               </select>
             </div>
           </div>
         </div>
-        <div class="flex justify-end p-4 border-t border-gray-200">
-          <button
-            @click="closeTaskModal"
-            class="text-sm text-gray-600 border border-gray-300 py-1.5 px-4 rounded mr-3 hover:bg-gray-50"
-          >
-            取消
-          </button>
-          <button
-            @click="saveTask"
-            class="text-sm text-white bg-blue-600 py-1.5 px-4 rounded hover:bg-blue-700"
-          >
-            保存
-          </button>
+
+        <!-- 弹窗底部 -->
+        <div class="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <p class="text-xs text-gray-500 flex items-center gap-1">
+            <iconify-icon icon="mdi:information-outline" width="14" height="14"></iconify-icon>
+            标记 <span class="text-red-500">*</span> 为必填项
+          </p>
+          <div class="flex gap-3">
+            <button
+              @click="closeTaskModal"
+              class="text-sm text-gray-700 bg-white border-2 border-gray-300 py-2 px-5 rounded-lg hover:bg-gray-50 transition-all font-medium"
+            >
+              取消
+            </button>
+            <button
+              @click="saveTask"
+              class="text-sm text-white bg-gradient-to-r from-blue-600 to-indigo-600 py-2 px-5 rounded-lg hover:shadow-lg transition-all duration-200 transform hover:scale-105 font-medium"
+            >
+              {{ modalDateMode === 'edit' ? '💾 保存修改' : '✨ 创建任务' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -584,187 +951,217 @@
     <!-- 笔记本弹窗 -->
     <div
       v-if="showNotebookModal"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
     >
       <div
-        class="bg-white rounded-lg shadow-xl w-full max-w-2xl h-[80vh] flex flex-col"
+        class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col animate-modal-enter"
       >
-        <div
-          class="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg"
-        >
-          <div class="flex items-center">
-            <h2 class="text-lg font-bold text-gray-800">
-              {{ currentNote && currentNote.id ? "编辑笔记" : "新建笔记" }}
-            </h2>
-            <span
-              v-if="currentNote && currentNote.category"
-              :class="[
-                'ml-2 text-xs px-2 py-0.5 rounded-full',
-                getCategoryStyle(currentNote.category),
-              ]"
-              >{{ currentNote.category }}</span
-            >
-          </div>
-          <div class="flex items-center space-x-2">
-            <button
-              @click="toggleNotebookFullscreen"
-              class="text-gray-500 hover:text-gray-700"
-            >
-              <iconify-icon
-                :icon="
-                  isNotebookFullscreen
-                    ? 'mdi:fullscreen-exit'
-                    : 'mdi:fullscreen'
-                "
-                width="20"
-                height="20"
-              ></iconify-icon>
-            </button>
-            <button
-              @click="closeNotebookModal"
-              class="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 hover:text-gray-800 transition-colors"
-              aria-label="关闭笔记"
-            >
-              <iconify-icon icon="mdi:close" width="22"></iconify-icon>
-            </button>
+        <!-- 笔记头部 -->
+        <div class="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4 rounded-t-2xl">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                <iconify-icon 
+                  :icon="currentNote && currentNote.id ? 'mdi:pencil' : 'mdi:notebook-plus'" 
+                  width="20" 
+                  height="20"
+                  class="text-white"
+                ></iconify-icon>
+              </div>
+              <div class="flex items-center gap-3">
+                <div>
+                  <h2 class="text-xl font-bold text-white">
+                    {{ currentNote && currentNote.id ? "编辑笔记" : "新建笔记" }}
+                  </h2>
+                  <p class="text-xs text-purple-100 mt-0.5">
+                    记录灵感，积累知识
+                  </p>
+                </div>
+                <span
+                  v-if="currentNote && currentNote.category"
+                  :class="[
+                    'px-3 py-1 rounded-lg text-xs font-medium bg-white/90 backdrop-blur-sm shadow-sm',
+                    getCategoryStyle(currentNote.category),
+                  ]"
+                >
+                  {{ currentNote.category }}
+                </span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                @click="toggleNotebookFullscreen"
+                class="w-8 h-8 rounded-lg flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+                :title="isNotebookFullscreen ? '退出全屏' : '全屏显示'"
+              >
+                <iconify-icon
+                  :icon="isNotebookFullscreen ? 'mdi:fullscreen-exit' : 'mdi:fullscreen'"
+                  width="20"
+                  height="20"
+                ></iconify-icon>
+              </button>
+              <button
+                @click="closeNotebookModal"
+                class="w-8 h-8 rounded-lg flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+                aria-label="关闭笔记"
+              >
+                <iconify-icon icon="mdi:close" width="22"></iconify-icon>
+              </button>
+            </div>
           </div>
         </div>
-        <div class="p-4 h-full overflow-hidden flex flex-col">
-          <div class="flex-1 overflow-y-auto pr-2 space-y-4">
+        <!-- 笔记内容 -->
+        <div class="flex-1 overflow-hidden flex flex-col p-6 bg-gray-50">
+          <div class="flex-1 overflow-y-auto pr-2 space-y-5">
+            <!-- 笔记标题 -->
             <div>
-              <label class="block text-sm text-gray-600 mb-1 font-medium">笔记标题</label>
+              <label class="flex items-center gap-2 text-sm text-gray-700 font-semibold mb-2">
+                <iconify-icon icon="mdi:format-title" width="16" height="16" class="text-purple-600"></iconify-icon>
+                笔记标题
+              </label>
               <input
                 v-model="currentNote.title"
                 type="text"
-                class="w-full border border-gray-300 p-2 rounded text-sm focus:border-blue-600 focus:outline-none"
-                placeholder="输入笔记标题"
+                class="w-full border-2 border-gray-200 px-4 py-3 rounded-lg text-base font-medium focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all"
+                placeholder="为你的笔记起个标题"
               />
             </div>
+
+            <!-- 笔记分类 -->
             <div>
-              <label class="block text-sm text-gray-600 mb-1 font-medium">笔记分类</label>
+              <label class="flex items-center gap-2 text-sm text-gray-700 font-semibold mb-2">
+                <iconify-icon icon="mdi:tag-outline" width="16" height="16" class="text-purple-600"></iconify-icon>
+                笔记分类
+              </label>
               <select
                 v-model="currentNote.category"
-                class="w-full border border-gray-300 p-2 rounded text-sm focus:border-blue-600 focus:outline-none"
+                class="w-full border-2 border-gray-200 px-4 py-3 rounded-lg text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all bg-white cursor-pointer"
               >
-                <option value="学习">学习</option>
-                <option value="工作">工作</option>
-                <option value="数学">数学</option>
-                <option value="英语">英语</option>
-                <option value="物理">物理</option>
-                <option value="研究">研究</option>
-                <option value="其他">其他</option>
+                <option value="学习">📚 学习</option>
+                <option value="工作">💼 工作</option>
+                <option value="数学">🔢 数学</option>
+                <option value="英语">🗣️ 英语</option>
+                <option value="物理">⚛️ 物理</option>
+                <option value="研究">🔬 研究</option>
+                <option value="其他">📌 其他</option>
               </select>
             </div>
+
+            <!-- 笔记内容 -->
             <div>
-              <label class="block text-sm text-gray-600 mb-1 font-medium">笔记内容</label>
+              <label class="flex items-center gap-2 text-sm text-gray-700 font-semibold mb-2">
+                <iconify-icon icon="mdi:text-box-outline" width="16" height="16" class="text-purple-600"></iconify-icon>
+                笔记内容
+              </label>
               <div
                 v-if="editor"
-                class="border border-gray-300 rounded-lg focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-shadow shadow-sm"
+                class="border-2 border-gray-200 rounded-xl focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-200 transition-all shadow-sm bg-white"
               >
                 <div
-                  class="flex items-center p-2 border-b border-gray-200 bg-gray-50 rounded-t-md flex-wrap gap-1"
+                  class="flex items-center p-3 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100 rounded-t-xl flex-wrap gap-2"
                 >
                   <button
                     @click="editor.chain().focus().toggleBold().run()"
                     :class="{
-                      'bg-blue-500 text-white': editor.isActive('bold'),
-                      'hover:bg-gray-200': !editor.isActive('bold'),
+                      'bg-purple-600 text-white shadow-md': editor.isActive('bold'),
+                      'text-gray-700 hover:bg-gray-200': !editor.isActive('bold'),
                     }"
-                    class="p-2 rounded transition-colors"
+                    class="p-2 rounded-lg transition-all"
                     aria-label="加粗"
+                    title="加粗 (Ctrl+B)"
                   >
-                    <iconify-icon icon="mdi:format-bold" width="20"></iconify-icon>
+                    <iconify-icon icon="mdi:format-bold" width="18"></iconify-icon>
                   </button>
                   <button
                     @click="editor.chain().focus().toggleItalic().run()"
                     :class="{
-                      'bg-blue-500 text-white': editor.isActive('italic'),
-                      'hover:bg-gray-200': !editor.isActive('italic'),
+                      'bg-purple-600 text-white shadow-md': editor.isActive('italic'),
+                      'text-gray-700 hover:bg-gray-200': !editor.isActive('italic'),
                     }"
-                    class="p-2 rounded transition-colors"
+                    class="p-2 rounded-lg transition-all"
                     aria-label="斜体"
+                    title="斜体 (Ctrl+I)"
                   >
-                    <iconify-icon
-                      icon="mdi:format-italic"
-                      width="20"
-                    ></iconify-icon>
+                    <iconify-icon icon="mdi:format-italic" width="18"></iconify-icon>
                   </button>
                   <button
-                    @click="
-                      editor.chain().focus().toggleHeading({ level: 2 }).run()
-                    "
+                    @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
                     :class="{
-                      'bg-blue-500 text-white': editor.isActive('heading',
-                      { level: 2 }),
-                      'hover:bg-gray-200': !editor.isActive('heading', {
-                        level: 2,
-                      }),
+                      'bg-purple-600 text-white shadow-md': editor.isActive('heading', { level: 2 }),
+                      'text-gray-700 hover:bg-gray-200': !editor.isActive('heading', { level: 2 }),
                     }"
-                    class="p-2 rounded transition-colors"
+                    class="p-2 rounded-lg transition-all"
                     aria-label="二级标题"
+                    title="二级标题"
                   >
-                    <iconify-icon icon="mdi:format-header-2" width="20"></iconify-icon>
+                    <iconify-icon icon="mdi:format-header-2" width="18"></iconify-icon>
                   </button>
                   <button
                     @click="addImage"
-                    class="p-2 rounded hover:bg-gray-200 transition-colors"
+                    class="p-2 rounded-lg text-gray-700 hover:bg-gray-200 transition-all"
                     aria-label="插入图片"
+                    title="插入图片"
                   >
-                    <iconify-icon icon="mdi:image-plus" width="20"></iconify-icon>
+                    <iconify-icon icon="mdi:image-plus" width="18"></iconify-icon>
                   </button>
-                  <div class="border-l border-gray-300 h-6 mx-2"></div>
+                  <div class="border-l-2 border-gray-300 h-6 mx-1"></div>
                   <button
                     @click="editor.chain().focus().undo().run()"
                     :disabled="!editor.can().undo()"
-                    class="p-2 rounded transition-colors"
+                    class="p-2 rounded-lg transition-all"
                     :class="{
                       'text-gray-400 cursor-not-allowed': !editor.can().undo(),
-                      'hover:bg-gray-200': editor.can().undo(),
+                      'text-gray-700 hover:bg-gray-200': editor.can().undo(),
                     }"
                     aria-label="撤销"
+                    title="撤销 (Ctrl+Z)"
                   >
-                    <iconify-icon icon="mdi:undo" width="20"></iconify-icon>
+                    <iconify-icon icon="mdi:undo" width="18"></iconify-icon>
                   </button>
                   <button
                     @click="editor.chain().focus().redo().run()"
                     :disabled="!editor.can().redo()"
-                    class="p-2 rounded transition-colors"
+                    class="p-2 rounded-lg transition-all"
                     :class="{
                       'text-gray-400 cursor-not-allowed': !editor.can().redo(),
-                      'hover:bg-gray-200': editor.can().redo(),
+                      'text-gray-700 hover:bg-gray-200': editor.can().redo(),
                     }"
                     aria-label="重做"
+                    title="重做 (Ctrl+Y)"
                   >
-                    <iconify-icon icon="mdi:redo" width="20"></iconify-icon>
+                    <iconify-icon icon="mdi:redo" width="18"></iconify-icon>
                   </button>
                 </div>
                 <editor-content
                   :editor="editor"
-                  class="p-4 min-h-[300px] bg-white rounded-b-md focus:outline-none prose max-w-none"
+                  class="p-5 min-h-[350px] bg-white rounded-b-xl focus:outline-none prose prose-sm max-w-none"
                 />
               </div>
             </div>
           </div>
+        </div>
 
-          <div
-             class="mt-auto flex items-center justify-between pt-3 border-t border-gray-200"
-           >
-            <div class="text-sm text-gray-500">
-              最后更新: {{ currentNote.lastUpdated }}
-            </div>
-            <div>
-              <button
-                class="text-sm text-blue-600 py-1 px-3 border border-blue-600 rounded hover:bg-blue-50"
-              >
-                插入图片
-              </button>
-              <button
-                  @click="closeAndSaveNote"
-                  class="ml-2 text-sm text-white bg-blue-600 py-1 px-3 rounded hover:bg-blue-700"
-                >
-                  关闭
-                </button>
-            </div>
+        <!-- 笔记底部 -->
+        <div class="flex items-center justify-between px-6 py-4 border-t-2 border-gray-200 bg-gradient-to-r from-gray-50 to-white rounded-b-2xl">
+          <div class="flex items-center gap-2 text-sm text-gray-500">
+            <iconify-icon icon="mdi:clock-outline" width="16" height="16"></iconify-icon>
+            <span>最后更新: {{ currentNote.lastUpdated }}</span>
+          </div>
+          <div class="flex gap-3">
+            <button
+              @click="addImage"
+              class="text-sm text-purple-600 py-2 px-4 border-2 border-purple-600 rounded-lg hover:bg-purple-50 transition-all font-medium flex items-center gap-2"
+            >
+              <iconify-icon icon="mdi:image-plus" width="16" height="16"></iconify-icon>
+              插入图片
+            </button>
+            <button
+              @click="closeAndSaveNote"
+              class="text-sm text-white bg-gradient-to-r from-purple-600 to-pink-600 py-2 px-5 rounded-lg hover:shadow-lg transition-all duration-200 transform hover:scale-105 font-medium flex items-center gap-2"
+            >
+              <iconify-icon icon="mdi:content-save" width="16" height="16"></iconify-icon>
+              保存并关闭
+            </button>
           </div>
         </div>
       </div>
@@ -778,7 +1175,7 @@ import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import { debounce } from "lodash";
 import Image from "@tiptap/extension-image";
-import { createTask, getPersonalTasks, completeTask, uncompleteTask } from "@/api/modules/task";
+import { createTask, getPersonalTasks, completeTask, uncompleteTask, deleteTask } from "@/api/modules/task";
 
 // Name
 defineOptions({
@@ -791,11 +1188,9 @@ const selectedDate = ref(new Date());
 const showTaskModal = ref(false);
 const showNotebookModal = ref(false);
 const isNotebookFullscreen = ref(false);
-const notesSortBy = ref("category");
 const naturalLanguageInput = ref("");
 const statusFilter = ref(null);
 const modalDateMode = ref('system');
-const sortMode = ref("time");
 const tasks = ref([]);
 const notes = ref([]);
 const newTask = ref({
@@ -943,45 +1338,6 @@ const filteredTasksByStatus = computed(() => {
       return task.status !== 'completed' && taskStartDate > todayStr;
     }
     return false;
-  });
-});
-
-const getStartMinutes = (task) => {
-  const t = task.time || "";
-  const rangeMatch = t.match(/^(\d{2}):(\d{2})\s*-\s*(\d{2}):(\d{2})$/);
-  if (rangeMatch) {
-    const h = parseInt(rangeMatch[1], 10);
-    const m = parseInt(rangeMatch[2], 10);
-    return h * 60 + m;
-  }
-  const singleMatch = t.match(/^(\d{2}):(\d{2})/);
-  if (singleMatch) {
-    const h = parseInt(singleMatch[1], 10);
-    const m = parseInt(singleMatch[2], 10);
-    return h * 60 + m;
-  }
-  return Number.POSITIVE_INFINITY;
-};
-
-const sortedSelectedDateTasks = computed(() => {
-  const list = [...selectedDateTasks.value];
-  if (sortMode.value === "time") {
-    return list.sort((a, b) => getStartMinutes(a) - getStartMinutes(b));
-  }
-  if (sortMode.value === "category") {
-    return list.sort((a, b) => (a.category || "").localeCompare(b.category || ""));
-  }
-  return list;
-});
-
-const sortedNotes = computed(() => {
-  return [...notes.value].sort((a, b) => {
-    if (notesSortBy.value === "category") {
-      return a.category.localeCompare(b.category);
-    } else if (notesSortBy.value === "lastUpdated") {
-      return new Date(b.lastUpdated) - new Date(a.lastUpdated);
-    }
-    return 0;
   });
 });
 
@@ -1153,10 +1509,38 @@ const saveTask = async () => {
       // 如果有分类，可以设置 category_id
     };
     
-    // 调用API创建任务
-    const response = await createTask(taskData);
+    let response;
     
-    if (response.code === 0) {
+    // 判断是编辑还是新建
+    if (modalDateMode.value === 'edit' && newTask.value.id) {
+      // 编辑现有任务 - 这里需要后端提供更新API
+      // response = await updateTask(newTask.value.id, taskData);
+      
+      // 暂时使用前端更新
+      const taskIndex = tasks.value.findIndex(t => t.id === newTask.value.id);
+      if (taskIndex !== -1) {
+        tasks.value[taskIndex] = {
+          ...tasks.value[taskIndex],
+          title: newTask.value.title,
+          description: newTask.value.description,
+          startDate: newTask.value.startDate,
+          endDate: newTask.value.endDate,
+          time: newTask.value.endTime || "全天",
+          category: newTask.value.category || "其他",
+        };
+        
+        closeTaskModal();
+        naturalLanguageInput.value = "";
+        modalDateMode.value = 'system';
+        alert("✅ 任务已更新");
+        return;
+      }
+    } else {
+      // 调用API创建任务
+      response = await createTask(taskData);
+    }
+    
+    if (response && response.code === 0) {
       // 将API返回的任务转换为前端格式
       const apiTask = response.data;
       const task = {
@@ -1186,6 +1570,39 @@ const saveTask = async () => {
     console.error('保存任务失败:', error);
     alert('保存任务失败，请检查网络连接');
   }
+};
+
+const handleDelete = async (task) => {
+  if(!confirm("确定要删除此任务吗？")) {
+    return;
+  }
+  try {
+    const res = await deleteTask(task.id);
+    if(res.code === 0){
+      tasks.value = tasks.value.filter(t => t.id !== task.id);
+      alert("✅ 任务已删除");
+    }
+  } catch (error) {
+    console.error('删除任务失败:', error);
+    alert('删除任务失败，请检查网络连接');
+  }
+};
+
+const editTask = (task) => {
+  // 填充表单数据
+  newTask.value = {
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    startDate: task.startDate,
+    startTime: task.time !== "全天" ? task.time.split('-')[0]?.trim() || "" : "",
+    endDate: task.endDate,
+    endTime: task.time !== "全天" ? task.time.split('-')[1]?.trim() || task.time : "",
+    category: task.category,
+  };
+  
+  modalDateMode.value = 'edit';
+  showTaskModal.value = true;
 };
 
 const toggleTaskComplete = async (task) => {
@@ -1506,11 +1923,62 @@ watch(selectedDate, (d) => {
   .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
 
   .stat-card {
     transition: transform 0.2s;
+  }
+
+  /* 弹窗动画 */
+  @keyframes modal-enter {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  .animate-modal-enter {
+    animation: modal-enter 0.3s ease-out;
+  }
+
+  /* 富文本编辑器样式优化 */
+  :deep(.ProseMirror) {
+    outline: none;
+  }
+
+  :deep(.ProseMirror p) {
+    margin: 0.75em 0;
+  }
+
+  :deep(.ProseMirror h2) {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    color: #374151;
+  }
+
+  :deep(.ProseMirror img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    margin: 1em 0;
+  }
+
+  :deep(.ProseMirror strong) {
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  :deep(.ProseMirror em) {
+    font-style: italic;
+    color: #4b5563;
   }
 </style>
