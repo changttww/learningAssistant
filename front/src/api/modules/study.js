@@ -90,6 +90,20 @@ export function getStudyTimeTrend(params = {}) {
 }
 
 /**
+ * 获取学习房间聊天记录
+ */
+export function getRoomChatHistory(roomId, params = {}) {
+  return request.get(`/study/rooms/${roomId}/chat/history`, params);
+}
+
+/**
+ * 发送学习房间消息
+ */
+export function sendRoomChatMessage(roomId, data) {
+  return request.post(`/study/rooms/${roomId}/chat`, data);
+}
+
+/**
  * 获取知识点分布
  */
 export function getKnowledgeDistribution(params = {}) {

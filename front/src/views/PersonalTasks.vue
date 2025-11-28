@@ -59,6 +59,17 @@
         <!-- 已逾期任务卡片 -->
         <button
           type="button"
+          @click="setStatusFilter('pending')"
+          class="stat-card bg-gray-200 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow focus:outline-none focus:ring-2 focus:ring-gray-500 active:scale-95 transition"
+          aria-label="待处理任务"
+        >
+          <span class="text-2xl font-bold text-gray-700">{{
+            stats.pending
+          }}</span>
+          <span class="text-gray-800 text-sm mt-1 font-medium">待处理</span>
+        </button>
+        <button
+          type="button"
           @click="setStatusFilter('overdue')"
           class="stat-card group bg-gradient-to-br from-red-500 to-rose-600 rounded-xl p-5 flex flex-col items-center justify-center cursor-pointer shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 active:scale-95 transition-all duration-300 transform hover:-translate-y-1 border-2 border-red-600"
           aria-label="已逾期任务"
