@@ -778,6 +778,7 @@ import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import { debounce } from "lodash";
 import Image from "@tiptap/extension-image";
+import { createTask, getPersonalTasks, completeTask, uncompleteTask } from "@/api/modules/task";
 
 // Name
 defineOptions({
@@ -1092,30 +1093,129 @@ const parseNaturalLanguage = () => {
   }
 };
 
-const saveTask = () => {
+// 加载个人任务
+const loadPersonalTasks = async () => {
+  try {
+    const response = await getPersonalTasks();
+    console.log('API响应:', response); // 调试日志
+    if (response.code === 0) {
+      // 将API返回的任务转换为前端格式
+      const apiTasks = response.data || [];
+      console.log('API返回的任务数量:', apiTasks.length); // 调试日志
+      tasks.value = apiTasks.map(task => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        date: task.start_at ? new Date(task.start_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        startDate: task.start_at ? new Date(task.start_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        endDate: task.due_at ? new Date(task.due_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        time: task.start_at ? new Date(task.start_at).toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'}) : "全天",
+        status: task.status === 2 ? "completed" : "pending", // 2=已完成, 1=进行中, 0=待处理
+        notes: "",
+        category: task.category?.name || "其他",
+      }));
+      console.log('转换后的任务数据:', tasks.value); // 调试日志
+    }
+  } catch (error) {
+    console.error('加载任务失败:', error);
+  }
+};
+
+const saveTask = async () => {
   if (!newTask.value.title || !newTask.value.startDate || !newTask.value.endDate) {
     return;
   }
-  const task = {
-    id: Date.now(),
-    title: newTask.value.title,
-    description: newTask.value.description,
-    date: newTask.value.startDate, // 保留兼容性
-    startDate: newTask.value.startDate, // 任务开始日期
-    endDate: newTask.value.endDate, // 任务结束日期
-    time: newTask.value.endTime || "全天",
-    status: "pending",
-    notes: "",
-    category: newTask.value.category || "其他",
-  };
-  tasks.value.push(task);
-  closeTaskModal();
-  naturalLanguageInput.value = "";
-  modalDateMode.value = 'system';
+  
+  try {
+    // 1. 先拼接成一个本地时间字符串
+    const localStartStr = newTask.value.startTime 
+      ? `${newTask.value.startDate}T${newTask.value.startTime}:00`
+      : `${newTask.value.startDate}T09:00:00`;
+    
+    const localEndStr = newTask.value.endTime 
+      ? `${newTask.value.endDate}T${newTask.value.endTime}:00`
+      : `${newTask.value.endDate}T18:00:00`;
+
+    // 2. ✅ 关键修改：转换为标准 ISO 8601 格式 (带时区)
+    // 比如：它会把 "2025-11-28T09:00:00" 变成 "2025-11-28T01:00:00.000Z"
+    const isoStartTime = new Date(localStartStr).toISOString();
+    const isoEndTime = new Date(localEndStr).toISOString();
+    
+    // 准备API数据
+    const taskData = {
+      title: newTask.value.title,
+      description: newTask.value.description,
+      task_type: 1, // 个人任务
+      priority: 1, // 默认优先级
+      effort_points: 5, // 默认工作量
+      start_at: isoStartTime, // ✅ 发送标准格式
+      due_at: isoEndTime,     // ✅ 发送标准格式
+      // 如果有分类，可以设置 category_id
+    };
+    
+    // 调用API创建任务
+    const response = await createTask(taskData);
+    
+    if (response.code === 0) {
+      // 将API返回的任务转换为前端格式
+      const apiTask = response.data;
+      const task = {
+        id: apiTask.id,
+        title: apiTask.title,
+        description: apiTask.description,
+        date: newTask.value.startDate, // 保留兼容性
+        startDate: newTask.value.startDate, // 任务开始日期
+        endDate: newTask.value.endDate, // 任务结束日期
+        time: newTask.value.endTime || "全天",
+        status: "pending", // 转换状态
+        notes: "",
+        category: newTask.value.category || "其他",
+      };
+      
+      // 添加到本地任务列表
+      tasks.value.push(task);
+      
+      closeTaskModal();
+      naturalLanguageInput.value = "";
+      modalDateMode.value = 'system';
+    } else {
+      console.error('创建任务失败:', response);
+      alert('创建任务失败，请重试');
+    }
+  } catch (error) {
+    console.error('保存任务失败:', error);
+    alert('保存任务失败，请检查网络连接');
+  }
 };
 
-const toggleTaskComplete = (task) => {
-  task.status = task.status === "completed" ? "pending" : "completed";
+const toggleTaskComplete = async (task) => {
+  try {
+    const wasCompleted = task.status === "completed";
+    
+    // 调用相应的API
+    if (wasCompleted) {
+      const response = await uncompleteTask(task.id);
+      if (response.code === 0) {
+        task.status = "pending";
+        console.log('✅ 任务状态已更新为pending');
+      } else {
+        throw new Error(response.msg || '取消完成失败');
+      }
+    } else {
+      const response = await completeTask(task.id);
+      if (response.code === 0) {
+        task.status = "completed";
+        console.log('✅ 任务状态已更新为completed');
+      } else {
+        throw new Error(response.msg || '完成任务失败');
+      }
+    }
+  } catch (error) {
+    console.error('更新任务状态失败:', error);
+    alert('更新任务状态失败，请重试');
+    // 如果API失败，重新加载任务数据以确保状态同步
+    await loadPersonalTasks();
+  }
 };
 
 const openNotebookModal = (note = null) => {
@@ -1273,32 +1373,42 @@ const getStatusLabel = (status) => {
 };
 
 // 初始化
-onMounted(() => {
-  // 使用当前日期作为基准
-  const today = new Date();
-  const todayStr = formatLocalDate(today);
+onMounted(async () => {
+  // 为测试目的设置一个mock token
+  if (!localStorage.getItem('token')) {
+    localStorage.setItem('token', 'mock-token-3-test');
+  }
   
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = formatLocalDate(yesterday);
+  // 加载个人任务
+  await loadPersonalTasks();
   
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = formatLocalDate(tomorrow);
-  
-  const dayAfterTomorrow = new Date(today);
-  dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
-  const dayAfterTomorrowStr = formatLocalDate(dayAfterTomorrow);
-  
-  const threeDaysAgo = new Date(today);
-  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-  const threeDaysAgoStr = formatLocalDate(threeDaysAgo);
-  
-  const twoDaysAgo = new Date(today);
-  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-  const twoDaysAgoStr = formatLocalDate(twoDaysAgo);
-  
-  tasks.value = [
+  // 如果没有任务数据，则使用模拟数据（仅用于演示）
+  if (tasks.value.length === 0) {
+    // 使用当前日期作为基准
+    const today = new Date();
+    const todayStr = formatLocalDate(today);
+    
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = formatLocalDate(yesterday);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = formatLocalDate(tomorrow);
+    
+    const dayAfterTomorrow = new Date(today);
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+    const dayAfterTomorrowStr = formatLocalDate(dayAfterTomorrow);
+    
+    const threeDaysAgo = new Date(today);
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const threeDaysAgoStr = formatLocalDate(threeDaysAgo);
+    
+    const twoDaysAgo = new Date(today);
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+    const twoDaysAgoStr = formatLocalDate(twoDaysAgo);
+    
+    tasks.value = [
     {
       id: 1,
       title: "完成数学作业",
@@ -1347,7 +1457,9 @@ onMounted(() => {
       notes: "",
       category: "研究",
     },
-  ];
+    ];
+  }
+  
   notes.value = [
     { id: 1, title: "关于Vue 3组合式API的思考", content: "<h1>Vue 3</h1><p>组合式 API 非常强大...</p>", category: "学习", tags: ["Vue", "Frontend"], lastUpdated: "2024-07-21 10:30:00" },
     { id: 2, title: "购物清单", content: "<p>牛奶、面包、鸡蛋</p>", category: "生活", tags: ["shopping"], lastUpdated: "2024-07-22 09:00:00" },
