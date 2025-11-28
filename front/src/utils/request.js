@@ -60,10 +60,11 @@ service.interceptors.response.use(
     // 处理业务状态码
     if (data.code !== undefined) {
       switch (data.code) {
+        case 0:
         case 200:
+        case 201: // ✅ 建议加上 201，防止后端在 body 里也返回 201
           return data;
         case 401:
-          // token过期或无效
           ElMessage.error("登录已过期，请重新登录");
           removeToken();
           window.location.href = "/login";
@@ -78,8 +79,10 @@ service.interceptors.response.use(
           ElMessage.error("服务器内部错误");
           return Promise.reject(new Error("服务器错误"));
         default:
-          ElMessage.error(data.message || "请求失败");
-          return Promise.reject(new Error(data.message || "请求失败"));
+          // ✅ 修复点：兼容 data.msg
+          const errorMsg = data.msg || data.message || "请求失败";
+          ElMessage.error(errorMsg);
+          return Promise.reject(new Error(errorMsg));
       }
     }
 

@@ -46,9 +46,9 @@ func LoadConfig() {
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnv("DB_PORT", "3306"),
-			Username: getEnv("DB_USER", "root"),
+			Username: getEnv("DB_USERNAME", "root"),
 			Password: getEnv("DB_PASSWORD", ""),
-			Database: getEnv("DB_NAME", "learning_assistant"),
+			Database: getEnv("DB_DATABASE", "learning_assistant"),
 			Charset:  getEnv("DB_CHARSET", "utf8mb4"),
 		},
 	}
