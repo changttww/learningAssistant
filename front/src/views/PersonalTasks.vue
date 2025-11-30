@@ -57,17 +57,7 @@
         </button>
 
         <!-- 已逾期任务卡片 -->
-        <button
-          type="button"
-          @click="setStatusFilter('pending')"
-          class="stat-card bg-gray-200 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:shadow focus:outline-none focus:ring-2 focus:ring-gray-500 active:scale-95 transition"
-          aria-label="待处理任务"
-        >
-          <span class="text-2xl font-bold text-gray-700">{{
-            stats.pending
-          }}</span>
-          <span class="text-gray-800 text-sm mt-1 font-medium">待处理</span>
-        </button>
+
         <button
           type="button"
           @click="setStatusFilter('overdue')"
@@ -218,6 +208,16 @@
                             ></div>
                             {{ getTaskActualStatus(task) }}
                           </span>
+                          <!-- 笔记标签 -->
+                          <button
+                            v-if="getTaskNote(task.id)"
+                            @click.stop="openNotebookModal(getTaskNote(task.id))"
+                            class="text-xs px-2 py-1 rounded-md font-medium flex items-center gap-1 bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors ml-1"
+                            title="点击查看关联笔记"
+                          >
+                            <iconify-icon icon="mdi:notebook-outline" width="14" height="14"></iconify-icon>
+                            笔记
+                          </button>
                         </div>
                       </div>
                       <!-- 操作按钮 -->
@@ -548,11 +548,20 @@
                     ></div>
                     {{ getTaskActualStatus(task) }}
                   </span>
+                  <!-- 笔记标签 -->
+                  <button
+                    v-if="getTaskNote(task.id)"
+                    @click.stop="openNotebookModal(getTaskNote(task.id))"
+                    class="text-xs px-2 py-1 rounded-md font-medium flex items-center gap-1 bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors"
+                    title="点击查看关联笔记"
+                  >
+                    <iconify-icon icon="mdi:notebook-outline" width="14" height="14"></iconify-icon>
+                    笔记
+                  </button>
                 </div>
                 <!-- 时间显示 -->
                 <span class="text-xs text-gray-500 font-medium flex items-center gap-1">
-                  <iconify-icon icon="mdi:clock-outline" width="14" height="14"></iconify-icon>
-                  {{ task.time }}
+                  <span>结束时间：{{ formatTaskEndTime(task) }}</span>
                 </span>
               </div>
 
@@ -637,7 +646,7 @@
                   </button>
                   <!-- 删除按钮 -->
                   <button
-                    @click.stop="handleDelete(task)"
+                    @click.stop="openDeleteConfirm(task)"
                     class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                     title="删除任务"
                   >
@@ -713,8 +722,8 @@
                   <h3 class="font-bold text-gray-800 text-base mb-1 truncate group-hover:text-purple-600 transition-colors">
                     {{ note.title }}
                   </h3>
-                  <div class="flex items-center gap-2 text-xs text-gray-500">
-                    <iconify-icon icon="mdi:calendar-outline" width="14" height="14"></iconify-icon>
+                  <div class="flex items-center gap-1 text-xs text-gray-500">
+                    <span>创建时间：</span>
                     <span>{{ note.date }}</span>
                   </div>
                 </div>
@@ -736,10 +745,25 @@
               ></div>
               <p v-else class="text-sm text-gray-400 italic mb-3">暂无内容</p>
 
+              <!-- 关联任务信息 -->
+              <div
+                v-if="note.taskId && getRelatedTask(note.taskId)"
+                class="mb-3 bg-blue-50 rounded-lg p-2.5 border border-blue-100 flex flex-col gap-1"
+              >
+                <div class="flex items-center gap-1.5 text-xs text-blue-800 font-bold">
+                  <iconify-icon icon="mdi:format-list-checks" width="14" height="14" class="text-blue-600"></iconify-icon>
+                  <span class="truncate">{{ getRelatedTask(note.taskId).title }}</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-[11px] text-blue-600">
+                  <iconify-icon icon="mdi:calendar-range" width="12" height="12"></iconify-icon>
+                  <span>{{ getRelatedTask(note.taskId).startDate }} ~ {{ getRelatedTask(note.taskId).endDate }}</span>
+                </div>
+              </div>
+
               <!-- 笔记底部 -->
               <div class="flex items-center justify-between pt-3 border-t border-gray-200">
                 <div class="flex items-center gap-1 text-xs text-gray-500">
-                  <iconify-icon icon="mdi:clock-outline" width="14" height="14"></iconify-icon>
+                  <span>最新保存时间：</span>
                   <span>{{ note.lastUpdated }}</span>
                 </div>
                 <button class="text-xs text-purple-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
@@ -959,6 +983,51 @@
       </div>
     </div>
 
+    <!-- 完成确认弹窗 -->
+    <div
+      v-if="showCompleteConfirm"
+      class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    >
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-modal-enter">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-lg font-bold text-gray-800">提示</h3>
+          <button @click="showCompleteConfirm = false" class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100">
+            <iconify-icon icon="mdi:close" width="20" height="20"></iconify-icon>
+          </button>
+        </div>
+        <div class="p-6 text-sm text-gray-700">
+          <p>该任务已完成，是否要创建关联笔记？</p>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+          <button @click="cancelCompleteWithoutNote" class="text-sm text-gray-700 bg-white border-2 border-gray-300 py-2 px-4 rounded-lg hover:bg-gray-50">取消</button>
+          <button @click="confirmCompleteWithNote" class="text-sm text-white bg-gradient-to-r from-purple-600 to-pink-600 py-2 px-4 rounded-lg hover:shadow-lg">确认</button>
+        </div>
+      </div>
+    </div>
+
+    
+
+    <div
+      v-if="showDeleteConfirm"
+      class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    >
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-modal-enter">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-lg font-bold text-gray-800">确认删除</h3>
+          <button @click="cancelDeleteTask" class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100">
+            <iconify-icon icon="mdi:close" width="20" height="20"></iconify-icon>
+          </button>
+        </div>
+        <div class="p-6 text-sm text-gray-700">
+          <p>您确定要删除该任务及其关联的所有笔记吗？此操作不可撤销。</p>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+          <button @click="cancelDeleteTask" class="text-sm text-gray-700 bg-white border-2 border-gray-300 py-2 px-4 rounded-lg hover:bg-gray-50">取消</button>
+          <button @click="confirmDeleteTask" class="text-sm text-white bg-gradient-to-r from-red-600 to-pink-600 py-2 px-4 rounded-lg hover:shadow-lg">确认</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 笔记本弹窗 -->
     <div
       v-if="showNotebookModal"
@@ -1010,13 +1079,6 @@
                   width="20"
                   height="20"
                 ></iconify-icon>
-              </button>
-              <button
-                @click="closeNotebookModal"
-                class="w-8 h-8 rounded-lg flex items-center justify-center text-white hover:bg-white/20 transition-colors"
-                aria-label="关闭笔记"
-              >
-                <iconify-icon icon="mdi:close" width="22"></iconify-icon>
               </button>
             </div>
           </div>
@@ -1168,10 +1230,11 @@
             </button>
             <button
               @click="closeAndSaveNote"
-              class="text-sm text-white bg-gradient-to-r from-purple-600 to-pink-600 py-2 px-5 rounded-lg hover:shadow-lg transition-all duration-200 transform hover:scale-105 font-medium flex items-center gap-2"
+              class="text-sm text-white bg-gradient-to-r from-purple-600 to-pink-600 py-2 px-5 rounded-lg hover:shadow-lg transition-all duration-200 transform hover:scale-105 font-medium flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              :disabled="isNoteSaving || !isNoteDirty"
             >
               <iconify-icon icon="mdi:content-save" width="16" height="16"></iconify-icon>
-              保存并关闭
+              {{ isNoteSaving ? "保存中..." : "保存并关闭" }}
             </button>
           </div>
         </div>
@@ -1184,9 +1247,10 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
-import { debounce } from "lodash";
 import Image from "@tiptap/extension-image";
-import { createTask, getPersonalTasks, completeTask, uncompleteTask, deleteTask } from "@/api/modules/task";
+import { createTask, getPersonalTasks, completeTask, completeTaskWithNote, uncompleteTask, deleteTask } from "@/api/modules/task";
+import { getStudyNotes, updateStudyNote, createStudyNote } from "@/api/modules/study";
+import { ElMessage } from "element-plus";
 
 // Name
 defineOptions({
@@ -1198,6 +1262,10 @@ const currentDate = ref(new Date());
 const selectedDate = ref(new Date());
 const showTaskModal = ref(false);
 const showNotebookModal = ref(false);
+const showCompleteConfirm = ref(false);
+const confirmingTask = ref(null);
+const showDeleteConfirm = ref(false);
+const deletingTask = ref(null);
 const isNotebookFullscreen = ref(false);
 const naturalLanguageInput = ref("");
 const statusFilter = ref(null);
@@ -1216,12 +1284,28 @@ const newTask = ref({
 
 // 当前笔记
 const currentNote = ref(null);
+const isNoteDirty = ref(false);
+const isNoteSaving = ref(false);
 
-const autosave = debounce(() => {
-  if (currentNote.value) {
-    currentNote.value.lastUpdated = new Date().toLocaleString("zh-CN");
+const loadNotes = async () => {
+  try {
+    const res = await getStudyNotes();
+    if (res && (res.code === 0 || res.code === 200)) {
+      const items = res.data || res.items || [];
+      notes.value = (items || []).map((n) => ({
+        id: n.id,
+        title: n.title,
+        content: n.content || "",
+        category: "学习",
+        date: n.created_at ? new Date(n.created_at).toLocaleString("zh-CN") : "",
+        lastUpdated: n.updated_at ? new Date(n.updated_at).toLocaleString("zh-CN") : "",
+        taskId: n.task_id || null,
+      }));
+    }
+  } catch (e) {
+    console.error("加载笔记失败", e);
   }
-}, 1500);
+};
 
 const editor = useEditor({
   content: "",
@@ -1229,9 +1313,10 @@ const editor = useEditor({
   editable: true,
   onUpdate: ({ editor }) => {
     if (currentNote.value) {
-      if (currentNote.value.content !== editor.getHTML()) {
-        currentNote.value.content = editor.getHTML();
-        autosave();
+      const next = editor.getHTML();
+      if (currentNote.value.content !== next) {
+        currentNote.value.content = next;
+        isNoteDirty.value = true;
       }
     }
   },
@@ -1255,6 +1340,15 @@ watch(
     }
   },
   { deep: true }
+);
+
+watch(
+  () => currentNote.value && currentNote.value.title,
+  () => {
+    if (currentNote.value) {
+      isNoteDirty.value = true;
+    }
+  }
 );
 
 // 计算属性
@@ -1477,6 +1571,7 @@ const loadPersonalTasks = async () => {
         startDate: task.start_at ? new Date(task.start_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         endDate: task.due_at ? new Date(task.due_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         time: task.start_at ? new Date(task.start_at).toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'}) : "全天",
+        endTime: task.due_at ? new Date(task.due_at).toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'}) : "全天",
         status: task.status === 2 ? "completed" : "pending", // 2=已完成, 1=进行中, 0=待处理
         notes: "",
         category: task.category?.name || "其他",
@@ -1536,7 +1631,8 @@ const saveTask = async () => {
           description: newTask.value.description,
           startDate: newTask.value.startDate,
           endDate: newTask.value.endDate,
-          time: newTask.value.endTime || "全天",
+          time: newTask.value.startTime || "09:00",
+          endTime: newTask.value.endTime || "18:00",
           category: newTask.value.category || "其他",
         };
         
@@ -1561,7 +1657,8 @@ const saveTask = async () => {
         date: newTask.value.startDate, // 保留兼容性
         startDate: newTask.value.startDate, // 任务开始日期
         endDate: newTask.value.endDate, // 任务结束日期
-        time: newTask.value.endTime || "全天",
+        time: newTask.value.startTime || "09:00",
+        endTime: newTask.value.endTime || "18:00",
         status: "pending", // 转换状态
         notes: "",
         category: newTask.value.category || "其他",
@@ -1584,19 +1681,41 @@ const saveTask = async () => {
 };
 
 const handleDelete = async (task) => {
-  if(!confirm("确定要删除此任务吗？")) {
-    return;
-  }
+  deletingTask.value = task;
+  showDeleteConfirm.value = true;
+};
+
+const openDeleteConfirm = (task) => {
+  deletingTask.value = task;
+  showDeleteConfirm.value = true;
+};
+
+const confirmDeleteTask = async () => {
+  if (!deletingTask.value) return;
+  const taskId = deletingTask.value.id;
   try {
-    const res = await deleteTask(task.id);
-    if(res.code === 0){
-      tasks.value = tasks.value.filter(t => t.id !== task.id);
-      alert("✅ 任务已删除");
+    const res = await deleteTask(taskId);
+    if (res.code === 0 || res.code === 200) {
+      tasks.value = tasks.value.filter((t) => t.id !== taskId);
+      notes.value = notes.value.filter((n) => n.taskId !== taskId);
+      alert("✅ 已删除该任务及其关联笔记");
+    } else {
+      throw new Error(res.msg || res.message || "删除失败");
     }
   } catch (error) {
-    console.error('删除任务失败:', error);
-    alert('删除任务失败，请检查网络连接');
+    console.error("删除任务失败:", error);
+    alert("删除任务失败，请稍后重试");
+    await loadPersonalTasks();
+    await loadNotes();
+  } finally {
+    showDeleteConfirm.value = false;
+    deletingTask.value = null;
   }
+};
+
+const cancelDeleteTask = () => {
+  showDeleteConfirm.value = false;
+  deletingTask.value = null;
 };
 
 const editTask = (task) => {
@@ -1606,9 +1725,9 @@ const editTask = (task) => {
     title: task.title,
     description: task.description,
     startDate: task.startDate,
-    startTime: task.time !== "全天" ? task.time.split('-')[0]?.trim() || "" : "",
+    startTime: task.time !== "全天" ? task.time : "",
     endDate: task.endDate,
-    endTime: task.time !== "全天" ? task.time.split('-')[1]?.trim() || task.time : "",
+    endTime: task.endTime !== "全天" ? task.endTime : "",
     category: task.category,
   };
   
@@ -1619,30 +1738,78 @@ const editTask = (task) => {
 const toggleTaskComplete = async (task) => {
   try {
     const wasCompleted = task.status === "completed";
-    
-    // 调用相应的API
     if (wasCompleted) {
       const response = await uncompleteTask(task.id);
       if (response.code === 0) {
         task.status = "pending";
-        console.log('✅ 任务状态已更新为pending');
       } else {
-        throw new Error(response.msg || '取消完成失败');
+        throw new Error(response.msg || "取消完成失败");
       }
     } else {
-      const response = await completeTask(task.id);
-      if (response.code === 0) {
-        task.status = "completed";
-        console.log('✅ 任务状态已更新为completed');
-      } else {
-        throw new Error(response.msg || '完成任务失败');
-      }
+      confirmingTask.value = task;
+      showCompleteConfirm.value = true;
     }
   } catch (error) {
-    console.error('更新任务状态失败:', error);
-    alert('更新任务状态失败，请重试');
-    // 如果API失败，重新加载任务数据以确保状态同步
+    console.error("更新任务状态失败:", error);
+    alert("更新任务状态失败，请重试");
     await loadPersonalTasks();
+  }
+};
+
+const confirmCompleteWithNote = async () => {
+  if (!confirmingTask.value) return;
+  try {
+    const response = await completeTaskWithNote(confirmingTask.value.id);
+    if (response.code === 0) {
+      confirmingTask.value.status = "completed";
+      const note = response.data?.note || response.note || response.data;
+      if (note) {
+        currentNote.value = {
+          id: note.id,
+          title: note.title,
+          content: note.content || "",
+          category: confirmingTask.value.category || "学习",
+          date: note.created_at ? new Date(note.created_at).toLocaleString("zh-CN") : new Date().toLocaleString("zh-CN"),
+          lastUpdated: new Date().toLocaleString("zh-CN"),
+          taskId: confirmingTask.value.id,
+        };
+        notes.value.push({ ...currentNote.value });
+        showNotebookModal.value = true;
+        setTimeout(() => {
+          if (editor.value) {
+            editor.value.chain().focus().run();
+          }
+        }, 0);
+      }
+    } else {
+      throw new Error(response.msg || "完成任务并创建笔记失败");
+    }
+  } catch (e) {
+    console.error("完成并创建笔记失败:", e);
+    alert("笔记创建失败，任务状态已回滚。请稍后重试");
+    await loadPersonalTasks();
+  } finally {
+    showCompleteConfirm.value = false;
+    confirmingTask.value = null;
+  }
+};
+
+const cancelCompleteWithoutNote = async () => {
+  if (!confirmingTask.value) return;
+  try {
+    const response = await completeTask(confirmingTask.value.id);
+    if (response.code === 0) {
+      confirmingTask.value.status = "completed";
+    } else {
+      throw new Error(response.msg || "完成任务失败");
+    }
+  } catch (e) {
+    console.error("仅完成任务失败:", e);
+    alert("完成任务失败，请重试");
+    await loadPersonalTasks();
+  } finally {
+    showCompleteConfirm.value = false;
+    confirmingTask.value = null;
   }
 };
 
@@ -1656,10 +1823,11 @@ const openNotebookModal = (note = null) => {
       content: "",
       category: "默认",
       tags: [],
-      lastUpdated: new Date().toLocaleString("zh-CN"),
+      lastUpdated: "",
     };
   }
   showNotebookModal.value = true;
+  isNoteDirty.value = false;
 };
 
 const closeNotebookModal = () => {
@@ -1671,21 +1839,70 @@ const toggleNotebookFullscreen = () => {
   isNotebookFullscreen.value = !isNotebookFullscreen.value;
 };
 
-const closeAndSaveNote = () => {
-  if (currentNote.value) {
+const saveNote = async () => {
+  if (!currentNote.value) return false;
+  if (isNoteSaving.value) return false;
+  isNoteSaving.value = true;
+  try {
+    const payload = {
+      title: currentNote.value.title || "",
+      content: currentNote.value.content || "",
+    };
+    let savedId = currentNote.value.id;
     if (currentNote.value.id) {
-      const index = notes.value.findIndex((n) => n.id === currentNote.value.id);
-      if (index !== -1) {
-        notes.value[index] = { ...currentNote.value };
+      const res = await updateStudyNote(currentNote.value.id, payload);
+      const updated = res?.data || res;
+      if (updated?.updated_at) {
+        currentNote.value.lastUpdated = new Date(updated.updated_at).toLocaleString("zh-CN");
       }
     } else {
-      notes.value.push({
-        ...currentNote.value,
-        id: Date.now(),
+      const res = await createStudyNote({
+        title: payload.title,
+        content: payload.content,
+        task_id: currentNote.value.taskId || undefined,
       });
+      const created = res?.data || res?.note || res;
+      savedId = created?.id || savedId;
+      if (savedId) {
+        currentNote.value.id = savedId;
+      }
+      if (created?.updated_at) {
+        currentNote.value.lastUpdated = new Date(created.updated_at).toLocaleString("zh-CN");
+      }
     }
+    const idx = notes.value.findIndex((n) => n.id === currentNote.value.id);
+    if (idx !== -1) {
+      notes.value[idx] = { ...currentNote.value };
+    } else {
+      notes.value.push({ ...currentNote.value });
+    }
+    isNoteDirty.value = false;
+    // ElMessage.success("笔记已保存");
+    return true;
+  } catch (e) {
+    console.error("保存笔记失败", e);
+    ElMessage.error(e?.message || "保存失败，请稍后重试");
+    return false;
+  } finally {
+    isNoteSaving.value = false;
   }
-  closeNotebookModal();
+};
+
+const closeAndSaveNote = async () => {
+  const ok = await saveNote();
+  if (ok) {
+    closeNotebookModal();
+  }
+};
+
+
+const getTaskNote = (taskId) => {
+  return notes.value.find(n => n.taskId === taskId);
+};
+
+const getRelatedTask = (taskId) => {
+  if (!taskId) return null;
+  return tasks.value.find((t) => t.id === taskId);
 };
 
 const getCategoryStyle = (category) => {
@@ -1782,6 +1999,12 @@ const getTaskActualStatus = (task) => {
   return '未知状态';
 };
 
+const formatTaskEndTime = (task) => {
+  if (!task.endDate) return task.endTime;
+  const [year, month, day] = task.endDate.split('-');
+  return `${parseInt(month)}月${parseInt(day)}日 ${task.endTime}`;
+};
+
 const setStatusFilter = (status) => {
   statusFilter.value = status;
 };
@@ -1809,89 +2032,9 @@ onMounted(async () => {
   
   // 加载个人任务
   await loadPersonalTasks();
-  
-  // 如果没有任务数据，则使用模拟数据（仅用于演示）
-  if (tasks.value.length === 0) {
-    // 使用当前日期作为基准
-    const today = new Date();
-    const todayStr = formatLocalDate(today);
-    
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = formatLocalDate(yesterday);
-    
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = formatLocalDate(tomorrow);
-    
-    const dayAfterTomorrow = new Date(today);
-    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
-    const dayAfterTomorrowStr = formatLocalDate(dayAfterTomorrow);
-    
-    const threeDaysAgo = new Date(today);
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-    const threeDaysAgoStr = formatLocalDate(threeDaysAgo);
-    
-    const twoDaysAgo = new Date(today);
-    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-    const twoDaysAgoStr = formatLocalDate(twoDaysAgo);
-    
-    tasks.value = [
-    {
-      id: 1,
-      title: "完成数学作业",
-      description: "复习高数第三章知识点（已完成）",
-      date: todayStr,
-      startDate: todayStr,
-      endDate: todayStr,
-      time: "13:30前",
-      status: "completed", // 已完成 - 绿色圆点
-      notes: "",
-      category: "数学",
-    },
-    {
-      id: 2,
-      title: "准备英语报告",
-      description: "关于气候变化的影响与应对（持续3天的任务 - 正在进行）",
-      date: yesterdayStr,
-      startDate: yesterdayStr,
-      endDate: tomorrowStr, // 从昨天到明天，今天处于中间
-      time: "15:00前",
-      status: "pending", // 状态为pending，但因为今天在任务周期内，会显示橙色
-      notes: "",
-      category: "英语",
-    },
-    {
-      id: 3,
-      title: "物理实验预习",
-      description: "下周的任务（还未开始 - 待处理）",
-      date: tomorrowStr,
-      startDate: tomorrowStr,
-      endDate: dayAfterTomorrowStr, // 从明天到后天
-      time: "17:00前",
-      status: "pending", // 因为开始时间晚于今天，会显示灰色
-      notes: "",
-      category: "物理",
-    },
-    {
-      id: 4,
-      title: "提交作业报告",
-      description: "截止日期已过，需要立即处理（已逾期）",
-      date: threeDaysAgoStr,
-      startDate: threeDaysAgoStr,
-      endDate: twoDaysAgoStr, // 3天前到2天前的任务，已经逾期
-      time: "23:59前",
-      status: "pending", // 状态为pending，但因为结束时间早于今天，会显示红色
-      notes: "",
-      category: "研究",
-    },
-    ];
-  }
-  
-  notes.value = [
-    { id: 1, title: "关于Vue 3组合式API的思考", content: "<h1>Vue 3</h1><p>组合式 API 非常强大...</p>", category: "学习", tags: ["Vue", "Frontend"], lastUpdated: "2024-07-21 10:30:00" },
-    { id: 2, title: "购物清单", content: "<p>牛奶、面包、鸡蛋</p>", category: "生活", tags: ["shopping"], lastUpdated: "2024-07-22 09:00:00" },
-  ];
+
+  // 加载学习笔记
+  await loadNotes();
 });
 
 watch(selectedDate, (d) => {
