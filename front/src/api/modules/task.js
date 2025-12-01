@@ -128,3 +128,24 @@ export function searchTasks(keyword, params = {}) {
     ...params,
   });
 }
+
+/**
+ * 获取今日任务
+ */
+export function getTodayTasks(userId) {
+  return request.get(`/tasks/users/${userId}/today`);
+}
+
+/**
+ * 获取任务柱状统计
+ */
+export function getTaskBarStats(range = "week") {
+  return request.get("/tasks/stats/bar", { range });
+}
+
+/**
+ * 获取近期月度完成率
+ */
+export function getMonthlyCompletionStats() {
+  return request.get("/tasks/stats/monthly-completion");
+}
