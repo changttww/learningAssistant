@@ -125,9 +125,6 @@ func registerUserRoutes(router *gin.RouterGroup) {
 	router.GET("/:userId/skills", handleGetUserSkills)
 	router.GET("/:userId/settings", handleGetUserSettings)
 	router.PUT("/:userId/settings", handleUpdateUserSettings)
-	router.GET("/:userId/notification-preferences", handleGetUserNotificationPreferences)
-	router.PUT("/:userId/notification-preferences", handleUpdateUserNotificationPreferences)
-	router.POST("/avatar", handleUploadAvatar)
 
 	// 学习伙伴
 	router.GET("/:userId/buddies", handleListStudyBuddies)
