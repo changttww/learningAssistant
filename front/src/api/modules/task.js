@@ -61,6 +61,13 @@ export function completeTask(taskId) {
 }
 
 /**
+ * 完成任务并创建关联笔记
+ */
+export function completeTaskWithNote(taskId) {
+  return request.post(`/tasks/${taskId}/complete-with-note`);
+}
+
+/**
  * 取消完成任务
  */
 export function uncompleteTask(taskId) {

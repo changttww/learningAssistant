@@ -43,6 +43,7 @@ func SetupRoutes(r *gin.Engine) {
 		study := v1.Group("/study")
 		registerStudyRoutes(study)
 		registerStudyWebsocketRoutes(study)
+		registerStudyNotesRoutes(study)
 		{
 			rooms := study.Group("/rooms")
 			rooms.GET("/:roomId/chat/history", handleGetRoomChatHistory)
@@ -65,6 +66,7 @@ func SetupRoutes(r *gin.Engine) {
 		studyLegacy := legacy.Group("/study")
 		registerStudyRoutes(studyLegacy)
 		registerStudyWebsocketRoutes(studyLegacy)
+		registerStudyNotesRoutes(studyLegacy)
 		{
 			roomsLegacy := studyLegacy.Group("/rooms")
 			roomsLegacy.GET("/:roomId/chat/history", handleGetRoomChatHistory)

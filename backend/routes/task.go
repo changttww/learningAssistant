@@ -83,6 +83,7 @@ func registerTaskRoutes(r *gin.RouterGroup) {
 	r.PUT("/:id", updateTask)
 	r.DELETE("/:id", deleteTask)
 	r.POST("/:id/complete", completeTask)
+	r.POST("/:id/complete-with-note", completeTaskWithNote)
 	r.POST("/:id/uncomplete", uncompleteTask)
 	r.GET("/categories", getTaskCategories)
 	r.GET("/statistics", getTaskStatistics)
@@ -405,7 +406,16 @@ func deleteTask(c *gin.Context) {
 		return
 	}
 
-	if err := database.GetDB().Delete(&task).Error; err != nil {
+	// 原子化删除：同时删除与该任务关联的用户笔记
+	if err := database.GetDB().Transaction(func(tx *gorm.DB) error {
+		if err := tx.Unscoped().Where("task_id = ? AND user_id = ?", taskID, userID.(uint64)).Delete(&models.StudyNote{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Unscoped().Delete(&task).Error; err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除任务失败"})
 		return
 	}
@@ -455,6 +465,72 @@ func completeTask(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"msg":  "任务已完成",
+	})
+}
+
+// completeTaskWithNote 完成任务并创建关联笔记（原子操作）
+func completeTaskWithNote(c *gin.Context) {
+	taskID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的任务ID"})
+		return
+	}
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
+		return
+	}
+
+	var task models.Task
+	if err := database.GetDB().Where("id = ? AND (created_by = ? OR owner_user_id = ?)", taskID, userID.(uint64), userID.(uint64)).First(&task).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "任务不存在或无权限访问"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询任务失败"})
+		}
+		return
+	}
+
+	now := time.Now()
+
+	var createdNote models.StudyNote
+	if err := database.GetDB().Transaction(func(tx *gorm.DB) error {
+		from := task.Status
+		if err := tx.Model(&task).Updates(map[string]interface{}{"status": 2, "completed_at": now}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Create(&models.TaskStatusHistory{
+			TaskID:     task.ID,
+			UserID:     &task.CreatedBy,
+			FromStatus: from,
+			ToStatus:   2,
+			Remark:     "complete-with-note",
+		}).Error; err != nil {
+			return err
+		}
+
+		title := task.Title + " - " + now.Format("2006-01-02 15:04")
+		createdNote = models.StudyNote{
+			UserID:  userID.(uint64),
+			TaskID:  &taskID,
+			Title:   title,
+			Content: "",
+		}
+		if err := tx.Create(&createdNote).Error; err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "完成任务并创建笔记失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"data": gin.H{"note": createdNote},
+		"msg":  "任务已完成并创建笔记",
 	})
 }
 
