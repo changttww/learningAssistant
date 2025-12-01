@@ -125,6 +125,12 @@ func registerUserRoutes(router *gin.RouterGroup) {
 	router.GET("/:userId/skills", handleGetUserSkills)
 	router.GET("/:userId/settings", handleGetUserSettings)
 	router.PUT("/:userId/settings", handleUpdateUserSettings)
+
+	// 学习伙伴
+	router.GET("/:userId/buddies", handleListStudyBuddies)
+	router.POST("/:userId/buddies", handleAddStudyBuddy)
+	router.PUT("/:userId/buddies/:buddyId", handleUpdateStudyBuddy)
+	router.DELETE("/:userId/buddies/:buddyId", handleDeleteStudyBuddy)
 }
 
 func handleGetUserProfile(c *gin.Context) {
@@ -529,6 +535,111 @@ func buildPointsSummary(profile *models.UserProfile) gin.H {
 		"current_level":     profile.Level,
 		"level_label":       levelLabel,
 	}
+}
+
+func handleListStudyBuddies(c *gin.Context) {
+	userID, ok := parseUserID(c)
+	if !ok {
+		return
+	}
+	db := database.GetDB()
+	var buddies []models.StudyBuddy
+	if err := db.Where("user_id = ?", userID).Find(&buddies).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取学习伙伴失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 200, "data": buddies})
+}
+
+func handleAddStudyBuddy(c *gin.Context) {
+	userID, ok := parseUserID(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		BuddyID uint64 `json:"buddy_id"`
+		Remark  string `json:"remark"`
+		Tags    string `json:"tags"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数格式不正确"})
+		return
+	}
+	if req.BuddyID == 0 || req.BuddyID == userID {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "伙伴ID无效"})
+		return
+	}
+	db := database.GetDB()
+	var count int64
+	db.Model(&models.StudyBuddy{}).
+		Where("user_id = ? AND buddy_id = ?", userID, req.BuddyID).
+		Count(&count)
+	if count > 0 {
+		c.JSON(http.StatusOK, gin.H{"code": 200, "message": "已存在", "data": nil})
+		return
+	}
+	buddy := models.StudyBuddy{
+		UserID:  userID,
+		BuddyID: req.BuddyID,
+		Remark:  strings.TrimSpace(req.Remark),
+		Tags:    strings.TrimSpace(req.Tags),
+	}
+	if err := db.Create(&buddy).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "添加学习伙伴失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 200, "data": buddy})
+}
+
+func handleUpdateStudyBuddy(c *gin.Context) {
+	userID, ok := parseUserID(c)
+	if !ok {
+		return
+	}
+	buddyID, err := strconv.ParseUint(c.Param("buddyId"), 10, 64)
+	if err != nil || buddyID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "伙伴ID无效"})
+		return
+	}
+	var req struct {
+		Remark string `json:"remark"`
+		Tags   string `json:"tags"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数格式不正确"})
+		return
+	}
+	db := database.GetDB()
+	update := map[string]interface{}{
+		"remark": strings.TrimSpace(req.Remark),
+		"tags":   strings.TrimSpace(req.Tags),
+	}
+	if err := db.Model(&models.StudyBuddy{}).
+		Where("user_id = ? AND buddy_id = ?", userID, buddyID).
+		Updates(update).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "更新成功"})
+}
+
+func handleDeleteStudyBuddy(c *gin.Context) {
+	userID, ok := parseUserID(c)
+	if !ok {
+		return
+	}
+	buddyID, err := strconv.ParseUint(c.Param("buddyId"), 10, 64)
+	if err != nil || buddyID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "伙伴ID无效"})
+		return
+	}
+	db := database.GetDB()
+	if err := db.Where("user_id = ? AND buddy_id = ?", userID, buddyID).
+		Delete(&models.StudyBuddy{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "删除成功"})
 }
 
 func buildUserProfileResponse(user *models.User, badges []models.UserBadge) userProfileResponse {

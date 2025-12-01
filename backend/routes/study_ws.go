@@ -405,6 +405,35 @@ func (h *studyRoomHub) handleEvent(client *studyClient, env wsEnvelope) {
 		}
 		h.broadcast(wsEnvelope{Type: "chat", Data: mustMarshal(msg)}, 0)
 
+	case "direct_chat":
+		var payload struct {
+			TargetID uint64 `json:"target_id"`
+			Content  string `json:"content"`
+		}
+		if err := json.Unmarshal(env.Data, &payload); err != nil {
+			return
+		}
+		content := strings.TrimSpace(payload.Content)
+		if content == "" || payload.TargetID == 0 {
+			return
+		}
+		target := h.clients[payload.TargetID]
+		if target == nil {
+			return
+		}
+		now := time.Now().Format(time.RFC3339)
+		msg := map[string]interface{}{
+			"from_id":      client.userID,
+			"to_id":        payload.TargetID,
+			"display_name": client.displayName,
+			"content":      content,
+			"sent_at":      now,
+		}
+		if target != nil {
+			target.send <- wsEnvelope{Type: "direct_chat", Data: mustMarshal(msg)}
+		}
+		client.send <- wsEnvelope{Type: "direct_chat", Data: mustMarshal(msg)}
+
 	case "state_request":
 		client.send <- wsEnvelope{Type: "state", Data: mustMarshal(h.buildStatePayload())}
 	}
