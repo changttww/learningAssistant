@@ -33,13 +33,7 @@
       </div>
       <div class="flex items-center space-x-5">
         <div v-if="isAuthenticated" class="relative">
-          <iconify-icon
-            icon="mdi:bell-outline"
-            width="24"
-            height="24"
-            class="text-gray-600"
-          ></iconify-icon>
-          <div class="notification-dot"></div>
+          <NotificationCenter />
         </div>
         <div v-if="isAuthenticated" class="flex items-center">
           <router-link to="/profile" class="flex items-center">
@@ -87,6 +81,7 @@
 import { computed, onMounted } from "vue";
 import { useCurrentUser } from "@/composables/useCurrentUser";
 import { getToken } from "@/utils/auth";
+import NotificationCenter from "@/components/NotificationCenter.vue";
 
 const {
   profile,

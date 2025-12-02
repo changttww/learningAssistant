@@ -36,6 +36,10 @@ func SetupRoutes(r *gin.Engine) {
 		teams := v1.Group("/teams")
 		registerTeamRoutes(teams)
 
+		// 通知相关路由
+		notifications := v1.Group("/notifications")
+		registerNotificationRoutes(notifications)
+
 		// 学习室相关路由
 		study := v1.Group("/study")
 		registerStudyRoutes(study)
@@ -63,6 +67,9 @@ func SetupRoutes(r *gin.Engine) {
 
 		teamsLegacy := legacy.Group("/teams")
 		registerTeamRoutes(teamsLegacy)
+
+		notificationsLegacy := legacy.Group("/notifications")
+		registerNotificationRoutes(notificationsLegacy)
 
 		studyLegacy := legacy.Group("/study")
 		registerStudyRoutes(studyLegacy)
