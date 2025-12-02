@@ -240,10 +240,10 @@ func getTeamTasks(c *gin.Context) {
 	var tasks []models.Task
 	db := database.GetDB().Preload("Category")
 
-	// 获取团队任务 (task_type = 2) - 这里需要根据用户的团队关系进行查询
-	// 暂时简单实现为创建者或所有者是当前用户的团队任务
-	db = db.Where("task_type = ? AND (created_by = ? OR owner_team_id IN (SELECT team_id FROM user_teams WHERE user_id = ?))",
-		2, userID.(uint64), userID.(uint64))
+    // 获取团队任务 (task_type = 2)
+    // 简化逻辑：当前用户创建的任务，或其所在团队的任务
+    db = db.Where("task_type = ? AND (created_by = ? OR owner_team_id IN (SELECT team_id FROM team_members WHERE user_id = ?))",
+        2, userID.(uint64), userID.(uint64))
 
 	if err := db.Find(&tasks).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取团队任务失败"})

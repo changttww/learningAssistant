@@ -136,3 +136,10 @@ export function getTeamSettings(teamId) {
 export function updateTeamSettings(teamId, settings) {
   return request.put(`/teams/${teamId}/settings`, settings);
 }
+
+/**
+ * 通过名称加入团队
+ */
+export function joinTeamByName(teamName) {
+  return request.post("/teams/join-by-name", { team_name: teamName });
+}

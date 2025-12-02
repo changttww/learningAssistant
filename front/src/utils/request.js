@@ -90,6 +90,10 @@ service.interceptors.response.use(
   },
   (error) => {
     console.error("响应拦截器错误:", error);
+    if (error.response) {
+      console.error("错误状态码:", error.response.status);
+      console.error("错误数据:", error.response.data);
+    }
 
     // 网络错误处理
     if (!error.response) {
