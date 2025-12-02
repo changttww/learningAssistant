@@ -6,17 +6,25 @@
 				<div class="card surface-card">
 					<div class="flex items-center justify-between mb-6">
 						<h1 class="page-title">团队任务</h1>
-						<button
-							@click="openCreateModal"
-							class="primary-btn flex items-center gap-2"
-						>
-							<iconify-icon
-								icon="mdi:plus"
-								width="16"
-								height="16"
-							></iconify-icon>
-							创建任务
-						</button>
+						<div class="flex items-center gap-3">
+							<button
+								@click="goToConstellation"
+								class="ghost-btn whitespace-nowrap"
+							>
+								任务概览
+							</button>
+							<button
+								@click="openCreateModal"
+								class="primary-btn flex items-center gap-2"
+							>
+								<iconify-icon
+									icon="mdi:plus"
+									width="16"
+									height="16"
+								></iconify-icon>
+								创建任务
+							</button>
+						</div>
 					</div>
 
 					<!-- 创建任务模态框 -->
@@ -424,6 +432,9 @@ export default {
 		}
 	},
 	methods: {
+		goToConstellation() {
+			this.$router.push("/team-tasks/constellation");
+		},
 		handleResize() {
 			if (this.chart) this.chart.resize();
 		},

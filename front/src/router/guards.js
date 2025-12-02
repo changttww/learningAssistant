@@ -27,6 +27,7 @@ const whiteList = [
   "/profile",
   "/study-room",
   "/team-tasks",
+  "/team-tasks/constellation",
   "/video-room/*",
   "/",
 ];
