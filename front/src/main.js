@@ -7,6 +7,7 @@ import App from "./App.vue";
 import Home from "./views/Home.vue";
 import PersonalTasks from "./views/PersonalTasks.vue";
 import TeamTasks from "./views/TeamTasks.vue";
+import TeamConstellation from "./views/TeamConstellation.vue";
 import StudyRoom from "./views/StudyRoom.vue";
 import VideoRoom from "./views/VideoRoom.vue";
 import Profile from "./views/Profile.vue";
@@ -34,6 +35,12 @@ const routes = [
     name: "TeamTasks",
     component: TeamTasks,
     meta: { title: "团队任务", requiresAuth: true, permissions: ["team:view"] },
+  },
+  {
+    path: "/team-tasks/constellation",
+    name: "TeamConstellation",
+    component: TeamConstellation,
+    meta: { title: "任务星图", requiresAuth: true, permissions: ["team:view"] },
   },
   {
     path: "/study-room",
