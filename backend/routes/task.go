@@ -1,11 +1,14 @@
 package routes
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"learningAssistant-backend/database"
@@ -24,6 +27,8 @@ type CreateTaskRequest struct {
 	DueAt           *time.Time `json:"due_at"`
 	EstimateMinutes *int       `json:"estimate_minutes"`
 	EffortPoints    int        `json:"effort_points"`
+	OwnerTeamID     *uint64    `json:"owner_team_id"`
+	Subtasks        []string   `json:"subtasks"`
 }
 
 // UpdateTaskRequest 更新任务请求结构
@@ -37,6 +42,8 @@ type UpdateTaskRequest struct {
 	DueAt           *time.Time `json:"due_at"`
 	EstimateMinutes *int       `json:"estimate_minutes"`
 	EffortPoints    *int       `json:"effort_points"`
+	OwnerTeamID     *uint64    `json:"owner_team_id"`
+	Subtasks        []string   `json:"subtasks"`
 }
 
 // TaskResponse 任务响应结构
@@ -59,6 +66,7 @@ type TaskResponse struct {
 	EffortPoints    int                   `json:"effort_points"`
 	CreatedAt       time.Time             `json:"created_at"`
 	UpdatedAt       time.Time             `json:"updated_at"`
+	Subtasks        []string              `json:"subtasks"`
 }
 
 // TaskCategoryResponse 任务分类响应结构
@@ -116,6 +124,11 @@ func createTask(c *gin.Context) {
 		EstimateMinutes: req.EstimateMinutes,
 		EffortPoints:    req.EffortPoints,
 		Status:          0, // 默认状态为待处理
+	}
+
+	task.OwnerTeamID = req.OwnerTeamID
+	if encoded := encodeSubtasksPayload(req.Subtasks); encoded != nil {
+		task.Subtasks = encoded
 	}
 
 	// 如果是个人任务，设置所有者为当前用户
@@ -242,7 +255,7 @@ func getTeamTasks(c *gin.Context) {
 
 	// 获取团队任务 (task_type = 2) - 这里需要根据用户的团队关系进行查询
 	// 暂时简单实现为创建者或所有者是当前用户的团队任务
-	db = db.Where("task_type = ? AND (created_by = ? OR owner_team_id IN (SELECT team_id FROM user_teams WHERE user_id = ?))",
+	db = db.Where("task_type = ? AND (created_by = ? OR owner_team_id IN (SELECT team_id FROM team_members WHERE user_id = ?))",
 		2, userID.(uint64), userID.(uint64))
 
 	if err := db.Find(&tasks).Error; err != nil {
@@ -363,6 +376,12 @@ func updateTask(c *gin.Context) {
 	}
 	if req.EffortPoints != nil {
 		updateData["effort_points"] = *req.EffortPoints
+	}
+	if req.OwnerTeamID != nil {
+		updateData["owner_team_id"] = *req.OwnerTeamID
+	}
+	if req.Subtasks != nil {
+		updateData["subtasks"] = encodeSubtasksPayload(req.Subtasks)
 	}
 
 	if err := database.GetDB().Model(&task).Updates(updateData).Error; err != nil {
@@ -663,6 +682,8 @@ func convertTaskToResponse(task models.Task) TaskResponse {
 		UpdatedAt:       task.UpdatedAt,
 	}
 
+	response.Subtasks = decodeSubtasksPayload(task.Subtasks)
+
 	// 如果有分类信息，添加到响应中
 	if task.Category != nil {
 		response.Category = &TaskCategoryResponse{
@@ -673,4 +694,33 @@ func convertTaskToResponse(task models.Task) TaskResponse {
 	}
 
 	return response
+}
+
+func encodeSubtasksPayload(raw []string) datatypes.JSON {
+	if raw == nil {
+		return nil
+	}
+	cleaned := make([]string, 0, len(raw))
+	for _, entry := range raw {
+		trimmed := strings.TrimSpace(entry)
+		if trimmed != "" {
+			cleaned = append(cleaned, trimmed)
+		}
+	}
+	data, err := json.Marshal(cleaned)
+	if err != nil {
+		return datatypes.JSON([]byte("[]"))
+	}
+	return datatypes.JSON(data)
+}
+
+func decodeSubtasksPayload(payload datatypes.JSON) []string {
+	if len(payload) == 0 {
+		return []string{}
+	}
+	var subtasks []string
+	if err := json.Unmarshal(payload, &subtasks); err != nil {
+		return []string{}
+	}
+	return subtasks
 }

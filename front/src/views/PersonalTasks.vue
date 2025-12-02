@@ -72,6 +72,47 @@
         </button>
       </div>
 
+      <!-- 我的团队任务 -->
+      <div class="mb-6">
+        <div class="bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-5">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="text-lg font-bold text-gray-800">我的团队任务</h3>
+              <p class="text-sm text-gray-500">展示你所属团队的最新任务</p>
+            </div>
+            <router-link to="/team-tasks" class="text-sm text-blue-600 hover:text-blue-500">前往团队任务</router-link>
+          </div>
+          <div v-if="teamTasksLoading" class="py-8 text-center text-sm text-gray-400">正在加载团队任务...</div>
+          <div v-else-if="teamTasksError" class="py-8 text-center text-sm text-red-500">{{ teamTasksError }}</div>
+          <div v-else-if="!teamTasks.length" class="py-8 text-center text-sm text-gray-400">暂未找到团队任务，加入团队后即可查看</div>
+          <div v-else class="grid gap-4 mt-4 md:grid-cols-2">
+            <div
+              v-for="task in teamTaskPreview"
+              :key="`team-preview-${task.id}`"
+              class="border-2 border-blue-100 rounded-xl p-4 bg-blue-50/70 shadow-sm"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="font-semibold text-gray-800">{{ task.title }}</p>
+                  <p class="text-xs text-gray-500 mt-1">所属团队ID：{{ task.teamId || '未关联团队' }}</p>
+                </div>
+                <span :class="['px-2 py-0.5 rounded-full text-xs font-semibold', getTeamTaskBadgeClass(task.status)]">
+                  {{ getTeamTaskStatusLabel(task.status) }}
+                </span>
+              </div>
+              <p class="text-xs text-gray-500 mt-2">截止 {{ task.dueDate || '未设置' }}</p>
+              <div class="w-full h-2 bg-white rounded-full overflow-hidden mt-3">
+                <div class="h-full bg-gradient-to-r from-blue-500 to-indigo-500" :style="{ width: `${task.progress}%` }"></div>
+              </div>
+              <p v-if="task.description" class="text-xs text-gray-600 mt-3 line-clamp-2">{{ task.description }}</p>
+            </div>
+          </div>
+          <p v-if="teamTasks.length > teamTaskPreview.length" class="text-xs text-gray-500 text-right mt-3">
+            还有 {{ teamTasks.length - teamTaskPreview.length }} 个团队任务，前往团队任务页查看更多
+          </p>
+        </div>
+      </div>
+
       <!-- 状态任务详情列表 -->
       <div v-if="statusFilter" class="mb-6 animate-modal-enter">
         <div class="bg-white border-2 border-gray-200 rounded-2xl shadow-lg overflow-hidden">
@@ -1248,7 +1289,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
-import { createTask, getPersonalTasks, completeTask, completeTaskWithNote, uncompleteTask, deleteTask } from "@/api/modules/task";
+import { createTask, getPersonalTasks, getTeamTasks, completeTask, completeTaskWithNote, uncompleteTask, deleteTask } from "@/api/modules/task";
 import { getStudyNotes, updateStudyNote, createStudyNote } from "@/api/modules/study";
 import { ElMessage } from "element-plus";
 
@@ -1281,6 +1322,11 @@ const newTask = ref({
   endTime: "",
   category: "",
 });
+const teamTasks = ref([]);
+const teamTasksLoading = ref(false);
+const teamTasksError = ref("");
+const TEAM_TASK_PREVIEW_LIMIT = 4;
+const teamTaskPreview = computed(() => teamTasks.value.slice(0, TEAM_TASK_PREVIEW_LIMIT));
 
 // 当前笔记
 const currentNote = ref(null);
@@ -1350,6 +1396,94 @@ watch(
     }
   }
 );
+
+const normalizeTeamTaskStatus = (status) => {
+  const numeric = Number(status);
+  if (!Number.isNaN(numeric)) {
+    if (numeric === 2) return "completed";
+    if (numeric === 1) return "in-progress";
+    return "pending";
+  }
+  const lowered = String(status ?? "").toLowerCase();
+  if (lowered.includes("complete")) return "completed";
+  if (lowered.includes("progress") || lowered.includes("doing")) return "in-progress";
+  return "pending";
+};
+
+const getTeamTaskStatusLabel = (status) => {
+  const map = {
+    completed: "已完成",
+    "in-progress": "进行中",
+    pending: "待处理",
+  };
+  return map[status] || "待处理";
+};
+
+const getTeamTaskBadgeClass = (status) => {
+  if (status === "completed") return "bg-green-100 text-green-700";
+  if (status === "in-progress") return "bg-orange-100 text-orange-700";
+  return "bg-gray-100 text-gray-700";
+};
+
+const clampProgress = (value) => {
+  const n = Number(value);
+  if (Number.isNaN(n)) return 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
+};
+
+const calcTeamTaskProgress = (task) => {
+  if (typeof task?.progress === "number" && !Number.isNaN(task.progress)) {
+    return clampProgress(task.progress);
+  }
+  const status = normalizeTeamTaskStatus(task?.status);
+  if (status === "completed") return 100;
+  if (status === "in-progress") return 60;
+  return 0;
+};
+
+const formatISODate = (value) => {
+  if (!value) return "";
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toISOString().split("T")[0];
+  } catch (error) {
+    console.warn("格式化日期失败：", error);
+    return "";
+  }
+};
+
+const loadTeamTasks = async () => {
+  teamTasksLoading.value = true;
+  teamTasksError.value = "";
+  try {
+    const response = await getTeamTasks();
+    let rawList = [];
+    if (Array.isArray(response?.data)) {
+      rawList = response.data;
+    } else if (Array.isArray(response?.items)) {
+      rawList = response.items;
+    } else if (Array.isArray(response)) {
+      rawList = response;
+    }
+    teamTasks.value = rawList
+      .filter((task) => task.owner_team_id)
+      .map((task) => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        teamId: task.owner_team_id,
+        dueDate: formatISODate(task.due_at || task.due_date),
+        status: normalizeTeamTaskStatus(task.status),
+        progress: calcTeamTaskProgress(task),
+      }));
+  } catch (error) {
+    console.error("加载团队任务失败:", error);
+    teamTasksError.value = error?.message || "加载团队任务失败";
+  } finally {
+    teamTasksLoading.value = false;
+  }
+};
 
 // 计算属性
 const currentMonthYear = computed(() => {
@@ -2032,6 +2166,9 @@ onMounted(async () => {
   
   // 加载个人任务
   await loadPersonalTasks();
+
+  // 加载团队任务
+  await loadTeamTasks();
 
   // 加载学习笔记
   await loadNotes();

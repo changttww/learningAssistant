@@ -47,8 +47,47 @@
 										<input id="create-due" v-model="newTaskForm.due_date" type="date" class="w-full mt-1 p-2 border rounded" />
 									</div>
 									<div class="flex-1">
-										<label for="create-owner" class="text-sm">负责人</label>
-										<input id="create-owner" v-model="newTaskForm.owner_name" type="text" class="w-full mt-1 p-2 border rounded" placeholder="负责人姓名（可选）" />
+										<label for="create-team" class="text-sm">所属团队（可选）</label>
+										<select
+											id="create-team"
+											v-model="newTaskForm.owner_team_id"
+											class="w-full mt-1 p-2 border rounded"
+											:disabled="ownedTeamsLoading || !ownedTeams.length"
+										>
+											<option value="">未关联团队</option>
+											<option v-for="team in ownedTeams" :key="team.id" :value="team.id">
+												{{ team.name }}
+											</option>
+										</select>
+										<p v-if="ownedTeamsLoading" class="text-xs text-gray-400 mt-1">加载团队列表中...</p>
+										<p v-else-if="!ownedTeams.length" class="text-xs text-gray-400 mt-1">暂无你拥有的团队</p>
+									</div>
+								</div>
+								<div>
+									<div class="flex items-center justify-between">
+										<span class="text-sm">子任务</span>
+										<button type="button" class="text-xs text-blue-600" @click="addSubtaskField">+ 添加子任务</button>
+									</div>
+									<div class="space-y-2 mt-2">
+										<div
+											v-for="(subtask, index) in newTaskForm.subtasks"
+											:key="`new-subtask-${index}`"
+											class="flex items-center gap-2"
+										>
+											<input
+												v-model="newTaskForm.subtasks[index]"
+												type="text"
+												class="flex-1 p-2 border rounded"
+												placeholder="子任务标题"
+											/>
+											<button
+												type="button"
+												class="text-xs text-gray-500 hover:text-red-500"
+												@click="removeSubtaskField(index)"
+											>
+												删除
+											</button>
+										</div>
 									</div>
 								</div>
 							</div>
@@ -65,11 +104,35 @@
 						<div class="chart-container" ref="teamProgressChart"></div>
 					</div>
 
+					<!-- 我创建的团队任务 -->
+					<div v-if="myCreatedTeamTasks.length" class="mb-6">
+						<div class="flex items-center justify-between">
+							<h3 class="section-title">我创建的团队任务</h3>
+							<span class="text-sm text-gray-500">共 {{ myCreatedTeamTasks.length }} 个</span>
+						</div>
+						<div class="grid gap-3 mt-3">
+							<div
+								v-for="task in myCreatedTeamTasks"
+								:key="`my-team-task-${task.id}`"
+								class="p-3 rounded-lg border border-blue-100 bg-blue-50 flex items-center justify-between gap-3 flex-wrap"
+							>
+								<div class="min-w-0">
+									<p class="text-sm font-semibold text-gray-800 truncate">{{ task.title }}</p>
+									<p class="text-xs text-gray-600 truncate">{{ task.description || '暂无描述' }}</p>
+								</div>
+								<div class="flex items-center gap-2">
+									<span class="text-xs text-gray-500">截止 {{ task.due_date || task.created_at || '未设定' }}</span>
+									<button class="text-xs text-blue-600 hover:underline" @click="focusTaskCard(task.id)">查看详情</button>
+								</div>
+							</div>
+						</div>
+					</div>
+
 					<!-- 任务列表 -->
 					<div class="space-y-4">
 						<h3 class="section-title">当前任务</h3>
 
-						<div v-for="task in tasks" :key="task.id" :class="taskCardClass(task)">
+						<div v-for="task in tasks" :key="task.id" :data-task-id="task.id" :class="taskCardClass(task)">
 							<div class="flex items-start justify-between gap-4">
 								<div class="flex-1">
 									<h4 class="task-title">{{ task.title }}</h4>
@@ -102,6 +165,7 @@
 									</div>
 								</div>
 								<div class="flex flex-col items-end gap-2">
+									<span v-if="isCreatedByCurrentUser(task)" class="badge badge-info">我创建</span>
 									<span :class="['badge', statusBadgeClass(task)]">{{ task.status_label || task.status }}</span>
 									<span
 										v-if="taskHealth(task)"
@@ -110,12 +174,13 @@
 								</div>
 							</div>
 							<div v-if="isTaskExpanded(task.id)" class="mt-4 rounded-lg border border-dashed border-gray-200 p-4 space-y-4">
+								<div v-if="isDetailLoading(task.id)" class="text-xs text-gray-400">详情加载中...</div>
 								<div>
 									<div class="flex items-center justify-between mb-2">
 										<h4 class="text-sm font-semibold text-gray-700">子任务</h4>
 										<span class="text-xs text-gray-400">{{ getTaskDetail(task).subtasks.length }} 个</span>
 									</div>
-									<ul class="space-y-1">
+									<ul v-if="getTaskDetail(task).subtasks.length" class="space-y-1">
 										<li
 											v-for="sub in getTaskDetail(task).subtasks"
 											:key="sub.id"
@@ -125,25 +190,27 @@
 											<span class="text-xs text-gray-500">{{ sub.status }}</span>
 										</li>
 									</ul>
+									<p v-else class="text-xs text-gray-400">暂无子任务</p>
 								</div>
 								<div>
 									<div class="flex items-center justify-between mb-2">
 										<h4 class="text-sm font-semibold text-gray-700">附件</h4>
 										<span class="text-xs text-gray-400">{{ getTaskDetail(task).attachments.length }} 个</span>
 									</div>
-									<ul class="space-y-1 text-sm">
+									<ul v-if="getTaskDetail(task).attachments.length" class="space-y-1 text-sm">
 										<li v-for="file in getTaskDetail(task).attachments" :key="file.id" class="flex items-center justify-between">
 											<span>{{ file.name }}</span>
 											<span class="text-xs text-gray-500">{{ file.size }}</span>
 										</li>
 									</ul>
+									<p v-else class="text-xs text-gray-400">暂无附件</p>
 								</div>
 								<div>
 									<div class="flex items-center justify-between mb-2">
 										<h4 class="text-sm font-semibold text-gray-700">评论</h4>
 										<span class="text-xs text-gray-400">{{ getTaskDetail(task).comments.length }} 条</span>
 									</div>
-									<ul class="space-y-2 text-sm">
+									<ul v-if="getTaskDetail(task).comments.length" class="space-y-2 text-sm">
 										<li v-for="comment in getTaskDetail(task).comments" :key="comment.id">
 											<div class="flex items-center justify-between">
 												<span class="font-medium">{{ comment.author }}</span>
@@ -152,6 +219,7 @@
 											<p class="text-gray-600">{{ comment.content }}</p>
 										</li>
 									</ul>
+									<p v-else class="text-xs text-gray-400">暂无评论</p>
 								</div>
 							</div>
 						</div>
@@ -363,51 +431,46 @@
 
 <script>
 import * as echarts from "echarts";
-import { getTeamTasks, createTask, updateTaskProgress } from "@/api/modules/task";
+import { getTeamTasks, createTask, updateTaskProgress, getTaskDetail } from "@/api/modules/task";
+import { getTeamList } from "@/api/modules/team";
+import { useCurrentUser } from "@/composables/useCurrentUser";
 
 export default {
 	name: "TeamTasks",
+	setup() {
+		const { profile, loadCurrentUser } = useCurrentUser();
+		if (!profile.value) {
+			loadCurrentUser().catch((error) => {
+				console.warn("加载当前用户信息失败：", error);
+			});
+		}
+		return {
+			currentUserProfile: profile,
+			loadCurrentUserProfile: loadCurrentUser,
+		};
+	},
 	data() {
 		return {
-			tasks: [
-				{
-					id: 1,
-					title: "登录功能开发",
-					description: "实现用户登录、注册和密码重置功能",
-					owner_name: "王同学",
-					due_date: "2024-01-18",
-					created_at: "2024-01-01",
-					status: "in-progress",
-					status_label: "进行中",
-					progress: 85,
-				},
-				{
-					id: 2,
-					title: "支付模块设计",
-					description: "设计支付流程和界面规范",
-					owner_name: "陈同学",
-					due_date: "2026-01-22",
-					created_at: "2024-01-05",
-					status: "in-progress",
-					status_label: "设计中",
-					progress: 30,
-				},
-			],
+			tasks: [],
 			chart: null,
 			showCreateModal: false,
 			creating: false,
-				showProgressModal: false,
-				progressTargetTask: null,
-				progressAdjustForm: {
-					delta: 0,
-				},
-				expandedTaskIds: [],
-				taskDetailCache: {},
+			showProgressModal: false,
+			progressTargetTask: null,
+			progressAdjustForm: {
+				delta: 0,
+			},
+			expandedTaskIds: [],
+			taskDetailCache: {},
+			detailLoadingMap: {},
+			ownedTeams: [],
+			ownedTeamsLoading: false,
 			newTaskForm: {
 				title: "",
 				description: "",
 				due_date: "",
-				owner_name: "",
+				owner_team_id: "",
+				subtasks: [""],
 			},
 		};
 	},
@@ -418,10 +481,19 @@ export default {
 			const delta = Number(this.progressAdjustForm.delta) || 0;
 			return this.clampProgress(base + delta);
 		},
+		currentUserId() {
+			const profile = this.currentUserProfile;
+			return profile?.id || profile?.basic_info?.id || profile?.basic_info?.user_id || null;
+		},
+		myCreatedTeamTasks() {
+			if (!this.currentUserId) return [];
+			return this.tasks.filter((task) => task.created_by === this.currentUserId);
+		},
 	},
 	mounted() {
 		this.initChart();
 		this.loadTasks();
+		this.loadOwnedTeams();
 		window.addEventListener("resize", this.handleResize);
 	},
 	beforeUnmount() {
@@ -432,6 +504,57 @@ export default {
 		}
 	},
 	methods: {
+		isCreatedByCurrentUser(task) {
+			if (!task || !this.currentUserId) return false;
+			return task.created_by === this.currentUserId;
+		},
+		focusTaskCard(taskId) {
+			if (!taskId) return;
+			const target = this.$el?.querySelector(`[data-task-id="${taskId}"]`);
+			if (target) {
+				target.classList.add("task-card--highlight");
+				target.scrollIntoView({ behavior: "smooth", block: "center" });
+				setTimeout(() => target.classList.remove("task-card--highlight"), 1500);
+			}
+			if (!this.isTaskExpanded(taskId)) {
+				this.toggleTaskDetails(taskId);
+			}
+		},
+		async loadOwnedTeams() {
+			this.ownedTeamsLoading = true;
+			try {
+				const res = await getTeamList({ owned_only: true });
+				const list = res?.data?.data || res?.data || res;
+				this.ownedTeams = Array.isArray(list) ? list : [];
+			} catch (error) {
+				console.warn("加载团队列表失败：", error);
+				this.ownedTeams = [];
+			} finally {
+				this.ownedTeamsLoading = false;
+			}
+		},
+		resetNewTaskForm() {
+			this.newTaskForm.title = "";
+			this.newTaskForm.description = "";
+			this.newTaskForm.due_date = "";
+			this.newTaskForm.owner_team_id = "";
+			this.newTaskForm.subtasks = [""];
+		},
+		addSubtaskField() {
+			this.newTaskForm.subtasks.push("");
+		},
+		removeSubtaskField(index) {
+			if (this.newTaskForm.subtasks.length === 1) {
+				this.newTaskForm.subtasks.splice(0, 1, "");
+				return;
+			}
+			this.newTaskForm.subtasks.splice(index, 1);
+		},
+		normalizeNewTaskSubtasks() {
+			return this.newTaskForm.subtasks
+				.map((item) => (item || "").trim())
+				.filter((item) => item.length > 0);
+		},
 		goToConstellation() {
 			this.$router.push("/team-tasks/constellation");
 		},
@@ -446,7 +569,7 @@ export default {
 					this.tasks = items.map((item) => this.normalizeFetchedTask(item));
 				}
 			} catch (error) {
-				console.warn("加载团队任务失败，使用本地示例：", error);
+				console.warn("加载团队任务失败：", error);
 			} finally {
 				this.updateChart();
 			}
@@ -461,11 +584,14 @@ export default {
 				title: raw?.title || raw?.name || "未命名任务",
 				description: raw?.description || "",
 				owner_name: raw?.owner_name || raw?.created_by_name || "未知",
+				owner_team_id: raw?.owner_team_id ?? null,
+				created_by: raw?.created_by ?? null,
 				due_date: typeof due === "string" && due.includes("T") ? due.split("T")[0] : due,
 				created_at: raw?.created_at || "",
 				status,
 				status_label: raw?.status_label || "",
 				progress,
+				subtasks: this.parseSubtaskPayload(raw?.subtasks, raw?.id ?? Date.now()),
 			};
 		},
 		normalizeStatus(status) {
@@ -480,6 +606,70 @@ export default {
 			if (["completed", "done", "finish"].includes(lowered)) return "completed";
 			if (["in-progress", "progress", "doing"].includes(lowered)) return "in-progress";
 			return lowered;
+		},
+		parseSubtaskPayload(source, taskId) {
+			if (!source) return [];
+			let parsed = source;
+			if (typeof parsed === "string") {
+				try {
+					parsed = JSON.parse(parsed);
+				} catch (error) {
+					console.warn("解析子任务数据失败，将尝试按分隔符拆分：", error);
+					parsed = parsed
+						.split(/\r?\n|,/)
+						.map((item) => item.trim())
+						.filter(Boolean);
+				}
+			}
+			if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && "data" in parsed) {
+				parsed = parsed.data;
+			}
+			if (!Array.isArray(parsed)) return [];
+			return parsed
+				.map((entry, index) => {
+					const title = typeof entry === "string" ? entry.trim() : entry?.title || entry?.name || "";
+					const status = typeof entry === "object" && entry ? (entry.status || entry.state || "") : "";
+					if (!title) return null;
+					return { id: `${taskId}-sub-${index}`, title, status };
+				})
+				.filter(Boolean);
+		},
+		normalizeTaskDetail(raw, fallbackTask) {
+			const base = raw || {};
+			const taskId = fallbackTask?.id || base?.id || Date.now();
+			const subtasksSource = base.subtasks ?? fallbackTask?.subtasks;
+			let attachments = [];
+			if (Array.isArray(base.attachments)) attachments = base.attachments;
+			else if (Array.isArray(fallbackTask?.attachments)) attachments = fallbackTask.attachments;
+			let comments = [];
+			if (Array.isArray(base.comments)) comments = base.comments;
+			else if (Array.isArray(fallbackTask?.comments)) comments = fallbackTask.comments;
+			return {
+				subtasks: this.parseSubtaskPayload(subtasksSource, taskId),
+				attachments,
+				comments,
+			};
+		},
+		async fetchTaskDetail(task) {
+			if (!task?.id || this.taskDetailCache[task.id]) return;
+			this.detailLoadingMap = { ...this.detailLoadingMap, [task.id]: true };
+			try {
+				const res = await getTaskDetail(task.id);
+				const payload = res?.data?.data || res?.data || res;
+				const normalized = this.normalizeTaskDetail(payload, task);
+				this.taskDetailCache = { ...this.taskDetailCache, [task.id]: normalized };
+			} catch (error) {
+				console.warn(`加载任务 ${task.id} 详情失败：`, error);
+				const fallback = this.normalizeTaskDetail(task, task);
+				this.taskDetailCache = { ...this.taskDetailCache, [task.id]: fallback };
+			} finally {
+				const nextLoading = { ...this.detailLoadingMap };
+				delete nextLoading[task.id];
+				this.detailLoadingMap = nextLoading;
+			}
+		},
+		isDetailLoading(taskId) {
+			return Boolean(this.detailLoadingMap[taskId]);
 		},
 		computeTaskProgressPercent(task) {
 			return this.getTaskProgressValue(task);
@@ -748,12 +938,13 @@ export default {
 			return { width: `${percent}%`, background: color };
 		},
 		openCreateModal() {
+			this.resetNewTaskForm();
 			this.showCreateModal = true;
-			this.newTaskForm = { title: "", description: "", due_date: "", owner_name: "" };
 		},
 		closeCreateModal() {
 			if (this.creating) return;
 			this.showCreateModal = false;
+			this.resetNewTaskForm();
 		},
 		openProgressModal(task) {
 			this.progressTargetTask = task;
@@ -782,13 +973,20 @@ export default {
 				alert("任务名称不能为空");
 				return;
 			}
+			const ownerTeamId = this.newTaskForm.owner_team_id ? Number(this.newTaskForm.owner_team_id) : null;
+			const subtasks = this.normalizeNewTaskSubtasks();
 			const payload = {
 				title: this.newTaskForm.title.trim(),
 				description: this.newTaskForm.description?.trim?.() ? this.newTaskForm.description.trim() : this.newTaskForm.description || "",
 				due_at: this.newTaskForm.due_date || null,
-				owner_name: this.newTaskForm.owner_name || null,
 				task_type: 2,
 			};
+			if (ownerTeamId && !Number.isNaN(ownerTeamId)) {
+				payload.owner_team_id = ownerTeamId;
+			}
+			if (subtasks.length) {
+				payload.subtasks = subtasks;
+			}
 			this.creating = true;
 			let newTask;
 			try {
@@ -804,6 +1002,7 @@ export default {
 				}
 				this.creating = false;
 				this.showCreateModal = false;
+				this.resetNewTaskForm();
 				this.updateChart();
 			}
 		},
@@ -812,12 +1011,15 @@ export default {
 				id: extra.id || Date.now(),
 				title: payload.title,
 				description: payload.description || "",
-				owner_name: payload.owner_name || "你",
+				owner_name: "你",
 				due_date: payload.due_at || payload.due_date || "",
 				created_at: extra.created_at || new Date().toISOString(),
 				status: extra.status || "in-progress",
 				status_label: extra.status_label || "",
 				progress: this.clampProgress(extra.progress ?? 0),
+				owner_team_id: payload.owner_team_id || null,
+				created_by: this.currentUserId,
+				subtasks: this.parseSubtaskPayload(extra.subtasks || payload.subtasks, extra.id || Date.now()),
 			};
 		},
 		toggleTaskDetails(taskId) {
@@ -826,44 +1028,16 @@ export default {
 				this.expandedTaskIds.splice(index, 1);
 			} else {
 				this.expandedTaskIds.push(taskId);
+				const target = this.tasks.find((item) => item.id === taskId);
+				if (target) this.fetchTaskDetail(target);
 			}
 		},
 		isTaskExpanded(taskId) {
 			return this.expandedTaskIds.includes(taskId);
 		},
 		getTaskDetail(task) {
-			if (!task) {
-				return { subtasks: [], attachments: [], comments: [] };
-			}
-			if (!this.taskDetailCache[task.id]) {
-				const detail = this.buildTaskDetail(task);
-				this.taskDetailCache = { ...this.taskDetailCache, [task.id]: detail };
-			}
-			return this.taskDetailCache[task.id];
-		},
-		buildTaskDetail(task) {
-			const baseTitle = task.title || "任务";
-			const progress = this.getTaskProgressValue(task);
-			const subtasks = (task.subtasks && task.subtasks.length
-				? task.subtasks
-				: [
-					{ id: `${task.id}-sub1`, title: `${baseTitle} - 需求梳理`, status: progress >= 20 ? "进行中" : "待开始" },
-					{ id: `${task.id}-sub2`, title: `${baseTitle} - 开发实现`, status: progress >= 60 ? "进行中" : "待开始" },
-					{ id: `${task.id}-sub3`, title: `${baseTitle} - 测试验收`, status: progress >= 90 ? "待验收" : "待开始" },
-				]);
-			const attachments = task.attachments && task.attachments.length
-				? task.attachments
-				: [
-					{ id: `${task.id}-att1`, name: `${baseTitle}-设计稿.fig`, size: "2.3MB" },
-					{ id: `${task.id}-att2`, name: `${baseTitle}-需求文档.docx`, size: "480KB" },
-				];
-			const comments = task.comments && task.comments.length
-				? task.comments
-				: [
-					{ id: `${task.id}-c1`, author: "王同学", content: "今天把接口联调完毕了。", time: "今天 10:20" },
-					{ id: `${task.id}-c2`, author: "李同学", content: "测试脚本已准备，等你们提测。", time: "昨天 17:45" },
-				];
-			return { subtasks, attachments, comments };
+			if (!task) return { subtasks: [], attachments: [], comments: [] };
+			return this.taskDetailCache[task.id] || this.normalizeTaskDetail({}, task);
 		},
 		async changeProgress(task, delta) {
 			const previousProgress = this.getTaskProgressValue(task);
@@ -908,6 +1082,9 @@ export default {
 
 	.card.surface-card + .surface-card {
 		margin-top: 16px;
+		.task-card--highlight {
+			box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4), 0 20px 45px rgba(15, 23, 42, 0.08);
+		}
 	}
 
 	.page-title {
