@@ -49,8 +49,15 @@ export function getTeamMembers(teamId, params = {}) {
 /**
  * 邀请成员加入团队
  */
-export function inviteTeamMember(teamId, data) {
-  return request.post(`/teams/${teamId}/invite`, data);
+export function inviteMember(teamId, data) {
+  return request.post(`/teams/${teamId}/members`, data);
+}
+
+/**
+ * 通过名称加入团队
+ */
+export function joinTeamByName(name) {
+  return request.post("/teams/join_by_name", { name });
 }
 
 /**

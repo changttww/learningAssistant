@@ -1,6 +1,142 @@
 <template>
 	<div class="w-full h-full overflow-auto px-4">
-		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+		<div v-if="!selectedTeam" class="relative w-full h-full min-h-[80vh] flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50">
+			<!-- 粒子背景 Canvas -->
+			<canvas ref="particleCanvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+			
+			<div class="relative z-10 w-full flex flex-col items-center py-10">
+				<div v-if="loadingTeams" class="text-lg text-gray-600 animate-pulse">正在加载团队数据...</div>
+				<div v-else-if="allTeams.length === 0" class="bg-white/80 backdrop-blur-sm p-8 rounded-xl shadow-xl text-center max-w-md w-full border border-white/50 transform transition-all hover:scale-105 duration-300">
+					<div class="mb-6 bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto text-blue-600">
+						<iconify-icon icon="mdi:account-group-outline" width="32" height="32"></iconify-icon>
+					</div>
+					<h2 class="text-2xl font-bold mb-4 text-gray-800">欢迎加入团队协作</h2>
+					<p class="text-gray-600 mb-8">您还没有加入任何团队。开启您的团队协作之旅吧！</p>
+					<div class="flex gap-3 mb-6">
+						<input v-model="teamNameInput" type="text" class="flex-1 p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-gray-50 focus:bg-white" placeholder="输入团队名称" @keyup.enter="handleJoinTeam" />
+						<button @click="handleJoinTeam" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-lg shadow-blue-200 font-medium">加入</button>
+					</div>
+					<div class="text-sm text-gray-500">
+						或者 <button @click="showCreateTeamModal = true" class="text-blue-600 hover:text-blue-700 font-medium hover:underline">创建一个新团队</button>
+					</div>
+				</div>
+				<div v-else class="w-full max-w-6xl px-4">
+					<div class="text-center mb-10">
+						<h2 class="text-3xl font-bold text-gray-800 mb-2">选择您的团队</h2>
+						<p class="text-gray-500">点击卡片进入团队工作区</p>
+					</div>
+					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+						<div v-for="team in allTeams" :key="team.id" @click="selectTeam(team)" class="bg-white/90 backdrop-blur-sm p-6 rounded-xl shadow-sm hover:shadow-xl transition-all cursor-pointer border border-gray-100 hover:border-blue-400 group transform hover:-translate-y-1 duration-300">
+							<div class="flex items-center justify-between mb-4">
+								<div class="flex items-center gap-3">
+									<div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
+										{{ team.name.charAt(0).toUpperCase() }}
+									</div>
+									<h3 class="text-xl font-bold text-gray-800 group-hover:text-blue-600 transition-colors">{{ team.name }}</h3>
+								</div>
+								<span :class="['text-xs px-2 py-1 rounded-full font-medium', team.owner_user_id === currentUserId ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600']">
+									{{ team.owner_user_id === currentUserId ? '创建者' : '成员' }}
+								</span>
+							</div>
+							<p class="text-gray-500 text-sm line-clamp-2 mb-4 h-10">{{ team.description || '暂无描述' }}</p>
+							
+							<div class="grid grid-cols-2 gap-y-2 gap-x-4 text-xs text-gray-500 mb-4">
+								<div class="flex items-center gap-1.5" title="创建者">
+									<iconify-icon icon="mdi:account-tie" class="text-blue-400 text-sm"></iconify-icon>
+									<span class="truncate max-w-[80px]">{{ team.owner_name || '未知' }}</span>
+								</div>
+								<div class="flex items-center gap-1.5" title="团队人数">
+									<iconify-icon icon="mdi:account-group" class="text-purple-400 text-sm"></iconify-icon>
+									<span>{{ team.member_count || 1 }} 人</span>
+								</div>
+								<div class="flex items-center gap-1.5 col-span-2" title="创建时间">
+									<iconify-icon icon="mdi:clock-outline" class="text-gray-400 text-sm"></iconify-icon>
+									<span>{{ formatDate(team.created_at) }}</span>
+								</div>
+							</div>
+
+							<div class="flex items-center justify-between text-xs text-gray-400 pt-4 border-t border-gray-100">
+								<span>ID: {{ team.id }}</span>
+								<span class="group-hover:translate-x-1 transition-transform text-blue-500 flex items-center gap-1">
+									进入团队 <iconify-icon icon="mdi:arrow-right"></iconify-icon>
+								</span>
+							</div>
+						</div>
+						
+						<!-- 操作卡片 -->
+						<div class="bg-white/60 backdrop-blur-sm p-6 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50/50 flex flex-col items-center justify-center min-h-[180px] group" @click="showJoinModal = true">
+							<div class="w-12 h-12 rounded-full bg-gray-100 group-hover:bg-blue-100 flex items-center justify-center mb-3 transition-colors text-gray-400 group-hover:text-blue-600">
+								<iconify-icon icon="mdi:account-plus" width="24" height="24"></iconify-icon>
+							</div>
+							<span class="text-gray-600 font-medium group-hover:text-blue-600">加入其他团队</span>
+							<span class="text-xs text-gray-400 mt-1">输入名称加入现有团队</span>
+						</div>
+						
+						<div class="bg-white/60 backdrop-blur-sm p-6 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer border-2 border-dashed border-gray-300 hover:border-purple-400 hover:bg-purple-50/50 flex flex-col items-center justify-center min-h-[180px] group" @click="showCreateTeamModal = true">
+							<div class="w-12 h-12 rounded-full bg-gray-100 group-hover:bg-purple-100 flex items-center justify-center mb-3 transition-colors text-gray-400 group-hover:text-purple-600">
+								<iconify-icon icon="mdi:plus-box" width="24" height="24"></iconify-icon>
+							</div>
+							<span class="text-gray-600 font-medium group-hover:text-purple-600">创建新团队</span>
+							<span class="text-xs text-gray-400 mt-1">建立属于你的团队</span>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div v-if="showJoinModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
+				<div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all scale-100">
+					<h3 class="text-xl font-bold mb-6 text-gray-800 flex items-center gap-2">
+						<iconify-icon icon="mdi:account-plus" class="text-blue-600"></iconify-icon>
+						加入团队
+					</h3>
+					<input v-model="teamNameInput" type="text" class="w-full p-3 border border-gray-200 rounded-lg mb-6 focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50" placeholder="请输入准确的团队名称" />
+					<div class="flex justify-end gap-3">
+						<button @click="showJoinModal = false" class="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium">取消</button>
+						<button @click="handleJoinTeam" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-200 font-medium transition-all active:scale-95">确认加入</button>
+					</div>
+				</div>
+			</div>
+			
+			<div v-if="showCreateTeamModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
+				<div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all scale-100">
+					<h3 class="text-xl font-bold mb-6 text-gray-800 flex items-center gap-2">
+						<iconify-icon icon="mdi:plus-box" class="text-purple-600"></iconify-icon>
+						创建团队
+					</h3>
+					<div class="space-y-5">
+						<div>
+							<label class="block text-sm font-medium text-gray-700 mb-1.5">团队名称</label>
+							<input v-model="newTeamForm.name" type="text" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none bg-gray-50" placeholder="给团队起个响亮的名字" />
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-gray-700 mb-1.5">团队描述</label>
+							<textarea v-model="newTeamForm.description" rows="3" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none bg-gray-50" placeholder="简单介绍一下团队的目标（可选）"></textarea>
+						</div>
+					</div>
+					<div class="flex justify-end gap-3 mt-8">
+						<button @click="showCreateTeamModal = false" class="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium">取消</button>
+						<button @click="handleCreateTeam" class="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 shadow-lg shadow-purple-200 font-medium transition-all active:scale-95">立即创建</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+			<div class="lg:col-span-3 flex items-center mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+				<button 
+					@click="selectedTeam = null" 
+					class="flex items-center px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-all duration-200 group"
+				>
+					<iconify-icon icon="mdi:arrow-left" class="mr-2 transition-transform group-hover:-translate-x-1"></iconify-icon>
+					切换团队
+				</button>
+				<div class="h-6 w-px bg-gray-200 mx-4"></div>
+				<div class="flex items-center gap-3">
+					<div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+						{{ selectedTeam.name.charAt(0).toUpperCase() }}
+					</div>
+					<span class="font-bold text-gray-800 text-lg">{{ selectedTeam.name }}</span>
+				</div>
+			</div>
 			<!-- 左侧主要内容 -->
 			<div class="lg:col-span-2 space-y-6">
 				<div class="card surface-card">
@@ -432,7 +568,7 @@
 <script>
 import * as echarts from "echarts";
 import { getTeamTasks, createTask, updateTaskProgress, getTaskDetail } from "@/api/modules/task";
-import { getTeamList } from "@/api/modules/team";
+import { getTeamList, joinTeamByName, createTeam } from "@/api/modules/team";
 import { useCurrentUser } from "@/composables/useCurrentUser";
 
 export default {
@@ -472,7 +608,32 @@ export default {
 				owner_team_id: "",
 				subtasks: [""],
 			},
+			allTeams: [],
+			selectedTeam: null,
+			teamNameInput: "",
+			loadingTeams: false,
+			showJoinModal: false,
+			showCreateTeamModal: false,
+			newTeamForm: {
+				name: "",
+				description: "",
+			},
+			particles: [],
+			animationFrameId: null,
 		};
+	},
+	watch: {
+		selectedTeam(val) {
+			if (!val) {
+				this.$nextTick(() => {
+					this.initParticles();
+				});
+			} else {
+				if (this.animationFrameId) {
+					cancelAnimationFrame(this.animationFrameId);
+				}
+			}
+		}
 	},
 	computed: {
 		previewAdjustedProgress() {
@@ -491,10 +652,13 @@ export default {
 		},
 	},
 	mounted() {
-		this.initChart();
-		this.loadTasks();
-		this.loadOwnedTeams();
+		this.loadAllTeams();
 		window.addEventListener("resize", this.handleResize);
+		if (!this.selectedTeam) {
+			this.$nextTick(() => {
+				this.initParticles();
+			});
+		}
 	},
 	beforeUnmount() {
 		window.removeEventListener("resize", this.handleResize);
@@ -502,8 +666,67 @@ export default {
 			this.chart.dispose();
 			this.chart = null;
 		}
+		if (this.animationFrameId) {
+			cancelAnimationFrame(this.animationFrameId);
+		}
 	},
 	methods: {
+		formatDate(dateStr) {
+			if (!dateStr) return '未知时间';
+			const date = new Date(dateStr);
+			if (isNaN(date.getTime())) return dateStr;
+			return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+		},
+		async loadAllTeams() {
+			this.loadingTeams = true;
+			try {
+				const res = await getTeamList({ owned_only: false });
+				const list = res?.data?.data || res?.data || res;
+				this.allTeams = Array.isArray(list) ? list : [];
+			} catch (error) {
+				console.error("加载团队列表失败", error);
+			} finally {
+				this.loadingTeams = false;
+			}
+		},
+		async handleJoinTeam() {
+			if (!this.teamNameInput.trim()) return;
+			try {
+				await joinTeamByName(this.teamNameInput);
+				this.teamNameInput = "";
+				this.showJoinModal = false;
+				await this.loadAllTeams();
+				alert("加入成功");
+			} catch (error) {
+				console.error("加入团队失败", error);
+				alert(error.response?.data?.error || "加入失败");
+			}
+		},
+		async handleCreateTeam() {
+			if (!this.newTeamForm.name.trim()) {
+				alert("请输入团队名称");
+				return;
+			}
+			try {
+				await createTeam(this.newTeamForm);
+				this.newTeamForm.name = "";
+				this.newTeamForm.description = "";
+				this.showCreateTeamModal = false;
+				await this.loadAllTeams();
+				alert("创建成功");
+			} catch (error) {
+				console.error("创建团队失败", error);
+				alert(error.response?.data?.error || "创建失败");
+			}
+		},
+		selectTeam(team) {
+			this.selectedTeam = team;
+			this.$nextTick(() => {
+				this.initChart();
+				this.loadTasks();
+				this.loadOwnedTeams();
+			});
+		},
 		isCreatedByCurrentUser(task) {
 			if (!task || !this.currentUserId) return false;
 			return task.created_by === this.currentUserId;
@@ -560,6 +783,75 @@ export default {
 		},
 		handleResize() {
 			if (this.chart) this.chart.resize();
+			if (!this.selectedTeam) {
+				this.initParticles();
+			}
+		},
+		initParticles() {
+			const canvas = this.$refs.particleCanvas;
+			if (!canvas) return;
+			
+			const ctx = canvas.getContext('2d');
+			canvas.width = canvas.parentElement.clientWidth;
+			canvas.height = canvas.parentElement.clientHeight;
+			
+			this.particles = [];
+			const particleCount = Math.floor((canvas.width * canvas.height) / 10000); // 增加粒子密度
+			
+			for (let i = 0; i < particleCount; i++) {
+				this.particles.push({
+					x: Math.random() * canvas.width,
+					y: Math.random() * canvas.height,
+					vx: (Math.random() - 0.5) * 0.8, // 稍微加快速度
+					vy: (Math.random() - 0.5) * 0.8,
+					size: Math.random() * 4 + 2, // 增大粒子尺寸
+					color: `rgba(${Math.floor(Math.random() * 50 + 80)}, ${Math.floor(Math.random() * 50 + 120)}, ${Math.floor(Math.random() * 100 + 180)}, ${Math.random() * 0.4 + 0.2})` // 增加不透明度
+				});
+			}
+			
+			if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
+			this.animateParticles();
+		},
+		animateParticles() {
+			const canvas = this.$refs.particleCanvas;
+			if (!canvas) return;
+			const ctx = canvas.getContext('2d');
+			
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			
+			// 更新和绘制粒子
+			this.particles.forEach((p, index) => {
+				p.x += p.vx;
+				p.y += p.vy;
+				
+				// 边界反弹
+				if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+				if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+				
+				ctx.beginPath();
+				ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+				ctx.fillStyle = p.color;
+				ctx.fill();
+				
+				// 绘制连线
+				for (let j = index + 1; j < this.particles.length; j++) {
+					const p2 = this.particles[j];
+					const dx = p.x - p2.x;
+					const dy = p.y - p2.y;
+					const distance = Math.sqrt(dx * dx + dy * dy);
+					
+					if (distance < 120) { // 增加连线距离
+						ctx.beginPath();
+						ctx.strokeStyle = `rgba(100, 149, 237, ${0.3 * (1 - distance / 120)})`; // 增加连线不透明度
+						ctx.lineWidth = 1; // 增加连线宽度
+						ctx.moveTo(p.x, p.y);
+						ctx.lineTo(p2.x, p2.y);
+						ctx.stroke();
+					}
+				}
+			});
+			
+			this.animationFrameId = requestAnimationFrame(this.animateParticles);
 		},
 		async loadTasks() {
 			try {
