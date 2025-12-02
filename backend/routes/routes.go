@@ -34,11 +34,7 @@ func SetupRoutes(r *gin.Engine) {
 
 		// 团队相关路由
 		teams := v1.Group("/teams")
-		{
-			teams.GET("/", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{"message": "Teams endpoint"})
-			})
-		}
+		registerTeamRoutes(teams)
 
 		// 学习室相关路由
 		study := v1.Group("/study")
@@ -64,6 +60,9 @@ func SetupRoutes(r *gin.Engine) {
 		tasksLegacy := legacy.Group("/tasks")
 		registerTaskRoutes(tasksLegacy)
 		registerTaskStatRoutes(tasksLegacy)
+
+		teamsLegacy := legacy.Group("/teams")
+		registerTeamRoutes(teamsLegacy)
 
 		studyLegacy := legacy.Group("/study")
 		registerStudyRoutes(studyLegacy)
