@@ -101,3 +101,22 @@ export function getUserNotificationPreferences(userId) {
 export function updateUserNotificationPreferences(userId, preferences) {
   return request.put(`/users/${userId}/notification-preferences`, preferences);
 }
+
+/**
+ * 学习伙伴接口
+ */
+export function listStudyBuddies(userId) {
+  return request.get(`/users/${userId}/buddies`);
+}
+
+export function addStudyBuddy(userId, data) {
+  return request.post(`/users/${userId}/buddies`, data);
+}
+
+export function updateStudyBuddy(userId, buddyId, data) {
+  return request.put(`/users/${userId}/buddies/${buddyId}`, data);
+}
+
+export function deleteStudyBuddy(userId, buddyId) {
+  return request.delete(`/users/${userId}/buddies/${buddyId}`);
+}

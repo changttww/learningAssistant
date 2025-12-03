@@ -61,6 +61,13 @@ export function completeTask(taskId) {
 }
 
 /**
+ * 完成任务并创建关联笔记
+ */
+export function completeTaskWithNote(taskId) {
+  return request.post(`/tasks/${taskId}/complete-with-note`);
+}
+
+/**
  * 取消完成任务
  */
 export function uncompleteTask(taskId) {
@@ -120,4 +127,25 @@ export function searchTasks(keyword, params = {}) {
     keyword,
     ...params,
   });
+}
+
+/**
+ * 获取今日任务
+ */
+export function getTodayTasks(userId) {
+  return request.get(`/tasks/users/${userId}/today`);
+}
+
+/**
+ * 获取任务柱状统计
+ */
+export function getTaskBarStats(range = "week") {
+  return request.get("/tasks/stats/bar", { range });
+}
+
+/**
+ * 获取近期月度完成率
+ */
+export function getMonthlyCompletionStats() {
+  return request.get("/tasks/stats/monthly-completion");
 }

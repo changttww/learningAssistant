@@ -11,6 +11,7 @@
           />
 
           <TaskProgressOverview
+            :daily-overview="dailyOverview"
             :current-time-data="currentTimeData"
             :active-time-filter="activeTimeFilter"
             @show-details="showTaskDetails"
@@ -23,19 +24,15 @@
           />
 
           <TaskTabsSection
-            :active-tab="activeTab"
-            :tasks="tasks"
-            @update:activeTab="activeTab = $event"
           />
         </main>
-
-        <InteractionPanel
-          :is-chat-expanded="isChatExpanded"
-          :current-motivational-quote="currentMotivationalQuote"
-          @toggle-chat="toggleChatList"
-          @open-chat="goToChatHistory"
-        />
       </div>
+      
+      <InteractionPanel
+        :is-chat-expanded="isChatExpanded"
+        @toggle-chat="toggleChatList"
+        @open-chat="goToChatHistory"
+      />
     </div>
   </div>
 
@@ -405,18 +402,33 @@
 </template>
 
 <script>
-  import { computed } from "vue";
   import * as echarts from "echarts";
-  import {
-    useCurrentUser,
-    DEFAULT_USER_ID,
-  } from "@/composables/useCurrentUser";
+  import { ElMessage } from "element-plus";
+  import { getTaskBarStats } from "@/api/modules/task";
   import TaskSidebar from "@/components/TaskManager/TaskSidebar.vue";
   import LearningBoardHeader from "@/components/TaskManager/LearningBoardHeader.vue";
   import TaskProgressOverview from "@/components/TaskManager/TaskProgressOverview.vue";
   import AnalysisEntryGrid from "@/components/TaskManager/AnalysisEntryGrid.vue";
   import TaskTabsSection from "@/components/TaskManager/TaskTabsSection.vue";
   import InteractionPanel from "@/components/TaskManager/InteractionPanel.vue";
+
+  const createEmptyTimeData = () => ({
+    chartData: [],
+    chartLabels: [],
+    completionRate: 0,
+    completedTasks: 0,
+    totalTasks: 0,
+  });
+
+  const EMPTY_TIME_DATA = createEmptyTimeData();
+
+  const clampPercentage = (value) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0;
+    if (numeric < 0) return 0;
+    if (numeric > 100) return 100;
+    return Math.round(numeric);
+  };
 
   export default {
     name: "TaskManager",
@@ -428,30 +440,10 @@
       TaskTabsSection,
       InteractionPanel,
     },
-    setup() {
-      const { profile } = useCurrentUser();
-
-      return {
-        currentUserId: computed(() => profile.value?.id ?? DEFAULT_USER_ID),
-      };
-    },
     data() {
       return {
-        activeTab: "inProgress",
         // 聊天相关状态
-        isChatExpanded: true, // 聊天列表展开状态
-        currentMotivationalQuote:
-          "每一次努力都是成长的阶梯，坚持下去，你会看到不一样的自己！", // 当前励志语录
-        motivationalQuotes: [
-          "每一次努力都是成长的阶梯，坚持下去，你会看到不一样的自己！",
-          "学习不是为了证明什么，而是为了成为更好的自己。",
-          "今天的努力，是为了明天的从容不迫。",
-          "知识是唯一不会贬值的投资，学习是最好的成长方式。",
-          "不怕慢，只怕停。每天进步一点点，就是成功的开始。",
-          "困难是成长的垫脚石，挑战是能力的试金石。",
-          "相信自己，你比想象中更强大，比昨天更优秀。",
-          "学习的路上没有捷径，但每一步都算数。",
-        ],
+        isChatExpanded: false, // 聊天列表展开状态
         // 学习效率分析相关状态
         showEfficiencyModal: false,
         showSummaryModal: false,
@@ -460,7 +452,7 @@
         efficiencyData: {
           weeklyStudyTime: 28.5,
           focusScore: 85,
-          taskCompletionRate: 92,
+          taskCompletionRate: 0,
           studyTrend: [6.2, 4.8, 5.1, 3.9, 4.5, 2.8, 1.2], // 每日学习时长
           focusTrend: [88, 82, 90, 78, 85, 92, 80], // 每日专注度
           suggestions: [
@@ -518,153 +510,107 @@
             "打字速度不错，可以提高编程效率",
           ],
         },
-        activeTimeFilter: "week", // 修正数据属性名称
+        activeTimeFilter: "week",
+        dailyOverview: createEmptyTimeData(),
+        statsLoading: false,
+        statsError: "",
         // 不同时间段的数据
         timeFilterData: {
-          week: {
-            chartData: [45, 52, 68, 73, 64, 42, 30],
-            chartLabels: [
-              "周一",
-              "周二",
-              "周三",
-              "周四",
-              "周五",
-              "周六",
-              "周日",
-            ],
-            completionRate: 72,
-            completedTasks: 86,
-            totalTasks: 120,
-          },
-          month: {
-            chartData: [
-              65, 72, 58, 83, 76, 69, 74, 81, 67, 79, 85, 78, 72, 88, 91, 69,
-              75, 82, 77, 84, 73, 86, 79, 81, 75, 83, 78, 80, 76, 89,
-            ],
-            chartLabels: [
-              "1日",
-              "2日",
-              "3日",
-              "4日",
-              "5日",
-              "6日",
-              "7日",
-              "8日",
-              "9日",
-              "10日",
-              "11日",
-              "12日",
-              "13日",
-              "14日",
-              "15日",
-              "16日",
-              "17日",
-              "18日",
-              "19日",
-              "20日",
-              "21日",
-              "22日",
-              "23日",
-              "24日",
-              "25日",
-              "26日",
-              "27日",
-              "28日",
-              "29日",
-              "30日",
-            ],
-            completionRate: 78,
-            completedTasks: 234,
-            totalTasks: 300,
-          },
-          quarter: {
-            chartData: [68, 74, 82],
-            chartLabels: ["1月", "2月", "3月"],
-            completionRate: 81,
-            completedTasks: 486,
-            totalTasks: 600,
-          },
-        },
-        tasks: {
-          inProgress: [
-            {
-              id: 1,
-              title: "Vue.js 组件开发",
-              description: "学习Vue组件的高级用法",
-              progress: 75,
-              priority: "high",
-              dueDate: "2024-01-20",
-              tags: ["前端", "Vue"],
-            },
-            {
-              id: 2,
-              title: "JavaScript ES6+",
-              description: "掌握现代JavaScript语法",
-              progress: 60,
-              priority: "medium",
-              dueDate: "2024-01-25",
-              tags: ["JavaScript", "基础"],
-            },
-            {
-              id: 3,
-              title: "CSS Grid 布局",
-              description: "学习CSS Grid布局系统",
-              progress: 40,
-              priority: "low",
-              dueDate: "2024-01-30",
-              tags: ["CSS", "布局"],
-            },
-          ],
-          pending: [
-            {
-              id: 4,
-              title: "React Hooks",
-              description: "学习React Hooks的使用",
-              progress: 0,
-              priority: "medium",
-              dueDate: "2024-02-01",
-              tags: ["React", "前端"],
-            },
-            {
-              id: 5,
-              title: "Node.js 后端开发",
-              description: "构建RESTful API",
-              progress: 0,
-              priority: "high",
-              dueDate: "2024-02-05",
-              tags: ["Node.js", "后端"],
-            },
-          ],
-          completed: [
-            {
-              id: 6,
-              title: "HTML5 基础",
-              description: "掌握HTML5新特性",
-              progress: 100,
-              priority: "low",
-              dueDate: "2024-01-10",
-              tags: ["HTML", "基础"],
-            },
-            {
-              id: 7,
-              title: "Git 版本控制",
-              description: "学习Git基本操作",
-              progress: 100,
-              priority: "medium",
-              dueDate: "2024-01-15",
-              tags: ["Git", "工具"],
-            },
-          ],
+          week: createEmptyTimeData(),
+          month: createEmptyTimeData(),
         },
       };
     },
     computed: {
       // 当前时间筛选器对应的数据
       currentTimeData() {
-        return this.timeFilterData[this.activeTimeFilter];
+        return this.timeFilterData[this.activeTimeFilter] || EMPTY_TIME_DATA;
+      },
+    },
+    mounted() {
+      this.initializeBoard();
+    },
+    watch: {
+      activeTimeFilter(newFilter) {
+        this.fetchTaskStats(newFilter);
       },
     },
     methods: {
+      async initializeBoard() {
+        await Promise.allSettled([
+          this.fetchDailyStats(),
+          this.fetchTaskStats(this.activeTimeFilter),
+        ]);
+      },
+      async fetchDailyStats() {
+        this.statsLoading = true;
+        this.statsError = "";
+        try {
+          const res = await getTaskBarStats("day");
+          const mapped = this.transformBarStats(res?.data);
+          this.dailyOverview = {
+            completionRate: mapped.completionRate,
+            completedTasks: mapped.completedTasks,
+            totalTasks: mapped.totalTasks,
+          };
+          this.efficiencyData.taskCompletionRate = mapped.completionRate;
+        } catch (error) {
+          this.statsError = error?.message || "加载今日完成率失败";
+          console.error("加载今日完成率失败", error);
+          ElMessage.error(this.statsError);
+        } finally {
+          this.statsLoading = false;
+        }
+      },
+      async fetchTaskStats(rangeKey = this.activeTimeFilter) {
+        if (rangeKey === "day") {
+          return this.fetchDailyStats();
+        }
+        const normalizedRange = ["week", "month"].includes(rangeKey)
+          ? rangeKey
+          : "week";
+        this.statsLoading = true;
+        this.statsError = "";
+        try {
+          const res = await getTaskBarStats(normalizedRange);
+          const mapped = this.transformBarStats(res?.data);
+          this.timeFilterData = {
+            ...this.timeFilterData,
+            [normalizedRange]: mapped,
+          };
+        } catch (error) {
+          this.statsError = error?.message || "加载任务统计失败";
+          console.error("加载任务统计失败", error);
+          ElMessage.error(this.statsError);
+        } finally {
+          this.statsLoading = false;
+        }
+      },
+      transformBarStats(payload = {}) {
+        const items = Array.isArray(payload?.data) ? payload.data : [];
+        const chartLabels = items.map((item) => item.day || "");
+        const chartData = items.map((item) => clampPercentage(item.rate));
+        const completedTasks = items.reduce(
+          (sum, item) => sum + (Number(item.completed) || 0),
+          0
+        );
+        const totalTasks = items.reduce(
+          (sum, item) => sum + (Number(item.total) || 0),
+          0
+        );
+        const completionRate =
+          totalTasks > 0
+            ? clampPercentage(Math.round((completedTasks / totalTasks) * 100))
+            : 0;
+
+        return {
+          chartLabels,
+          chartData,
+          completionRate,
+          completedTasks,
+          totalTasks,
+        };
+      },
       showTaskDetails() {
         // 点击环形图显示任务详情的联动功能
         console.log("显示任务详情");

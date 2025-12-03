@@ -82,12 +82,6 @@ type userSkillsResponse struct {
 	Secondary []string `json:"secondary"`
 }
 
-type userSettingsResponse struct {
-	Notifications userNotificationPreferences `json:"notifications"`
-	Privacy       userPrivacySettings         `json:"privacy"`
-	StudyHabits   userStudyHabitSettings      `json:"study_habits"`
-}
-
 type userNotificationPreferences struct {
 	Email   bool `json:"email"`
 	SMS     bool `json:"sms"`
@@ -107,13 +101,10 @@ type userStudyHabitSettings struct {
 	FocusMode        bool   `json:"focus_mode"`
 }
 
-type userStudyRecord struct {
-	ID         uint64  `json:"id"`
-	Title      string  `json:"title"`
-	Category   string  `json:"category"`
-	Duration   float64 `json:"duration"`
-	Completed  bool    `json:"completed"`
-	RecordedAt string  `json:"recorded_at"`
+type userSettingsResponse struct {
+	Notifications userNotificationPreferences `json:"notifications"`
+	Privacy       userPrivacySettings         `json:"privacy"`
+	StudyHabits   userStudyHabitSettings      `json:"study_habits"`
 }
 
 type authUserSummary struct {
@@ -127,21 +118,19 @@ type authUserSummary struct {
 
 func registerUserRoutes(router *gin.RouterGroup) {
 	router.GET("/:userId", handleGetUserProfile)
-	router.PUT("/:userId", handleUpdateUserProfile)
 	router.GET("/:userId/study-stats", handleGetUserStudyStats)
 	router.POST("/:userId/check-in", handleUserDailyCheckIn)
-	router.POST("/:userId/points/task-complete", handleUserTaskCompletionPoints)
-	router.POST("/:userId/points/study-duration", handleUserStudyRoomPoints)
 	router.GET("/:userId/points/ledger", handleGetUserPointsLedger)
 	router.GET("/:userId/achievements", handleGetUserAchievements)
 	router.GET("/:userId/skills", handleGetUserSkills)
-	router.PUT("/:userId/skills", handleUpdateUserSkills)
-	router.GET("/:userId/study-records", handleGetUserStudyRecords)
 	router.GET("/:userId/settings", handleGetUserSettings)
 	router.PUT("/:userId/settings", handleUpdateUserSettings)
-	router.GET("/:userId/notification-preferences", handleGetUserNotificationPreferences)
-	router.PUT("/:userId/notification-preferences", handleUpdateUserNotificationPreferences)
-	router.POST("/avatar", handleUploadAvatar)
+
+	// 学习伙伴
+	router.GET("/:userId/buddies", handleListStudyBuddies)
+	router.POST("/:userId/buddies", handleAddStudyBuddy)
+	router.PUT("/:userId/buddies/:buddyId", handleUpdateStudyBuddy)
+	router.DELETE("/:userId/buddies/:buddyId", handleDeleteStudyBuddy)
 }
 
 func handleGetUserProfile(c *gin.Context) {
@@ -174,115 +163,6 @@ func handleGetUserProfile(c *gin.Context) {
 		"data":    response,
 	})
 }
-
-type updateUserProfileRequest struct {
-	DisplayName string `json:"display_name"`
-	Bio         string `json:"bio"`
-	AvatarURL   string `json:"avatar_url"`
-	Role        string `json:"role"`
-	Status      string `json:"status"`
-	BasicInfo   *struct {
-		RealName string `json:"real_name"`
-		Email    string `json:"email"`
-		School   string `json:"school"`
-		Major    string `json:"major"`
-		Location string `json:"location"`
-		JoinDate string `json:"join_date"`
-	} `json:"basic_info"`
-	Preferences *struct {
-		Language string `json:"language"`
-		Theme    string `json:"theme"`
-	} `json:"preferences"`
-}
-
-func handleUpdateUserProfile(c *gin.Context) {
-	userID, ok := parseUserID(c)
-	if !ok {
-		return
-	}
-
-	var req updateUserProfileRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "请求参数格式不正确",
-		})
-		return
-	}
-
-	db := database.GetDB()
-	err := db.Transaction(func(tx *gorm.DB) error {
-		var user models.User
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, userID).Error; err != nil {
-			return err
-		}
-
-		if strings.TrimSpace(req.DisplayName) != "" {
-			user.DisplayName = strings.TrimSpace(req.DisplayName)
-		}
-		if req.Bio != "" {
-			user.Bio = req.Bio
-		}
-		if req.AvatarURL != "" {
-			user.AvatarURL = req.AvatarURL
-		}
-		if req.Role != "" {
-			user.Role = mapRoleToCode(req.Role)
-		}
-		if req.Status != "" {
-			user.Status = mapStatusToCode(req.Status)
-		}
-		if req.Preferences != nil {
-			if req.Preferences.Language != "" {
-				user.PreferredLanguage = req.Preferences.Language
-			}
-			if req.Preferences.Theme != "" {
-				user.PreferredTheme = req.Preferences.Theme
-			}
-		}
-		if req.BasicInfo != nil {
-			if req.BasicInfo.RealName != "" {
-				user.DisplayName = req.BasicInfo.RealName
-			}
-			if req.BasicInfo.Email != "" && !strings.EqualFold(user.Email, req.BasicInfo.Email) {
-				if err := ensureEmailUnique(tx, req.BasicInfo.Email, user.ID); err != nil {
-					return err
-				}
-				user.Email = req.BasicInfo.Email
-			}
-			if req.BasicInfo.School != "" {
-				user.School = req.BasicInfo.School
-			}
-			if req.BasicInfo.Major != "" {
-				user.Major = req.BasicInfo.Major
-			}
-			if req.BasicInfo.Location != "" {
-				user.Location = req.BasicInfo.Location
-			}
-			if req.BasicInfo.JoinDate != "" {
-				user.JoinDate = req.BasicInfo.JoinDate
-			}
-		}
-
-		return tx.Save(&user).Error
-	})
-
-	if err != nil {
-		if errorsIsNotFound(err) {
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "用户不存在"})
-			return
-		}
-		if strings.Contains(err.Error(), "邮箱已存在") {
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新用户信息失败"})
-		return
-	}
-
-	handleGetUserProfile(c)
-}
-
 func handleGetUserStudyStats(c *gin.Context) {
 	userID, ok := parseUserID(c)
 	if !ok {
@@ -392,87 +272,6 @@ func handleUserDailyCheckIn(c *gin.Context) {
 	})
 }
 
-type taskPointsRequest struct {
-	TaskID uint64 `json:"task_id"`
-}
-
-type studyRoomPointsRequest struct {
-	RoomID          *uint64 `json:"room_id"`
-	DurationMinutes int     `json:"duration_minutes"`
-}
-
-func handleUserTaskCompletionPoints(c *gin.Context) {
-	userID, ok := parseUserID(c)
-	if !ok {
-		return
-	}
-	if !ensureUserExists(c, userID) {
-		return
-	}
-
-	var req taskPointsRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.TaskID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "task_id 必填"})
-		return
-	}
-
-	result, err := points.AwardTaskCompletion(userID, req.TaskID)
-	if err != nil {
-		status := http.StatusInternalServerError
-		if errors.Is(err, points.ErrInvalidPointsDelta) {
-			status = http.StatusBadRequest
-		}
-		message := "发放任务完成积分失败"
-		if status == http.StatusBadRequest {
-			message = err.Error()
-		}
-		c.JSON(status, gin.H{"code": status, "message": message})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "task completion points applied",
-		"data":    buildPointsAwardData(result, 0),
-	})
-}
-
-func handleUserStudyRoomPoints(c *gin.Context) {
-	userID, ok := parseUserID(c)
-	if !ok {
-		return
-	}
-	if !ensureUserExists(c, userID) {
-		return
-	}
-
-	var req studyRoomPointsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数格式不正确"})
-		return
-	}
-	if req.DurationMinutes <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "duration_minutes 必须大于 0"})
-		return
-	}
-
-	result, err := points.AwardStudyRoomDuration(userID, req.RoomID, req.DurationMinutes)
-	if err != nil {
-		status := http.StatusInternalServerError
-		if errors.Is(err, points.ErrInsufficientDuration) || errors.Is(err, points.ErrInvalidPointsDelta) {
-			status = http.StatusBadRequest
-		}
-		c.JSON(status, gin.H{"code": status, "message": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "study room points applied",
-		"data":    buildPointsAwardData(result, 0),
-	})
-}
-
 func handleGetUserPointsLedger(c *gin.Context) {
 	userID, ok := parseUserID(c)
 	if !ok {
@@ -568,161 +367,6 @@ type updateUserSkillsRequest struct {
 	Secondary []string `json:"secondary"`
 }
 
-func handleUpdateUserSkills(c *gin.Context) {
-	userID, ok := parseUserID(c)
-	if !ok {
-		return
-	}
-
-	var req updateUserSkillsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数格式不正确"})
-		return
-	}
-
-	db := database.GetDB()
-	err := db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("user_id = ?", userID).Delete(&models.UserSkill{}).Error; err != nil {
-			return err
-		}
-
-		for _, name := range req.Primary {
-			name = strings.TrimSpace(name)
-			if name == "" {
-				continue
-			}
-			if err := tx.Create(&models.UserSkill{
-				UserID:   userID,
-				Name:     name,
-				Category: "primary",
-			}).Error; err != nil {
-				return err
-			}
-		}
-		for _, name := range req.Secondary {
-			name = strings.TrimSpace(name)
-			if name == "" {
-				continue
-			}
-			if err := tx.Create(&models.UserSkill{
-				UserID:   userID,
-				Name:     name,
-				Category: "secondary",
-			}).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新技能失败"})
-		return
-	}
-
-	handleGetUserSkills(c)
-}
-
-func handleGetUserStudyRecords(c *gin.Context) {
-	userID, ok := parseUserID(c)
-	if !ok {
-		return
-	}
-
-	db := database.GetDB()
-	var records []models.LearningRecord
-	if err := db.Where("user_id = ?", userID).Order("session_start DESC").Limit(30).Find(&records).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取学习记录失败"})
-		return
-	}
-
-	if len(records) == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"code":    200,
-			"message": "success",
-			"data": gin.H{
-				"items": []userStudyRecord{},
-				"total": 0,
-			},
-		})
-		return
-	}
-
-	taskIDs := make([]uint64, 0, len(records))
-	for _, rec := range records {
-		taskIDs = append(taskIDs, rec.TaskID)
-	}
-
-	taskMap := map[uint64]models.Task{}
-	if len(taskIDs) > 0 {
-		var tasks []models.Task
-		if err := db.Where("id IN ?", taskIDs).Find(&tasks).Error; err == nil {
-			for _, task := range tasks {
-				taskMap[task.ID] = task
-			}
-		}
-	}
-
-	categoryIDs := []uint64{}
-	for _, task := range taskMap {
-		if task.CategoryID != nil {
-			categoryIDs = append(categoryIDs, *task.CategoryID)
-		}
-	}
-
-	categoryMap := map[uint64]string{}
-	if len(categoryIDs) > 0 {
-		var categories []models.TaskCategory
-		if err := db.Where("id IN ?", categoryIDs).Find(&categories).Error; err == nil {
-			for _, cat := range categories {
-				categoryMap[cat.ID] = cat.Name
-			}
-		}
-	}
-
-	items := make([]userStudyRecord, 0, len(records))
-	for _, rec := range records {
-		task := taskMap[rec.TaskID]
-		category := "自定义学习"
-		if task.CategoryID != nil {
-			if name, ok := categoryMap[*task.CategoryID]; ok {
-				category = name
-			}
-		}
-		if task.Title != "" {
-			category = category
-		}
-
-		durationHours := float64(rec.DurationMinutes) / 60.0
-		durationHours = math.Round(durationHours*10) / 10
-		if durationHours == 0 {
-			durationHours = float64(rec.DurationMinutes) / 60.0
-		}
-
-		item := userStudyRecord{
-			ID:         rec.ID,
-			Title:      task.Title,
-			Category:   category,
-			Duration:   durationHours,
-			Completed:  rec.SessionEnd.After(rec.SessionStart),
-			RecordedAt: rec.SessionEnd.Format("2006-01-02"),
-		}
-		if item.Title == "" {
-			item.Title = "学习记录"
-		}
-		items = append(items, item)
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data": gin.H{
-			"items": items,
-			"total": len(items),
-		},
-	})
-}
-
 func handleGetUserSettings(c *gin.Context) {
 	userID, ok := parseUserID(c)
 	if !ok {
@@ -796,77 +440,6 @@ func handleUpdateUserSettings(c *gin.Context) {
 		"code":    200,
 		"message": "settings updated",
 		"data":    buildSettingsResponse(settings),
-	})
-}
-
-func handleGetUserNotificationPreferences(c *gin.Context) {
-	userID, ok := parseUserID(c)
-	if !ok {
-		return
-	}
-
-	settings, err := ensureUserSettings(userID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户通知设置失败"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "success",
-		"data": userNotificationPreferences{
-			Email:   settings.NotifyEmail,
-			SMS:     settings.NotifySMS,
-			InApp:   settings.NotifyInApp,
-			Summary: settings.NotifySummary,
-		},
-	})
-}
-
-func handleUpdateUserNotificationPreferences(c *gin.Context) {
-	userID, ok := parseUserID(c)
-	if !ok {
-		return
-	}
-
-	var req userNotificationPreferences
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数格式不正确"})
-		return
-	}
-
-	settings, err := ensureUserSettings(userID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取用户通知设置失败"})
-		return
-	}
-
-	settings.NotifyEmail = req.Email
-	settings.NotifySMS = req.SMS
-	settings.NotifyInApp = req.InApp
-	settings.NotifySummary = req.Summary
-
-	if err := database.GetDB().Save(settings).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新通知设置失败"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"code":    200,
-		"message": "notification preferences updated",
-		"data": userNotificationPreferences{
-			Email:   settings.NotifyEmail,
-			SMS:     settings.NotifySMS,
-			InApp:   settings.NotifyInApp,
-			Summary: settings.NotifySummary,
-		},
-	})
-}
-
-func handleUploadAvatar(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{
-		"code":    501,
-		"message": "暂未开放头像上传功能",
 	})
 }
 
@@ -962,6 +535,111 @@ func buildPointsSummary(profile *models.UserProfile) gin.H {
 		"current_level":     profile.Level,
 		"level_label":       levelLabel,
 	}
+}
+
+func handleListStudyBuddies(c *gin.Context) {
+	userID, ok := parseUserID(c)
+	if !ok {
+		return
+	}
+	db := database.GetDB()
+	var buddies []models.StudyBuddy
+	if err := db.Where("user_id = ?", userID).Find(&buddies).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取学习伙伴失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 200, "data": buddies})
+}
+
+func handleAddStudyBuddy(c *gin.Context) {
+	userID, ok := parseUserID(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		BuddyID uint64 `json:"buddy_id"`
+		Remark  string `json:"remark"`
+		Tags    string `json:"tags"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数格式不正确"})
+		return
+	}
+	if req.BuddyID == 0 || req.BuddyID == userID {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "伙伴ID无效"})
+		return
+	}
+	db := database.GetDB()
+	var count int64
+	db.Model(&models.StudyBuddy{}).
+		Where("user_id = ? AND buddy_id = ?", userID, req.BuddyID).
+		Count(&count)
+	if count > 0 {
+		c.JSON(http.StatusOK, gin.H{"code": 200, "message": "已存在", "data": nil})
+		return
+	}
+	buddy := models.StudyBuddy{
+		UserID:  userID,
+		BuddyID: req.BuddyID,
+		Remark:  strings.TrimSpace(req.Remark),
+		Tags:    strings.TrimSpace(req.Tags),
+	}
+	if err := db.Create(&buddy).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "添加学习伙伴失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 200, "data": buddy})
+}
+
+func handleUpdateStudyBuddy(c *gin.Context) {
+	userID, ok := parseUserID(c)
+	if !ok {
+		return
+	}
+	buddyID, err := strconv.ParseUint(c.Param("buddyId"), 10, 64)
+	if err != nil || buddyID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "伙伴ID无效"})
+		return
+	}
+	var req struct {
+		Remark string `json:"remark"`
+		Tags   string `json:"tags"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "请求参数格式不正确"})
+		return
+	}
+	db := database.GetDB()
+	update := map[string]interface{}{
+		"remark": strings.TrimSpace(req.Remark),
+		"tags":   strings.TrimSpace(req.Tags),
+	}
+	if err := db.Model(&models.StudyBuddy{}).
+		Where("user_id = ? AND buddy_id = ?", userID, buddyID).
+		Updates(update).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "更新失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "更新成功"})
+}
+
+func handleDeleteStudyBuddy(c *gin.Context) {
+	userID, ok := parseUserID(c)
+	if !ok {
+		return
+	}
+	buddyID, err := strconv.ParseUint(c.Param("buddyId"), 10, 64)
+	if err != nil || buddyID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "伙伴ID无效"})
+		return
+	}
+	db := database.GetDB()
+	if err := db.Where("user_id = ? AND buddy_id = ?", userID, buddyID).
+		Delete(&models.StudyBuddy{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "删除失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "删除成功"})
 }
 
 func buildUserProfileResponse(user *models.User, badges []models.UserBadge) userProfileResponse {
