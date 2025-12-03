@@ -216,7 +216,9 @@ func handleGetUserTodayTasks(c *gin.Context) {
 	db := database.GetDB()
 	base := db.Model(&models.Task{}).
 		Where("(owner_user_id = ? OR created_by = ? OR id IN (SELECT task_id FROM task_assignees WHERE user_id = ?))", userID, userID, userID).
-		Where("(start_at IS NULL OR start_at <= ?) AND (due_at IS NULL OR due_at >= ?)", endOfDay, startOfDay)
+		Where("deleted_at IS NULL").
+		Where("start_at IS NOT NULL AND due_at IS NOT NULL").
+		Where("start_at <= ? AND due_at >= ?", endOfDay, startOfDay)
 
 	var allTasks []models.Task
 	if err := base.Order("priority DESC, due_at ASC, id DESC").Find(&allTasks).Error; err != nil {
