@@ -21,6 +21,9 @@ func registerTeamRoutes(r *gin.RouterGroup) {
 	r.POST("", createTeam)
 	r.POST("/", createTeam)
 	r.POST("/join_by_name", joinTeamByName)
+	r.POST("/:id/invite", inviteMember)
+	r.GET("/:id/requests", listTeamRequests)
+	r.POST("/:id/requests/:requestId/handle", handleTeamRequest)
 }
 
 func createTeam(c *gin.Context) {
@@ -115,18 +118,260 @@ func joinTeamByName(c *gin.Context) {
 		return
 	}
 
-	member := models.TeamMember{
-		TeamID: team.ID,
-		UserID: uid,
-		Role:   0, // Member
-	}
-
-	if err := database.GetDB().Create(&member).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "加入团队失败"})
+	// Check if already applied
+	var reqCount int64
+	database.GetDB().Model(&models.TeamRequest{}).Where("team_id = ? AND user_id = ? AND status IN ('PENDING_USER', 'PENDING_OWNER')", team.ID, uid).Count(&reqCount)
+	if reqCount > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "您已经申请加入该团队或已被邀请"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "加入成功", "data": team})
+	// Create application request
+	request := models.TeamRequest{
+		TeamID:    team.ID,
+		UserID:    uid,
+		InviterID: 0,
+		Type:      "APPLICATION",
+		Status:    "PENDING_OWNER",
+	}
+
+	if err := database.GetDB().Create(&request).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "申请加入失败"})
+		return
+	}
+
+	// Notify Owner
+	notification := models.Notification{
+		UserID:    team.OwnerUserID,
+		Title:     "新的入队申请",
+		Content:   "用户申请加入团队: " + team.Name,
+		Type:      "TEAM_APPLICATION",
+		RelatedID: request.ID,
+	}
+	database.GetDB().Create(&notification)
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "申请已发送，等待团队创建者审核"})
+}
+
+func inviteMember(c *gin.Context) {
+	teamID := c.Param("id")
+	var req struct {
+		Account string `json:"account" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+		return
+	}
+
+	userID, _ := c.Get("user_id")
+	uid := userID.(uint64)
+
+	// Check permission (must be member)
+	var member models.TeamMember
+	if err := database.GetDB().Where("team_id = ? AND user_id = ?", teamID, uid).First(&member).Error; err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "您不是该团队成员"})
+		return
+	}
+
+	// Find target user
+	var targetUser models.User
+	if err := database.GetDB().Where("account = ?", req.Account).First(&targetUser).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "未找到该用户"})
+		return
+	}
+
+	// Check if target is already member
+	var count int64
+	database.GetDB().Model(&models.TeamMember{}).Where("team_id = ? AND user_id = ?", teamID, targetUser.ID).Count(&count)
+	if count > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "该用户已经是团队成员"})
+		return
+	}
+
+	// Check if already invited/applied
+	var reqCount int64
+	database.GetDB().Model(&models.TeamRequest{}).Where("team_id = ? AND user_id = ? AND status IN ('PENDING_USER', 'PENDING_OWNER')", teamID, targetUser.ID).Count(&reqCount)
+	if reqCount > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "该用户已被邀请或已申请"})
+		return
+	}
+
+	// Create invitation request
+	request := models.TeamRequest{
+		TeamID:    member.TeamID,
+		UserID:    targetUser.ID,
+		InviterID: uid,
+		Type:      "INVITATION",
+		Status:    "PENDING_USER",
+	}
+
+	if err := database.GetDB().Create(&request).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "邀请失败"})
+		return
+	}
+
+	// Notify Target User
+	var team models.Team
+	database.GetDB().First(&team, teamID)
+	notification := models.Notification{
+		UserID:    targetUser.ID,
+		Title:     "团队邀请",
+		Content:   "您收到加入团队的邀请: " + team.Name,
+		Type:      "TEAM_INVITE",
+		RelatedID: request.ID,
+	}
+	database.GetDB().Create(&notification)
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "邀请已发送"})
+}
+
+func listTeamRequests(c *gin.Context) {
+	teamID := c.Param("id")
+	userID, _ := c.Get("user_id")
+	uid := userID.(uint64)
+
+	// Check if owner
+	var team models.Team
+	if err := database.GetDB().First(&team, teamID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "团队不存在"})
+		return
+	}
+	if team.OwnerUserID != uid {
+		c.JSON(http.StatusForbidden, gin.H{"error": "只有团队创建者可以查看申请列表"})
+		return
+	}
+
+	var requests []struct {
+		models.TeamRequest
+		UserName    string `json:"user_name"`
+		InviterName string `json:"inviter_name"`
+	}
+
+	db := database.GetDB().Table("team_requests").
+		Select("team_requests.*, u1.display_name as user_name, u2.display_name as inviter_name").
+		Joins("LEFT JOIN users u1 ON u1.id = team_requests.user_id").
+		Joins("LEFT JOIN users u2 ON u2.id = team_requests.inviter_id").
+		Where("team_requests.team_id = ? AND team_requests.status = 'PENDING_OWNER'", teamID)
+
+	if err := db.Find(&requests).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取申请列表失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": requests})
+}
+
+func handleTeamRequest(c *gin.Context) {
+	requestID := c.Param("requestId")
+	var req struct {
+		Action string `json:"action" binding:"required"` // ACCEPT, REJECT
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+		return
+	}
+
+	userID, _ := c.Get("user_id")
+	uid := userID.(uint64)
+
+	var request models.TeamRequest
+	if err := database.GetDB().First(&request, requestID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "请求不存在"})
+		return
+	}
+
+	if request.Status != "PENDING_USER" && request.Status != "PENDING_OWNER" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求状态无效"})
+		return
+	}
+
+	var team models.Team
+	database.GetDB().First(&team, request.TeamID)
+
+	// Logic for handling
+	if request.Status == "PENDING_USER" {
+		// User handling invitation
+		if request.UserID != uid {
+			c.JSON(http.StatusForbidden, gin.H{"error": "无权处理此请求"})
+			return
+		}
+		if req.Action == "REJECT" {
+			request.Status = "REJECTED"
+			database.GetDB().Save(&request)
+			database.GetDB().Model(&models.Notification{}).Where("user_id = ? AND related_id = ? AND type IN ?", uid, request.ID, []string{"TEAM_INVITE", "TEAM_APPLICATION"}).Updates(map[string]interface{}{"action_status": "REJECTED", "is_read": true})
+			// Notify Inviter? Maybe later.
+			c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "已拒绝"})
+			return
+		}
+
+		// If Accepted
+		// Check if inviter is owner
+		if request.InviterID == team.OwnerUserID {
+			// Direct join
+			member := models.TeamMember{TeamID: team.ID, UserID: uid, Role: 0}
+			database.GetDB().Create(&member)
+			request.Status = "APPROVED"
+			database.GetDB().Save(&request)
+			database.GetDB().Model(&models.Notification{}).Where("user_id = ? AND related_id = ? AND type IN ?", uid, request.ID, []string{"TEAM_INVITE", "TEAM_APPLICATION"}).Updates(map[string]interface{}{"action_status": "ACCEPTED", "is_read": true})
+			c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "已加入团队"})
+		} else {
+			// Needs owner approval
+			request.Status = "PENDING_OWNER"
+			database.GetDB().Save(&request)
+			// Notify Owner
+			notification := models.Notification{
+				UserID:    team.OwnerUserID,
+				Title:     "新的入队申请",
+				Content:   "用户接受了成员邀请，等待您的批准: " + team.Name,
+				Type:      "TEAM_APPLICATION",
+				RelatedID: request.ID,
+			}
+			database.GetDB().Create(&notification)
+			database.GetDB().Model(&models.Notification{}).Where("user_id = ? AND related_id = ? AND type IN ?", uid, request.ID, []string{"TEAM_INVITE", "TEAM_APPLICATION"}).Updates(map[string]interface{}{"action_status": "ACCEPTED", "is_read": true})
+			c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "已接受邀请，等待群主审核"})
+		}
+	} else if request.Status == "PENDING_OWNER" {
+		// Owner handling application
+		if team.OwnerUserID != uid {
+			c.JSON(http.StatusForbidden, gin.H{"error": "只有群主可以处理此请求"})
+			return
+		}
+
+		if req.Action == "REJECT" {
+			request.Status = "REJECTED"
+			database.GetDB().Save(&request)
+			// Notify User
+			notification := models.Notification{
+				UserID:    request.UserID,
+				Title:     "申请被拒绝",
+				Content:   "您加入团队 " + team.Name + " 的申请被拒绝",
+				Type:      "SYSTEM",
+				RelatedID: request.ID,
+			}
+			database.GetDB().Create(&notification)
+			database.GetDB().Model(&models.Notification{}).Where("user_id = ? AND related_id = ? AND type IN ?", uid, request.ID, []string{"TEAM_INVITE", "TEAM_APPLICATION"}).Updates(map[string]interface{}{"action_status": "REJECTED", "is_read": true})
+			c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "已拒绝"})
+			return
+		}
+
+		// Approve
+		member := models.TeamMember{TeamID: team.ID, UserID: request.UserID, Role: 0}
+		database.GetDB().Create(&member)
+		request.Status = "APPROVED"
+		database.GetDB().Save(&request)
+
+		// Notify User
+		notification := models.Notification{
+			UserID:    request.UserID,
+			Title:     "申请通过",
+			Content:   "您已成功加入团队: " + team.Name,
+			Type:      "SYSTEM",
+			RelatedID: request.ID,
+		}
+		database.GetDB().Create(&notification)
+		database.GetDB().Model(&models.Notification{}).Where("user_id = ? AND related_id = ? AND type IN ?", uid, request.ID, []string{"TEAM_INVITE", "TEAM_APPLICATION"}).Updates(map[string]interface{}{"action_status": "APPROVED", "is_read": true})
+		c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "已批准"})
+	}
 }
 
 func listTeams(c *gin.Context) {

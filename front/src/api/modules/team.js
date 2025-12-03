@@ -46,12 +46,6 @@ export function getTeamMembers(teamId, params = {}) {
   return request.get(`/teams/${teamId}/members`, params);
 }
 
-/**
- * 邀请成员加入团队
- */
-export function inviteMember(teamId, data) {
-  return request.post(`/teams/${teamId}/members`, data);
-}
 
 /**
  * 通过名称加入团队
@@ -142,4 +136,25 @@ export function getTeamSettings(teamId) {
  */
 export function updateTeamSettings(teamId, settings) {
   return request.put(`/teams/${teamId}/settings`, settings);
+}
+
+/**
+ * 邀请成员加入团队
+ */
+export function inviteMember(teamId, data) {
+  return request.post(`/teams/${teamId}/invite`, data);
+}
+
+/**
+ * 获取团队申请列表
+ */
+export function getTeamRequests(teamId) {
+  return request.get(`/teams/${teamId}/requests`);
+}
+
+/**
+ * 处理团队申请
+ */
+export function handleTeamRequest(teamId, requestId, data) {
+  return request.post(`/teams/${teamId}/requests/${requestId}/handle`, data);
 }

@@ -12,6 +12,7 @@ import StudyRoom from "./views/StudyRoom.vue";
 import VideoRoom from "./views/VideoRoom.vue";
 import Profile from "./views/Profile.vue";
 import TaskManager from "./views/TaskManager.vue";
+import NotificationHistory from "./views/NotificationHistory.vue";
 
 // 导入路由守卫
 import { beforeEach, afterEach, onError } from "./router/guards.js";
@@ -72,6 +73,15 @@ const routes = [
       title: "任务管理",
       requiresAuth: true,
       permissions: ["task:manage"],
+    },
+  },
+  {
+    path: "/notifications",
+    name: "NotificationHistory",
+    component: NotificationHistory,
+    meta: {
+      title: "通知中心",
+      requiresAuth: true,
     },
   },
   // 错误页面路由
