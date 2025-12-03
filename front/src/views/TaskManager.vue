@@ -26,14 +26,14 @@
           <TaskTabsSection
           />
         </main>
-
-        <InteractionPanel
-          :is-chat-expanded="isChatExpanded"
-          :current-motivational-quote="currentMotivationalQuote"
-          @toggle-chat="toggleChatList"
-          @open-chat="goToChatHistory"
-        />
       </div>
+      
+      <InteractionPanel
+        :is-chat-expanded="isChatExpanded"
+        :current-motivational-quote="currentMotivationalQuote"
+        @toggle-chat="toggleChatList"
+        @open-chat="goToChatHistory"
+      />
     </div>
   </div>
 
@@ -444,7 +444,7 @@
     data() {
       return {
         // 聊天相关状态
-        isChatExpanded: true, // 聊天列表展开状态
+        isChatExpanded: false, // 聊天列表展开状态
         currentMotivationalQuote:
           "每一次努力都是成长的阶梯，坚持下去，你会看到不一样的自己！", // 当前励志语录
         motivationalQuotes: [
