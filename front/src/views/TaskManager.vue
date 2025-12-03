@@ -30,7 +30,6 @@
       
       <InteractionPanel
         :is-chat-expanded="isChatExpanded"
-        :current-motivational-quote="currentMotivationalQuote"
         @toggle-chat="toggleChatList"
         @open-chat="goToChatHistory"
       />
@@ -445,18 +444,6 @@
       return {
         // 聊天相关状态
         isChatExpanded: false, // 聊天列表展开状态
-        currentMotivationalQuote:
-          "每一次努力都是成长的阶梯，坚持下去，你会看到不一样的自己！", // 当前励志语录
-        motivationalQuotes: [
-          "每一次努力都是成长的阶梯，坚持下去，你会看到不一样的自己！",
-          "学习不是为了证明什么，而是为了成为更好的自己。",
-          "今天的努力，是为了明天的从容不迫。",
-          "知识是唯一不会贬值的投资，学习是最好的成长方式。",
-          "不怕慢，只怕停。每天进步一点点，就是成功的开始。",
-          "困难是成长的垫脚石，挑战是能力的试金石。",
-          "相信自己，你比想象中更强大，比昨天更优秀。",
-          "学习的路上没有捷径，但每一步都算数。",
-        ],
         // 学习效率分析相关状态
         showEfficiencyModal: false,
         showSummaryModal: false,

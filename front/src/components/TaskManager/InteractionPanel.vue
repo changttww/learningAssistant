@@ -3,7 +3,7 @@
     class="fixed top-20 right-4 z-40 transition-all duration-300 ease-in-out shadow-xl"
     :class="[
       isChatExpanded 
-        ? 'w-80 h-[calc(100vh-6rem)] bg-white border border-gray-100 rounded-2xl flex flex-col' 
+        ? 'w-80 max-h-[calc(100vh-6rem)] h-auto bg-white border border-gray-100 rounded-2xl flex flex-col overflow-hidden' 
         : 'w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white hover:shadow-2xl cursor-pointer flex items-center justify-center border-none'
     ]"
     @click="!isChatExpanded && $emit('toggle-chat')"
@@ -18,7 +18,7 @@
     </div>
 
     <!-- 展开状态的内容 -->
-    <div v-else class="flex flex-col h-full w-full p-6 relative">
+    <div v-else class="flex flex-col w-full p-6 relative gap-4">
       <button 
         @click.stop="$emit('toggle-chat')"
         class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
@@ -31,56 +31,6 @@
         <div class="flex items-center gap-2">
           <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
           <span class="text-sm text-green-600">3人在线</span>
-        </div>
-      </div>
-
-      <div class="mb-6">
-        <div class="flex justify-between items-center mb-3">
-          <h4 class="font-medium text-gray-700">学习伙伴</h4>
-          <button class="text-blue-600 hover:text-blue-800 flex items-center text-sm">
-            <iconify-icon icon="mdi:plus-circle" class="mr-1" />
-            添加
-          </button>
-        </div>
-
-        <div class="space-y-3">
-          <div class="friend-card card p-3 flex items-center cursor-pointer hover:bg-blue-50 rounded-xl">
-            <div class="relative">
-              <div class="w-10 h-10 rounded-full bg-gray-300"></div>
-              <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-white"></div>
-            </div>
-            <div class="ml-3 flex-1">
-              <div class="font-medium text-sm">张伟</div>
-              <div class="text-xs text-gray-500">前端开发课程学习中</div>
-            </div>
-            <div class="flex gap-1">
-              <button class="w-7 h-7 flex items-center justify-center bg-gray-100 text-gray-600 rounded-full hover:bg-blue-100 text-sm">
-                <iconify-icon icon="mdi:thumb-up" />
-              </button>
-              <button class="w-7 h-7 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 text-sm">
-                <iconify-icon icon="mdi:message" />
-              </button>
-            </div>
-          </div>
-
-          <div class="friend-card card p-3 flex items-center cursor-pointer hover:bg-blue-50 rounded-xl">
-            <div class="relative">
-              <div class="w-10 h-10 rounded-full bg-gray-300"></div>
-              <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-gray-300 border-2 border-white"></div>
-            </div>
-            <div class="ml-3 flex-1">
-              <div class="font-medium text-sm">刘燕</div>
-              <div class="text-xs text-gray-500">英语学习进行中</div>
-            </div>
-            <div class="flex gap-1">
-              <button class="w-7 h-7 flex items-center justify-center bg-gray-100 text-gray-600 rounded-full hover:bg-blue-100 text-sm">
-                <iconify-icon icon="mdi:thumb-up" />
-              </button>
-              <button class="w-7 h-7 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 text-sm">
-                <iconify-icon icon="mdi:message" />
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -108,8 +58,8 @@
           </h4>
         </div>
 
-        <div class="flex-1 flex flex-col overflow-hidden">
-          <div class="flex-1 space-y-3 overflow-y-auto pr-2 custom-scrollbar">
+        <div class="flex flex-col overflow-hidden">
+          <div class="space-y-3 overflow-y-auto pr-2 custom-scrollbar max-h-[calc(100vh-16rem)]">
             <div
               class="flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
               @click="$emit('open-chat', '陈敏')"
@@ -243,18 +193,6 @@
       </div>
     </div>
 
-    <div
-      v-if="!isChatExpanded"
-      class="mt-6 flex-1 flex items-end justify-center pb-4"
-    >
-      <div class="text-center">
-        <p
-          class="text-2xl font-bold bg-gradient-to-r from-gray-600 to-gray-800 bg-clip-text text-transparent leading-relaxed font-serif italic"
-        >
-          {{ currentMotivationalQuote }}
-        </p>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -264,10 +202,6 @@
     props: {
       isChatExpanded: {
         type: Boolean,
-        required: true,
-      },
-      currentMotivationalQuote: {
-        type: String,
         required: true,
       },
     },

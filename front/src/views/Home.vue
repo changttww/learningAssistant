@@ -116,60 +116,24 @@
             {{ totalStudyHoursLabel }}
           </div>
           <div class="text-gray-600 mt-1 text-sm">总学习时长</div>
-          <div class="text-xs text-green-600 mt-1 flex items-center">
-            <iconify-icon
-              icon="mdi:trending-up"
-              width="12"
-              height="12"
-              class="mr-1"
-            ></iconify-icon>
-            较上月增长 15%
-          </div>
         </div>
         <div class="stat-card bg-green-50 p-4">
           <div class="text-2xl font-bold text-green-600">
             {{ taskCompletionRate }}
           </div>
-          <div class="text-gray-600 mt-1 text-sm">任务完成率</div>
-          <div class="text-xs text-green-600 mt-1 flex items-center">
-            <iconify-icon
-              icon="mdi:trending-up"
-              width="12"
-              height="12"
-              class="mr-1"
-            ></iconify-icon>
-            较上月增长 8%
-          </div>
+          <div class="text-gray-600 mt-1 text-sm">周任务完成率</div>
         </div>
         <div class="stat-card bg-orange-50 p-4">
           <div class="text-2xl font-bold text-orange-600">
             {{ tasksInProgress }}
           </div>
           <div class="text-gray-600 mt-1 text-sm">进行中任务</div>
-          <div class="text-xs text-green-600 mt-1 flex items-center">
-            <iconify-icon
-              icon="mdi:trending-up"
-              width="12"
-              height="12"
-              class="mr-1"
-            ></iconify-icon>
-            正在完成 2 个任务
-          </div>
         </div>
         <div class="stat-card bg-purple-50 p-4">
           <div class="text-2xl font-bold text-purple-600">
             {{ certificatesCount }}
           </div>
           <div class="text-gray-600 mt-1 text-sm">已获得成就</div>
-          <div class="text-xs text-green-600 mt-1 flex items-center">
-            <iconify-icon
-              icon="mdi:trending-up"
-              width="12"
-              height="12"
-              class="mr-1"
-            ></iconify-icon>
-            本月新增 3 个
-          </div>
         </div>
       </div>
 
@@ -198,12 +162,6 @@
               class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <div class="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  :checked="task.status === 'completed'"
-                  @change="toggleTaskStatus(task)"
-                  class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                />
                 <div class="flex-1">
                   <div
                     :class="[
@@ -215,21 +173,12 @@
                   >
                     {{ task.title }}
                   </div>
-                  <div class="text-xs text-gray-500 mt-1">
-                    {{ task.time }} · {{ task.category }}
-                  </div>
                 </div>
               </div>
               <div
                 :class="[
                   'px-2 py-1 rounded-full text-xs',
-                  {
-                    'bg-green-100 text-green-800': task.status === 'completed',
-                    'bg-orange-100 text-orange-800':
-                      task.status === 'in-progress',
-                    'bg-red-100 text-red-800': task.status === 'overdue',
-                    'bg-gray-100 text-gray-800': task.status === 'pending',
-                  },
+                  getStatusClass(task.status),
                 ]"
               >
                 {{ getStatusText(task.status) }}
@@ -296,12 +245,13 @@
 </template>
 
 <script>
-  import { computed, onMounted } from "vue";
+  import { computed, onMounted, ref } from "vue";
   import * as echarts from "echarts";
   import {
     useCurrentUser,
     DEFAULT_USER_ID,
   } from "@/composables/useCurrentUser";
+  import { getTaskBarStats, getTodayTasks } from "@/api/modules/task";
 
   export default {
     name: "Home",
@@ -314,13 +264,63 @@
         studyStatsLoaded,
       } = useCurrentUser();
 
-      onMounted(async () => {
+      const currentUserId = ref(DEFAULT_USER_ID);
+      const taskBarStats = ref(null);
+
+      const clampPercentage = (value) => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return 0;
+        if (numeric < 0) return 0;
+        if (numeric > 100) return 100;
+        return Math.round(numeric);
+      };
+
+      const mapBarStats = (payload = {}) => {
+        const items = Array.isArray(payload?.data) ? payload.data : [];
+        const completedTasks = items.reduce(
+          (sum, item) => sum + (Number(item.completed) || 0),
+          0
+        );
+        const totalTasks = items.reduce(
+          (sum, item) => sum + (Number(item.total) || 0),
+          0
+        );
+        const completionRate =
+          totalTasks > 0
+            ? clampPercentage(Math.round((completedTasks / totalTasks) * 100))
+            : 0;
+
+        return {
+          completionRate,
+          completedTasks,
+          totalTasks,
+        };
+      };
+
+      const fetchTaskBarStats = async (rangeKey = "week") => {
         try {
-          const loadedProfile = await loadCurrentUser();
-          await loadStudyStats(loadedProfile?.id ?? DEFAULT_USER_ID);
+          const res = await getTaskBarStats(rangeKey);
+          taskBarStats.value = mapBarStats(res?.data);
+        } catch (error) {
+          console.error("加载任务统计失败:", error);
+        }
+      };
+
+      onMounted(async () => {
+        let loadedProfile = null;
+        try {
+          loadedProfile = await loadCurrentUser();
+          if (loadedProfile?.id) {
+            currentUserId.value = loadedProfile.id;
+          }
         } catch (error) {
           console.error("加载用户详情失败:", error);
         }
+
+        await Promise.allSettled([
+          loadStudyStats(loadedProfile?.id ?? DEFAULT_USER_ID),
+          fetchTaskBarStats("week"),
+        ]);
       });
 
       const displayName = computed(() => profile.value?.display_name || "学习者");
@@ -357,13 +357,22 @@
         () => studyStats.value?.study_groups ?? 0
       );
       const taskCompletionRate = computed(() => {
-        const rate = studyStats.value?.task_completion_rate;
-        if (rate === null || rate === undefined) return "92%";
+        const rate = taskBarStats.value?.completionRate;
+        if (rate === null || rate === undefined) {
+          const profileRate = studyStats.value?.task_completion_rate;
+          if (profileRate === null || profileRate === undefined) return "92%";
+          return `${profileRate}%`;
+        }
         return `${rate}%`;
       });
-      const tasksInProgress = computed(
-        () => studyStats.value?.tasks_in_progress ?? 8
-      );
+      const tasksInProgress = computed(() => {
+        if (taskBarStats.value) {
+          const { totalTasks = 0, completedTasks = 0 } = taskBarStats.value;
+          const inProgress = Math.max(totalTasks - completedTasks, 0);
+          if (totalTasks || completedTasks) return inProgress;
+        }
+        return studyStats.value?.tasks_in_progress ?? 8;
+      });
       const certificatesCount = computed(
         () => studyStats.value?.certificates_count ?? 24
       );
@@ -383,64 +392,82 @@
         certificatesCount,
         studyStatsLoaded,
         pointsToNextLevel,
+        currentUserId,
       };
     },
     data() {
       return {
         // 今日任务数据
-        todayTasks: [
-          {
-            id: 1,
-            title: "完成数学作业",
-            description: "微积分练习题第3章",
-            date: "2024-03-05",
-            time: "14:00前",
-            status: "completed",
-            category: "数学",
-          },
-          {
-            id: 2,
-            title: "准备英语报告",
-            description: "关于气候变化的演讲",
-            date: "2024-03-05",
-            time: "15:00前",
-            status: "in-progress",
-            category: "英语",
-          },
-          {
-            id: 3,
-            title: "物理实验预习",
-            description: "波动光学实验操作流程",
-            date: "2024-03-05",
-            time: "17:00前",
-            status: "pending",
-            category: "物理",
-          },
-        ],
+        todayTasks: [],
       };
     },
     mounted() {
       this.initCharts();
+      this.fetchTodayTasks();
     },
     methods: {
-      // 切换任务状态
-      toggleTaskStatus(task) {
-        if (task.status === "completed") {
-          task.status = "pending";
-        } else {
-          task.status = "completed";
+      normalizeStatus(status) {
+        const normalized =
+          typeof status === "string" ? status.trim().toLowerCase() : status;
+        switch (normalized) {
+          case 2:
+          case "2":
+          case "completed":
+            return "completed";
+          case 1:
+          case "1":
+          case "in-progress":
+          case "in_progress":
+            return "in-progress";
+          case "overdue":
+            return "overdue";
+          case 0:
+          case "0":
+          case "pending":
+          default:
+            return "pending";
+        }
+      },
+      async fetchTodayTasks() {
+        const userId = this.currentUserId || DEFAULT_USER_ID;
+        try {
+          const res = await getTodayTasks(userId);
+          const payload = res?.data || {};
+          const merged = []
+            .concat(payload.completed || [])
+            .concat(payload.in_progress || [])
+            .concat(payload.not_started || []);
+
+          this.todayTasks = merged.map((task) => ({
+            id: task.id,
+            title: task.title || "未命名任务",
+            status: this.normalizeStatus(task.status),
+          }));
+        } catch (error) {
+          console.error("加载今日任务失败:", error);
+          this.todayTasks = [];
         }
       },
 
       // 获取状态文本
       getStatusText(status) {
+        const normalized = this.normalizeStatus(status);
         const statusMap = {
           completed: "已完成",
           "in-progress": "进行中",
           pending: "待完成",
           overdue: "已逾期",
         };
-        return statusMap[status] || "未知";
+        return statusMap[normalized] || "未知";
+      },
+      getStatusClass(status) {
+        const normalized = this.normalizeStatus(status);
+        return {
+          "bg-green-100 text-green-800": normalized === "completed",
+          "bg-orange-100 text-orange-800": normalized === "in-progress",
+          "bg-red-100 text-red-800": normalized === "overdue",
+          "bg-gray-100 text-gray-800": normalized === "pending",
+        };
       },
       initCharts() {
         // 学习时长趋势图
