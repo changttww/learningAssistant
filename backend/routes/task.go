@@ -86,6 +86,12 @@ func registerTaskRoutes(r *gin.RouterGroup) {
 	r.POST("/:id/uncomplete", uncompleteTask)
 	r.GET("/categories", getTaskCategories)
 	r.GET("/statistics", getTaskStatistics)
+	// AI 解析自然语言任务
+	r.POST("/ai/parse", ParseTaskWithAI)
+	// AI 任务指导
+	r.POST("/ai/guidance", GetTaskGuidance)
+	// AI 测验生成
+	r.POST("/ai/quiz", GenerateQuiz)
 }
 
 // createTask 创建任务
