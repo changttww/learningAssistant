@@ -130,6 +130,24 @@ export function searchTasks(keyword, params = {}) {
 }
 
 /**
+ * AI 解析自然语言任务
+ */
+export function parseTaskWithAI(input) {
+  return request.post("/tasks/ai/parse", { input }, { timeout: 60000 });
+}
+
+/**
+ * 获取任务指导和相关资源
+ */
+export function getTaskGuidance(title, description, category) {
+  return request.post("/tasks/ai/guidance", { title, description, category }, { timeout: 60000 });
+}
+
+/**
+ * AI 生成智能测验
+ */
+export function generateQuiz(data) {
+  return request.post("/tasks/ai/quiz", data, { timeout: 60000 });
  * 获取今日任务
  */
 export function getTodayTasks(userId) {

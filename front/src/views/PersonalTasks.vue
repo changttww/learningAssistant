@@ -227,6 +227,20 @@
                       <!-- 操作按钮 -->
                       <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
+                          @click.stop="openGuidanceModal(task)"
+                          class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                          title="获取任务指导"
+                        >
+                          <iconify-icon icon="mdi:lightbulb-outline" width="16" height="16"></iconify-icon>
+                        </button>
+                        <button
+                          @click.stop="openQuizModal(task)"
+                          class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="智能测验"
+                        >
+                          <iconify-icon icon="mdi:file-question-outline" width="16" height="16"></iconify-icon>
+                        </button>
+                        <button
                           @click.stop="editTask(task)"
                           class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="编辑任务"
@@ -631,6 +645,22 @@
 
                 <!-- 操作按钮组 -->
                 <div class="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <!-- 指导按钮 -->
+                  <button
+                    @click.stop="openGuidanceModal(task)"
+                    class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors duration-200"
+                    title="获取任务指导"
+                  >
+                    <iconify-icon icon="mdi:lightbulb-outline" width="16" height="16"></iconify-icon>
+                  </button>
+                  <!-- 智能测验按钮 -->
+                  <button
+                    @click.stop="openQuizModal(task)"
+                    class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                    title="智能测验"
+                  >
+                    <iconify-icon icon="mdi:file-question-outline" width="16" height="16"></iconify-icon>
+                  </button>
                   <!-- 编辑按钮 -->
                   <button
                     @click.stop="editTask(task)"
@@ -819,9 +849,15 @@
                 type="text"
                 class="flex-1 border-0 bg-white px-3 py-2.5 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-400 shadow-sm"
                 placeholder="例如：明天下午3点完成数学作业第三章"
+                :disabled="isParsing"
               />
               <button
                 @click="parseNaturalLanguage"
+                :disabled="isParsing"
+                class="text-white bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 rounded-lg text-sm font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <iconify-icon :icon="isParsing ? 'mdi:loading' : 'mdi:wand'" width="16" height="16" :class="{ 'animate-spin': isParsing }"></iconify-icon>
+                {{ isParsing ? '解析中...' : '解析' }}
                 class="text-white bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 rounded-lg text-sm font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105 flex items-center gap-2"
               >
                 <iconify-icon icon="mdi:wand" width="16" height="16"></iconify-icon>
@@ -972,7 +1008,7 @@
 
     <!-- 笔记本弹窗 -->
     <div
-      v-if="showNotebookModal"
+      v-if="showNotebookModal && currentNote"
       class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
     >
       <div
@@ -1188,6 +1224,388 @@
         </div>
       </div>
     </div>
+
+    <!-- 任务指导弹窗 -->
+    <div
+      v-if="showGuidanceModal"
+      class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      @click="closeGuidanceModal"
+    >
+      <div
+        class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col animate-modal-enter"
+        @click.stop
+      >
+        <!-- 弹窗头部 -->
+        <div class="bg-gradient-to-r from-purple-500 to-pink-600 px-6 py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                <iconify-icon icon="mdi:lightbulb-on" width="20" height="20" class="text-white"></iconify-icon>
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-white">任务指导</h3>
+                <p class="text-purple-100 text-sm">{{ guidanceTask?.title }}</p>
+              </div>
+            </div>
+            <button
+              @click="closeGuidanceModal"
+              class="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+            >
+              <iconify-icon icon="mdi:close" width="20" height="20" class="text-white"></iconify-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- 弹窗内容 -->
+        <div class="flex-1 overflow-y-auto p-6">
+          <!-- 加载状态 -->
+          <div v-if="isLoadingGuidance" class="flex flex-col items-center justify-center py-12">
+            <iconify-icon icon="mdi:loading" width="48" height="48" class="text-purple-500 animate-spin"></iconify-icon>
+            <p class="text-gray-500 mt-4">AI 正在生成任务指导...</p>
+          </div>
+
+          <!-- 指导内容 -->
+          <div v-else-if="taskGuidance" class="space-y-6">
+            <!-- 执行步骤 -->
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-200">
+              <div class="flex items-center gap-2 mb-4">
+                <iconify-icon icon="mdi:format-list-numbered" width="20" height="20" class="text-blue-600"></iconify-icon>
+                <h4 class="font-bold text-blue-800">执行步骤</h4>
+              </div>
+              <ol class="space-y-3">
+                <li v-for="(step, index) in taskGuidance.steps" :key="index" class="flex items-start gap-3">
+                  <span class="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                    {{ index + 1 }}
+                  </span>
+                  <span class="text-gray-700 leading-relaxed">{{ step }}</span>
+                </li>
+              </ol>
+            </div>
+
+            <!-- 学习技巧 -->
+            <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-5 border border-green-200">
+              <div class="flex items-center gap-2 mb-4">
+                <iconify-icon icon="mdi:lightbulb" width="20" height="20" class="text-green-600"></iconify-icon>
+                <h4 class="font-bold text-green-800">学习技巧</h4>
+              </div>
+              <ul class="space-y-2">
+                <li v-for="(tip, index) in taskGuidance.tips" :key="index" class="flex items-start gap-2">
+                  <iconify-icon icon="mdi:check-circle" width="18" height="18" class="text-green-500 mt-0.5 flex-shrink-0"></iconify-icon>
+                  <span class="text-gray-700">{{ tip }}</span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- 时间建议 -->
+            <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-200">
+              <div class="flex items-center gap-2 mb-3">
+                <iconify-icon icon="mdi:clock-outline" width="20" height="20" class="text-orange-600"></iconify-icon>
+                <h4 class="font-bold text-orange-800">时间建议</h4>
+              </div>
+              <p class="text-gray-700">{{ taskGuidance.timeAdvice }}</p>
+            </div>
+
+            <!-- 相关资源 -->
+            <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-200">
+              <div class="flex items-center gap-2 mb-4">
+                <iconify-icon icon="mdi:link-variant" width="20" height="20" class="text-purple-600"></iconify-icon>
+                <h4 class="font-bold text-purple-800">相关资源</h4>
+              </div>
+              <div class="grid grid-cols-1 gap-3">
+                <a
+                  v-for="(resource, index) in taskGuidance.resources"
+                  :key="index"
+                  :href="resource.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="flex items-center gap-3 p-3 bg-white rounded-lg border border-purple-200 hover:border-purple-400 hover:shadow-md transition-all group"
+                >
+                  <div :class="[
+                    'w-10 h-10 rounded-lg flex items-center justify-center',
+                    resource.type === 'video' ? 'bg-red-100' :
+                    resource.type === 'course' ? 'bg-blue-100' :
+                    resource.type === 'article' ? 'bg-green-100' :
+                    'bg-gray-100'
+                  ]">
+                    <iconify-icon 
+                      :icon="
+                        resource.type === 'video' ? 'mdi:play-circle' :
+                        resource.type === 'course' ? 'mdi:school' :
+                        resource.type === 'article' ? 'mdi:file-document' :
+                        'mdi:tools'
+                      " 
+                      width="20" 
+                      height="20"
+                      :class="[
+                        resource.type === 'video' ? 'text-red-600' :
+                        resource.type === 'course' ? 'text-blue-600' :
+                        resource.type === 'article' ? 'text-green-600' :
+                        'text-gray-600'
+                      ]"
+                    ></iconify-icon>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="font-medium text-gray-800 group-hover:text-purple-600 truncate">{{ resource.title }}</p>
+                    <p class="text-xs text-gray-500 truncate">{{ resource.url }}</p>
+                  </div>
+                  <iconify-icon icon="mdi:open-in-new" width="16" height="16" class="text-gray-400 group-hover:text-purple-600"></iconify-icon>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- 无数据状态 -->
+          <div v-else class="flex flex-col items-center justify-center py-12">
+            <iconify-icon icon="mdi:alert-circle-outline" width="48" height="48" class="text-gray-400"></iconify-icon>
+            <p class="text-gray-500 mt-4">暂无指导信息</p>
+          </div>
+        </div>
+
+        <!-- 底部按钮 -->
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <div class="flex justify-end gap-3">
+            <button
+              @click="refreshGuidance"
+              :disabled="isLoadingGuidance"
+              class="px-4 py-2 text-purple-600 border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              <iconify-icon icon="mdi:refresh" width="16" height="16" :class="{ 'animate-spin': isLoadingGuidance }"></iconify-icon>
+              重新生成
+            </button>
+            <button
+              @click="closeGuidanceModal"
+              class="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg hover:shadow-lg transition-all"
+            >
+              关闭
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 智能测验弹窗 -->
+    <div
+      v-if="showQuizModal"
+      class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      @click="closeQuizModal"
+    >
+      <div
+        class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col animate-modal-enter"
+        @click.stop
+      >
+        <!-- 弹窗头部 -->
+        <div class="bg-gradient-to-r from-blue-500 to-cyan-600 px-6 py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                <iconify-icon icon="mdi:file-question" width="20" height="20" class="text-white"></iconify-icon>
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-white">智能测验</h3>
+                <p class="text-blue-100 text-sm">{{ quizTask?.title }}</p>
+              </div>
+            </div>
+            <button
+              @click="closeQuizModal"
+              class="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+            >
+              <iconify-icon icon="mdi:close" width="20" height="20" class="text-white"></iconify-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- 弹窗内容 -->
+        <div class="flex-1 overflow-y-auto p-6">
+          <!-- 加载状态 -->
+          <div v-if="isLoadingQuiz" class="flex flex-col items-center justify-center py-12">
+            <iconify-icon icon="mdi:loading" width="48" height="48" class="text-blue-500 animate-spin"></iconify-icon>
+            <p class="text-gray-500 mt-4">AI 正在生成智能测验...</p>
+          </div>
+
+          <!-- 测验内容 -->
+          <div v-else-if="quiz" class="space-y-6">
+            <!-- 选择题部分 -->
+            <div v-for="(question, index) in quiz.questions" :key="index" class="bg-white rounded-xl p-5 border-2 border-gray-200 hover:border-blue-300 transition-colors">
+              <div class="flex items-start gap-3 mb-4">
+                <span class="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">
+                  {{ index + 1 }}
+                </span>
+                <div class="flex-1">
+                  <p class="text-gray-800 font-medium leading-relaxed">{{ question.question }}</p>
+                  <span :class="[
+                    'inline-block mt-2 px-2 py-1 text-xs rounded-full',
+                    question.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
+                    question.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-red-100 text-red-700'
+                  ]">
+                    {{ question.difficulty === 'easy' ? '简单' : question.difficulty === 'medium' ? '中等' : '困难' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- 选项 -->
+              <div class="space-y-2 ml-11">
+                <label
+                  v-for="option in ['A', 'B', 'C', 'D']"
+                  :key="option"
+                  :class="[
+                    'flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all',
+                    userAnswers[index] === option
+                      ? quizSubmitted
+                        ? option === question.correctAnswer
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-red-500 bg-red-50'
+                        : 'border-blue-500 bg-blue-50'
+                      : quizSubmitted && option === question.correctAnswer
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
+                  ]"
+                >
+                  <input
+                    type="radio"
+                    :name="`question-${index}`"
+                    :value="option"
+                    v-model="userAnswers[index]"
+                    :disabled="quizSubmitted"
+                    class="mt-1 w-4 h-4 text-blue-600"
+                  />
+                  <span class="flex-1 text-gray-700">
+                    <span class="font-semibold">{{ option }}.</span> {{ question.options[option] }}
+                  </span>
+                  <iconify-icon
+                    v-if="quizSubmitted && option === question.correctAnswer"
+                    icon="mdi:check-circle"
+                    width="20"
+                    height="20"
+                    class="text-green-600 mt-1"
+                  ></iconify-icon>
+                  <iconify-icon
+                    v-else-if="quizSubmitted && userAnswers[index] === option && option !== question.correctAnswer"
+                    icon="mdi:close-circle"
+                    width="20"
+                    height="20"
+                    class="text-red-600 mt-1"
+                  ></iconify-icon>
+                </label>
+              </div>
+
+              <!-- 答案解析 -->
+              <div v-if="quizSubmitted" class="ml-11 mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div class="flex items-center gap-2 mb-2">
+                  <iconify-icon icon="mdi:lightbulb-on" width="18" height="18" class="text-blue-600"></iconify-icon>
+                  <span class="font-semibold text-blue-800">答案解析</span>
+                </div>
+                <p class="text-gray-700 leading-relaxed">{{ question.explanation }}</p>
+              </div>
+            </div>
+
+            <!-- 问答题部分 -->
+            <div v-if="quiz.essayQuestion" class="bg-white rounded-xl p-5 border-2 border-gray-200 hover:border-purple-300 transition-colors">
+              <div class="flex items-start gap-3 mb-4">
+                <span class="flex-shrink-0 w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold">
+                  {{ quiz.questions.length + 1 }}
+                </span>
+                <div class="flex-1">
+                  <p class="text-gray-800 font-medium leading-relaxed">{{ quiz.essayQuestion.question }}</p>
+                  <span class="inline-block mt-2 px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-700">
+                    问答题
+                  </span>
+                </div>
+              </div>
+
+              <!-- 文本框 -->
+              <div class="pl-11">
+                <textarea
+                  v-model="essayAnswer"
+                  :disabled="quizSubmitted"
+                  rows="6"
+                  placeholder="请在此输入你的答案..."
+                  class="w-full p-4 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all resize-none disabled:bg-gray-50"
+                ></textarea>
+              </div>
+
+              <!-- 学习建议 -->
+              <div v-if="quizSubmitted" class="pl-11 mt-4">
+                <div class="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                  <div class="flex items-center gap-2 mb-2">
+                    <iconify-icon icon="mdi:school" width="18" height="18" class="text-purple-600"></iconify-icon>
+                    <span class="font-semibold text-purple-800">学习建议</span>
+                  </div>
+                  <p class="text-gray-700 leading-relaxed">{{ quiz.essayQuestion.studySuggestion }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 测验结果 -->
+            <div v-if="quizSubmitted" class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-6 border border-blue-200">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="flex items-center gap-2 mb-2">
+                    <iconify-icon icon="mdi:trophy" width="24" height="24" class="text-yellow-500"></iconify-icon>
+                    <h4 class="text-lg font-bold text-gray-800">测验完成</h4>
+                  </div>
+                  <p class="text-gray-600">
+                    选择题得分: <span class="font-bold text-blue-600">{{ quizScore }}</span> / {{ quiz.questions.length }}
+                  </p>
+                  <p class="text-sm text-gray-500 mt-1">
+                    正确率: {{ ((quizScore / quiz.questions.length) * 100).toFixed(1) }}%
+                  </p>
+                </div>
+                <div class="text-right">
+                  <div :class="[
+                    'text-5xl font-bold',
+                    (quizScore / quiz.questions.length) >= 0.8 ? 'text-green-500' :
+                    (quizScore / quiz.questions.length) >= 0.6 ? 'text-yellow-500' :
+                    'text-red-500'
+                  ]">
+                    {{ ((quizScore / quiz.questions.length) * 100).toFixed(0) }}
+                  </div>
+                  <div class="text-sm text-gray-500 mt-1">分</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 无数据状态 -->
+          <div v-else class="flex flex-col items-center justify-center py-12">
+            <iconify-icon icon="mdi:alert-circle-outline" width="48" height="48" class="text-gray-400"></iconify-icon>
+            <p class="text-gray-500 mt-4">暂无测验信息</p>
+          </div>
+        </div>
+
+        <!-- 底部按钮 -->
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <div class="flex justify-between items-center">
+            <button
+              v-if="quizSubmitted"
+              @click="regenerateQuiz"
+              :disabled="isLoadingQuiz"
+              class="px-4 py-2 text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              <iconify-icon icon="mdi:refresh" width="16" height="16" :class="{ 'animate-spin': isLoadingQuiz }"></iconify-icon>
+              重新生成
+            </button>
+            <div v-else></div>
+            <div class="flex gap-3">
+              <button
+                v-if="!quizSubmitted"
+                @click="submitQuiz"
+                :disabled="!canSubmitQuiz"
+                class="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                提交答案
+              </button>
+              <button
+                @click="closeQuizModal"
+                class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1196,7 +1614,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
-import { createTask, getPersonalTasks, completeTask, uncompleteTask, deleteTask } from "@/api/modules/task";
+import { createTask, getPersonalTasks, completeTask, uncompleteTask, deleteTask, parseTaskWithAI, getTaskGuidance, generateQuiz } from "@/api/modules/task";
 
 // Name
 defineOptions({
@@ -1218,6 +1636,23 @@ const statusFilter = ref(null);
 const modalDateMode = ref('system');
 const tasks = ref([]);
 const notes = ref([]);
+
+// 任务指导相关
+const showGuidanceModal = ref(false);
+const guidanceTask = ref(null);
+const taskGuidance = ref(null);
+const isLoadingGuidance = ref(false);
+
+// 智能测验相关
+const showQuizModal = ref(false);
+const quizTask = ref(null);
+const quiz = ref(null);
+const isLoadingQuiz = ref(false);
+const userAnswers = ref([]);
+const essayAnswer = ref('');
+const quizSubmitted = ref(false);
+const quizScore = ref(0);
+
 const newTask = ref({
   title: "",
   description: "",
@@ -1575,21 +2010,163 @@ const closeTaskModal = () => {
   showTaskModal.value = false;
 };
 
-const parseNaturalLanguage = () => {
-  const input = (naturalLanguageInput.value || "").toLowerCase();
-  if (input.includes("数学")) {
-    newTask.value.category = "study";
-    newTask.value.title = "数学作业";
+// 任务指导相关函数
+const openGuidanceModal = async (task) => {
+  guidanceTask.value = task;
+  showGuidanceModal.value = true;
+  await fetchTaskGuidance();
+};
+
+const closeGuidanceModal = () => {
+  showGuidanceModal.value = false;
+  guidanceTask.value = null;
+  taskGuidance.value = null;
+};
+
+const fetchTaskGuidance = async () => {
+  if (!guidanceTask.value) return;
+  
+  isLoadingGuidance.value = true;
+  try {
+    const response = await getTaskGuidance(
+      guidanceTask.value.title,
+      guidanceTask.value.description || '',
+      guidanceTask.value.category || 'other'
+    );
+    console.log('任务指导响应:', response);
+    
+    // response 已经是拦截器处理后的 data 对象
+    if (response && response.data) {
+      taskGuidance.value = response.data;
+    } else if (response && response.steps) {
+      // 如果 response 直接就是指导数据
+      taskGuidance.value = response;
+    }
+  } catch (error) {
+    console.error('获取任务指导失败:', error);
+  } finally {
+    isLoadingGuidance.value = false;
   }
-  if (input.includes("明天")) {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const ds = formatLocalDate(tomorrow);
-    newTask.value.startDate = ds;
-    newTask.value.endDate = ds;
+};
+
+const refreshGuidance = () => {
+  fetchTaskGuidance();
+};
+
+// 智能测验相关函数
+const openQuizModal = (task) => {
+  quizTask.value = task;
+  showQuizModal.value = true;
+  userAnswers.value = [];
+  essayAnswer.value = '';
+  quizSubmitted.value = false;
+  quizScore.value = 0;
+  quiz.value = null;
+  fetchQuiz();
+};
+
+const closeQuizModal = () => {
+  showQuizModal.value = false;
+  quizTask.value = null;
+  quiz.value = null;
+  userAnswers.value = [];
+  essayAnswer.value = '';
+  quizSubmitted.value = false;
+  quizScore.value = 0;
+};
+
+const fetchQuiz = async () => {
+  if (!quizTask.value) return;
+  
+  isLoadingQuiz.value = true;
+  try {
+    const response = await generateQuiz({
+      topic: quizTask.value.title,
+      content: quizTask.value.description || '',
+      difficulty: 'medium', // 可以根据任务难度动态调整
+      quizCount: 3,
+      includeEssay: true
+    });
+    console.log('智能测验响应:', response);
+    
+    // response 已经是拦截器处理后的 data 对象
+    if (response && response.data) {
+      quiz.value = response.data;
+      // 初始化答案数组
+      userAnswers.value = new Array(quiz.value.questions.length).fill(null);
+    } else if (response && response.questions) {
+      // 如果 response 直接就是测验数据
+      quiz.value = response;
+      userAnswers.value = new Array(quiz.value.questions.length).fill(null);
+    }
+  } catch (error) {
+    console.error('生成智能测验失败:', error);
+  } finally {
+    isLoadingQuiz.value = false;
   }
-  if (input.includes("下午3点") || input.includes("15:00")) {
-    newTask.value.endTime = "15:00";
+};
+
+const regenerateQuiz = () => {
+  userAnswers.value = [];
+  essayAnswer.value = '';
+  quizSubmitted.value = false;
+  quizScore.value = 0;
+  fetchQuiz();
+};
+
+const canSubmitQuiz = computed(() => {
+  if (!quiz.value) return false;
+  // 检查所有选择题是否都已作答
+  const allAnswered = userAnswers.value.every(answer => answer !== null && answer !== undefined);
+  return allAnswered;
+});
+
+const submitQuiz = () => {
+  if (!canSubmitQuiz.value) return;
+  
+  // 计算得分
+  let score = 0;
+  quiz.value.questions.forEach((question, index) => {
+    if (userAnswers.value[index] === question.correctAnswer) {
+      score++;
+    }
+  });
+  
+  quizScore.value = score;
+  quizSubmitted.value = true;
+  
+  // 滚动到顶部查看结果
+  const modalContent = document.querySelector('.overflow-y-auto');
+  if (modalContent) {
+    modalContent.scrollTop = 0;
+  }
+};
+
+const isParsing = ref(false);
+
+const parseNaturalLanguage = async () => {
+  const input = (naturalLanguageInput.value || "").trim();
+  if (!input) return;
+
+  isParsing.value = true;
+  try {
+    const response = await parseTaskWithAI(input);
+    console.log('AI解析响应:', response);
+    
+    if (response.code === 0 && response.data) {
+      const parsed = response.data;
+      if (parsed.title) newTask.value.title = parsed.title;
+      if (parsed.description) newTask.value.description = parsed.description;
+      if (parsed.startDate) newTask.value.startDate = parsed.startDate;
+      if (parsed.startTime) newTask.value.startTime = parsed.startTime;
+      if (parsed.endDate) newTask.value.endDate = parsed.endDate;
+      if (parsed.endTime) newTask.value.endTime = parsed.endTime;
+      if (parsed.category) newTask.value.category = parsed.category;
+    }
+  } catch (error) {
+    console.error('AI解析失败:', error);
+  } finally {
+    isParsing.value = false;
   }
 };
 

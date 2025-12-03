@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文档分析功能位置指南</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 16px;
+        }
+        .section {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+        }
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .location {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .location:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+        .location h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        .mockup {
+            background: #2d3748;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.8;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        .highlight {
+            background: #fbbf24;
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .button-demo {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: transform 0.3s, box-shadow 0.3s;
+            margin: 10px 5px;
+        }
+        .button-demo:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .steps {
+            counter-reset: step;
+            list-style: none;
+            padding-left: 0;
+        }
+        .steps li {
+            counter-increment: step;
+            padding-left: 40px;
+            position: relative;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+        .steps li::before {
+            content: counter(step);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 28px;
+            height: 28px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .screenshot {
+            border: 3px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            background: white;
+            margin: 15px 0;
+        }
+        .nav-bar {
+            display: flex;
+            gap: 10px;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 8px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        .nav-item {
+            padding: 8px 16px;
+            background: white;
+            border-radius: 6px;
+            color: #4a5568;
+            font-size: 14px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        .nav-item.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+            font-weight: bold;
+        }
+        .tip {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .tip strong {
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 文档分析功能位置指南</h1>
+        <p class="subtitle">3种方式快速访问,总有一种适合你!</p>
+
+        <!-- 方式1 -->
+        <div class="section">
+            <h2>
+                <span style="background: #10b981; color: white; padding: 5px 10px; border-radius: 8px; font-size: 14px;">推荐</span>
+                方式 1: 顶部导航栏
+            </h2>
+            
+            <div class="location">
+                <h3>🔗 最简单直接的方式</h3>
+                <p style="color: #666; margin-bottom: 15px;">在任何页面,都可以通过顶部导航栏快速进入文档分析页面。</p>
+                
+                <div class="screenshot">
+                    <div style="color: #999; font-size: 12px; margin-bottom: 10px;">模拟界面 - 顶部导航栏:</div>
+                    <div class="nav-bar">
+                        <div class="nav-item">智学空间 🧠</div>
+                        <div class="nav-item">首页</div>
+                        <div class="nav-item">个人任务</div>
+                        <div class="nav-item">团队任务</div>
+                        <div class="nav-item">在线自习室</div>
+                        <div class="nav-item">任务进度管理</div>
+                        <div class="nav-item active">📚 文档分析 ← 点击这里!</div>
+                    </div>
+                </div>
+
+                <div class="tip">
+                    <strong>💡 提示:</strong> 这个按钮在所有页面都可见,随时可以点击进入!
+                </div>
+
+                <ol class="steps">
+                    <li>登录系统后,查看页面顶部的导航栏</li>
+                    <li>找到 <strong>"📚 文档分析"</strong> 按钮(在"任务进度管理"右边)</li>
+                    <li>点击即可进入文档分析页面</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- 方式2 -->
+        <div class="section">
+            <h2>⚡ 方式 2: 个人任务页面快捷按钮</h2>
+            
+            <div class="location">
+                <h3>📅 学习任务时更方便</h3>
+                <p style="color: #666; margin-bottom: 15px;">在个人任务页面,可以直接从任务旁边进入文档分析,学习流程更流畅。</p>
+                
+                <div class="screenshot">
+                    <div style="color: #999; font-size: 12px; margin-bottom: 10px;">模拟界面 - 个人任务页面:</div>
+                    <div style="padding: 20px; background: #f0f4f8; border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 10px; margin-bottom: 10px;">
+                            <div>
+                                <div style="font-size: 18px; font-weight: bold;">2025年12月4日 的任务</div>
+                                <div style="font-size: 12px; opacity: 0.9;">今日 3 个任务 | 已完成 1 | 进行中 2</div>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button style="background: white; color: #667eea; padding: 10px 20px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">+ 新建任务</button>
+                                <button style="background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%); color: white; padding: 10px 20px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; animation: pulse 2s infinite;">📚 文档分析 ← 点这里!</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tip">
+                    <strong>💡 使用场景:</strong> 当你在某个任务中需要分析学习资料时,可以快速跳转!
+                </div>
+
+                <ol class="steps">
+                    <li>进入 <strong>"个人任务"</strong> 页面</li>
+                    <li>在右侧"选中日期的任务"区域顶部</li>
+                    <li>找到紫色的 <strong>"📚 文档分析"</strong> 按钮</li>
+                    <li>点击即可进入(新标签页打开)</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- 方式3 -->
+        <div class="section">
+            <h2>🌐 方式 3: 直接访问 URL</h2>
+            
+            <div class="location">
+                <h3>⌨️ 最直接的方式</h3>
+                <p style="color: #666; margin-bottom: 15px;">如果你喜欢使用键盘,可以直接在地址栏输入URL。</p>
+                
+                <div class="mockup">
+                    <div style="color: #10b981; margin-bottom: 10px;">→ 在浏览器地址栏输入:</div>
+                    <div style="background: #1a202c; padding: 15px; border-radius: 5px; font-size: 16px;">
+                        http://localhost:3000/document-analyzer
+                    </div>
+                    <div style="color: #fbbf24; margin-top: 10px;">→ 按 Enter 键即可访问</div>
+                </div>
+
+                <div class="tip">
+                    <strong>💡 提示:</strong> 可以把这个URL加入浏览器书签,下次直接打开!
+                </div>
+
+                <ol class="steps">
+                    <li>确保前端开发服务器正在运行 (npm run dev)</li>
+                    <li>在浏览器地址栏输入完整URL</li>
+                    <li>按 Enter 键即可访问</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- 快速演示 -->
+        <div class="section" style="border-left-color: #10b981;">
+            <h2 style="color: #10b981;">🎬 完整使用流程演示</h2>
+            
+            <div class="location">
+                <h3>从发现资料到创建任务</h3>
+                
+                <div style="background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); padding: 25px; border-radius: 10px; margin: 20px 0;">
+                    <ol class="steps" style="margin-bottom: 0;">
+                        <li>
+                            <strong>发现学习资料</strong><br>
+                            在B站/知乎/博客找到一篇"编译原理入门"文章
+                        </li>
+                        <li>
+                            <strong>复制内容</strong><br>
+                            选中文章全文,按 Ctrl+C 复制
+                        </li>
+                        <li>
+                            <strong>打开文档分析</strong><br>
+                            点击顶部导航栏的 <span class="highlight">📚 文档分析</span>
+                        </li>
+                        <li>
+                            <strong>粘贴并分析</strong><br>
+                            在文本框按 Ctrl+V 粘贴,选择"详细模式",点击"生成摘要"
+                        </li>
+                        <li>
+                            <strong>查看结果</strong><br>
+                            查看核心摘要、关键要点、学习建议
+                        </li>
+                        <li>
+                            <strong>深入对话(可选)</strong><br>
+                            点击"开始与文档对话",询问不懂的概念
+                        </li>
+                        <li>
+                            <strong>创建学习任务</strong><br>
+                            回到"个人任务",新建任务,把关键要点粘贴到描述中
+                        </li>
+                        <li>
+                            <strong>开始学习</strong><br>
+                            按照任务计划,逐步完成学习目标
+                        </li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- 快捷链接 -->
+        <div style="text-align: center; padding: 30px 0; border-top: 2px solid #e2e8f0; margin-top: 20px;">
+            <h3 style="margin-bottom: 20px; color: #333;">🚀 立即开始</h3>
+            <a href="http://localhost:3000/document-analyzer" class="button-demo" target="_blank">
+                📚 打开文档分析页面
+            </a>
+            <a href="http://localhost:3000/personal-tasks" class="button-demo" target="_blank">
+                📅 打开个人任务页面
+            </a>
+            <div style="margin-top: 20px; color: #666; font-size: 14px;">
+                💡 确保前端服务正在运行: <code style="background: #f3f4f6; padding: 5px 10px; border-radius: 5px;">npm run dev</code>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
