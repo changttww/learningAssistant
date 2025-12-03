@@ -57,20 +57,6 @@
         </button>
 
         <!-- 已逾期任务卡片 -->
-        <button
-          type="button"
-          @click="setStatusFilter('pending')"
-          class="stat-card group bg-gradient-to-br from-gray-500 to-slate-600 rounded-xl p-5 flex flex-col items-center justify-center cursor-pointer shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 active:scale-95 transition-all duration-300 transform hover:-translate-y-1 border-2 border-gray-600"
-          aria-label="待处理任务"
-        >
-          <div class="bg-white/20 backdrop-blur-sm w-14 h-14 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300">
-            <iconify-icon icon="mdi:clock-outline" width="28" height="28" class="text-white"></iconify-icon>
-          </div>
-          <span class="text-3xl font-bold text-white drop-shadow-md">{{ stats.pending }}</span>
-          <span class="text-gray-100 text-sm mt-1.5 font-medium">待处理</span>
-        </button>
-
-        <!-- 已逾期任务卡片 -->
 
         <button
           type="button"
