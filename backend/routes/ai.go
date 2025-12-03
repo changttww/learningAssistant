@@ -13,6 +13,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// registerAIRoutes 注册 AI 相关路由
+func registerAIRoutes(r *gin.RouterGroup) {
+	// 任务解析
+	r.POST("/parse-task", ParseTaskWithAI)
+
+	// 任务指导
+	r.POST("/task-guidance", GetTaskGuidance)
+
+	// 测验生成
+	r.POST("/generate-quiz", GenerateQuiz)
+}
+
 // AI 解析请求结构
 type ParseTaskRequest struct {
 	Input string `json:"input" binding:"required"`
