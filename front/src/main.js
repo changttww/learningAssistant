@@ -7,10 +7,12 @@ import App from "./App.vue";
 import Home from "./views/Home.vue";
 import PersonalTasks from "./views/PersonalTasks.vue";
 import TeamTasks from "./views/TeamTasks.vue";
+import TeamConstellation from "./views/TeamConstellation.vue";
 import StudyRoom from "./views/StudyRoom.vue";
 import VideoRoom from "./views/VideoRoom.vue";
 import Profile from "./views/Profile.vue";
 import TaskManager from "./views/TaskManager.vue";
+import NotificationHistory from "./views/NotificationHistory.vue";
 
 // 导入路由守卫
 import { beforeEach, afterEach, onError } from "./router/guards.js";
@@ -34,6 +36,12 @@ const routes = [
     name: "TeamTasks",
     component: TeamTasks,
     meta: { title: "团队任务", requiresAuth: true, permissions: ["team:view"] },
+  },
+  {
+    path: "/team-tasks/constellation",
+    name: "TeamConstellation",
+    component: TeamConstellation,
+    meta: { title: "任务星图", requiresAuth: true, permissions: ["team:view"] },
   },
   {
     path: "/study-room",
@@ -65,6 +73,15 @@ const routes = [
       title: "任务管理",
       requiresAuth: true,
       permissions: ["task:manage"],
+    },
+  },
+  {
+    path: "/notifications",
+    name: "NotificationHistory",
+    component: NotificationHistory,
+    meta: {
+      title: "通知中心",
+      requiresAuth: true,
     },
   },
   // 错误页面路由

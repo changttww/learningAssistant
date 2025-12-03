@@ -30,19 +30,21 @@ func SetupRoutes(r *gin.Engine) {
 		// 任务相关路由
 		tasks := v1.Group("/tasks")
 		registerTaskRoutes(tasks)
+		registerTaskStatRoutes(tasks)
 
 		// 团队相关路由
 		teams := v1.Group("/teams")
-		{
-			teams.GET("/", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{"message": "Teams endpoint"})
-			})
-		}
+		registerTeamRoutes(teams)
+
+		// 通知相关路由
+		notifications := v1.Group("/notifications")
+		registerNotificationRoutes(notifications)
 
 		// 学习室相关路由
 		study := v1.Group("/study")
 		registerStudyRoutes(study)
 		registerStudyWebsocketRoutes(study)
+		registerStudyNotesRoutes(study)
 		{
 			rooms := study.Group("/rooms")
 			rooms.GET("/:roomId/chat/history", handleGetRoomChatHistory)
@@ -61,10 +63,18 @@ func SetupRoutes(r *gin.Engine) {
 
 		tasksLegacy := legacy.Group("/tasks")
 		registerTaskRoutes(tasksLegacy)
+		registerTaskStatRoutes(tasksLegacy)
+
+		teamsLegacy := legacy.Group("/teams")
+		registerTeamRoutes(teamsLegacy)
+
+		notificationsLegacy := legacy.Group("/notifications")
+		registerNotificationRoutes(notificationsLegacy)
 
 		studyLegacy := legacy.Group("/study")
 		registerStudyRoutes(studyLegacy)
 		registerStudyWebsocketRoutes(studyLegacy)
+		registerStudyNotesRoutes(studyLegacy)
 		{
 			roomsLegacy := studyLegacy.Group("/rooms")
 			roomsLegacy.GET("/:roomId/chat/history", handleGetRoomChatHistory)

@@ -1,11 +1,14 @@
 package routes
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"learningAssistant-backend/database"
@@ -24,6 +27,8 @@ type CreateTaskRequest struct {
 	DueAt           *time.Time `json:"due_at"`
 	EstimateMinutes *int       `json:"estimate_minutes"`
 	EffortPoints    int        `json:"effort_points"`
+	OwnerTeamID     *uint64    `json:"owner_team_id"`
+	Subtasks        []string   `json:"subtasks"`
 }
 
 // UpdateTaskRequest 更新任务请求结构
@@ -37,6 +42,8 @@ type UpdateTaskRequest struct {
 	DueAt           *time.Time `json:"due_at"`
 	EstimateMinutes *int       `json:"estimate_minutes"`
 	EffortPoints    *int       `json:"effort_points"`
+	OwnerTeamID     *uint64    `json:"owner_team_id"`
+	Subtasks        []string   `json:"subtasks"`
 }
 
 // TaskResponse 任务响应结构
@@ -59,6 +66,7 @@ type TaskResponse struct {
 	EffortPoints    int                   `json:"effort_points"`
 	CreatedAt       time.Time             `json:"created_at"`
 	UpdatedAt       time.Time             `json:"updated_at"`
+	Subtasks        []string              `json:"subtasks"`
 }
 
 // TaskCategoryResponse 任务分类响应结构
@@ -83,6 +91,7 @@ func registerTaskRoutes(r *gin.RouterGroup) {
 	r.PUT("/:id", updateTask)
 	r.DELETE("/:id", deleteTask)
 	r.POST("/:id/complete", completeTask)
+	r.POST("/:id/complete-with-note", completeTaskWithNote)
 	r.POST("/:id/uncomplete", uncompleteTask)
 	r.GET("/categories", getTaskCategories)
 	r.GET("/statistics", getTaskStatistics)
@@ -121,6 +130,11 @@ func createTask(c *gin.Context) {
 		EstimateMinutes: req.EstimateMinutes,
 		EffortPoints:    req.EffortPoints,
 		Status:          0, // 默认状态为待处理
+	}
+
+	task.OwnerTeamID = req.OwnerTeamID
+	if encoded := encodeSubtasksPayload(req.Subtasks); encoded != nil {
+		task.Subtasks = encoded
 	}
 
 	// 如果是个人任务，设置所有者为当前用户
@@ -247,7 +261,7 @@ func getTeamTasks(c *gin.Context) {
 
 	// 获取团队任务 (task_type = 2) - 这里需要根据用户的团队关系进行查询
 	// 暂时简单实现为创建者或所有者是当前用户的团队任务
-	db = db.Where("task_type = ? AND (created_by = ? OR owner_team_id IN (SELECT team_id FROM user_teams WHERE user_id = ?))",
+	db = db.Where("task_type = ? AND (created_by = ? OR owner_team_id IN (SELECT team_id FROM team_members WHERE user_id = ?))",
 		2, userID.(uint64), userID.(uint64))
 
 	if err := db.Find(&tasks).Error; err != nil {
@@ -369,6 +383,12 @@ func updateTask(c *gin.Context) {
 	if req.EffortPoints != nil {
 		updateData["effort_points"] = *req.EffortPoints
 	}
+	if req.OwnerTeamID != nil {
+		updateData["owner_team_id"] = *req.OwnerTeamID
+	}
+	if req.Subtasks != nil {
+		updateData["subtasks"] = encodeSubtasksPayload(req.Subtasks)
+	}
 
 	if err := database.GetDB().Model(&task).Updates(updateData).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新任务失败"})
@@ -411,7 +431,16 @@ func deleteTask(c *gin.Context) {
 		return
 	}
 
-	if err := database.GetDB().Delete(&task).Error; err != nil {
+	// 原子化删除：同时删除与该任务关联的用户笔记
+	if err := database.GetDB().Transaction(func(tx *gorm.DB) error {
+		if err := tx.Unscoped().Where("task_id = ? AND user_id = ?", taskID, userID.(uint64)).Delete(&models.StudyNote{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Unscoped().Delete(&task).Error; err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除任务失败"})
 		return
 	}
@@ -461,6 +490,72 @@ func completeTask(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"msg":  "任务已完成",
+	})
+}
+
+// completeTaskWithNote 完成任务并创建关联笔记（原子操作）
+func completeTaskWithNote(c *gin.Context) {
+	taskID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的任务ID"})
+		return
+	}
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
+		return
+	}
+
+	var task models.Task
+	if err := database.GetDB().Where("id = ? AND (created_by = ? OR owner_user_id = ?)", taskID, userID.(uint64), userID.(uint64)).First(&task).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "任务不存在或无权限访问"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询任务失败"})
+		}
+		return
+	}
+
+	now := time.Now()
+
+	var createdNote models.StudyNote
+	if err := database.GetDB().Transaction(func(tx *gorm.DB) error {
+		from := task.Status
+		if err := tx.Model(&task).Updates(map[string]interface{}{"status": 2, "completed_at": now}).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Create(&models.TaskStatusHistory{
+			TaskID:     task.ID,
+			UserID:     &task.CreatedBy,
+			FromStatus: from,
+			ToStatus:   2,
+			Remark:     "complete-with-note",
+		}).Error; err != nil {
+			return err
+		}
+
+		title := task.Title + " - " + now.Format("2006-01-02 15:04")
+		createdNote = models.StudyNote{
+			UserID:  userID.(uint64),
+			TaskID:  &taskID,
+			Title:   title,
+			Content: "",
+		}
+		if err := tx.Create(&createdNote).Error; err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "完成任务并创建笔记失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"data": gin.H{"note": createdNote},
+		"msg":  "任务已完成并创建笔记",
 	})
 }
 
@@ -593,6 +688,8 @@ func convertTaskToResponse(task models.Task) TaskResponse {
 		UpdatedAt:       task.UpdatedAt,
 	}
 
+	response.Subtasks = decodeSubtasksPayload(task.Subtasks)
+
 	// 如果有分类信息，添加到响应中
 	if task.Category != nil {
 		response.Category = &TaskCategoryResponse{
@@ -603,4 +700,33 @@ func convertTaskToResponse(task models.Task) TaskResponse {
 	}
 
 	return response
+}
+
+func encodeSubtasksPayload(raw []string) datatypes.JSON {
+	if raw == nil {
+		return nil
+	}
+	cleaned := make([]string, 0, len(raw))
+	for _, entry := range raw {
+		trimmed := strings.TrimSpace(entry)
+		if trimmed != "" {
+			cleaned = append(cleaned, trimmed)
+		}
+	}
+	data, err := json.Marshal(cleaned)
+	if err != nil {
+		return datatypes.JSON([]byte("[]"))
+	}
+	return datatypes.JSON(data)
+}
+
+func decodeSubtasksPayload(payload datatypes.JSON) []string {
+	if len(payload) == 0 {
+		return []string{}
+	}
+	var subtasks []string
+	if err := json.Unmarshal(payload, &subtasks); err != nil {
+		return []string{}
+	}
+	return subtasks
 }

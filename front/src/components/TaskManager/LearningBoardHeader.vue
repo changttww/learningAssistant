@@ -16,13 +16,6 @@
       >
         月
       </button>
-      <button
-        class="px-4 py-1 rounded-lg font-medium transition-colors"
-        :class="buttonClass('quarter')"
-        @click="updateFilter('quarter')"
-      >
-        季度
-      </button>
     </div>
   </div>
 </template>

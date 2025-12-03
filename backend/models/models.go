@@ -38,5 +38,8 @@ func GetAllModels() []interface{} {
 		&StudyRoomMember{},
 		&RoomSession{},
 		&ChatMessage{},
+		&StudyNote{},
+		&Notification{},
+		&TeamRequest{},
 	}
 }
