@@ -1164,7 +1164,14 @@ export default {
         .filter((item) => item.length > 0);
     },
     goToConstellation() {
-      this.$router.push("/team-tasks/constellation");
+      if (this.selectedTeam) {
+        this.$router.push({
+          path: "/team-tasks/constellation",
+          query: { teamId: this.selectedTeam.id },
+        });
+      } else {
+        this.$router.push("/team-tasks/constellation");
+      }
     },
     handleResize() {
       if (this.chart) this.chart.resize();

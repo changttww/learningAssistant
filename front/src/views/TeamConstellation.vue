@@ -74,11 +74,12 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { getTeamTasks, getTaskDetail } from '@/api/modules/task';
 
 const runtimeWindow = typeof globalThis === 'undefined' ? undefined : globalThis.window;
 const router = useRouter();
+const route = useRoute();
 const containerRef = ref(null);
 const particleCanvas = ref(null);
 const viewportWidth = ref(runtimeWindow?.innerWidth || 1920);
@@ -97,40 +98,38 @@ let pointerIdleTimer = null;
 let resizeHandler = null;
 let particleAnimationId = null;
 
-const dipperLayout = [
-  { id: 'star-1', name: '天枢', x: 0.12, y: 0.62, depth: 0.85 },
-  { id: 'star-2', name: '天璇', x: 0.24, y: 0.46, depth: 0.7 },
-  { id: 'star-3', name: '天玑', x: 0.36, y: 0.34, depth: 0.95 },
-  { id: 'star-4', name: '天权', x: 0.5, y: 0.4, depth: 1.1 },
-  { id: 'star-5', name: '玉衡', x: 0.63, y: 0.29, depth: 0.9 },
-  { id: 'star-6', name: '开阳', x: 0.76, y: 0.43, depth: 1.05 },
-  { id: 'star-7', name: '摇光', x: 0.88, y: 0.58, depth: 0.8 },
-];
-
 const fallbackTasks = [];
 
-const currentLayout = ref([...dipperLayout]);
+const currentLayout = ref([]);
 
 const updateLayout = () => {
   const source = tasks.value;
   const count = source.length;
 
-  if (count === 7) {
-    currentLayout.value = dipperLayout;
-  } else {
-    const newLayout = [];
-    for (let i = 0; i < count; i++) {
-      newLayout.push({
-        id: `star-gen-${i}`,
-        name: `节点 ${i + 1}`,
-        x: 0.1 + Math.random() * 0.8,
-        y: 0.2 + Math.random() * 0.6,
-        depth: 0.7 + Math.random() * 0.5,
-      });
-    }
-    newLayout.sort((a, b) => a.x - b.x);
-    currentLayout.value = newLayout;
+  const newLayout = [];
+  
+  // 根据星星数量决定分布范围
+  // 数量越少，范围越小，且居中
+  // 数量越多，范围越大，最大铺满 80% 宽，60% 高
+  const spreadFactor = Math.min(1, Math.max(0.2, count / 10));
+  
+  const rangeX = 0.8 * spreadFactor;
+  const rangeY = 0.6 * spreadFactor;
+  
+  const minX = 0.5 - rangeX / 2;
+  const minY = 0.5 - rangeY / 2;
+
+  for (let i = 0; i < count; i++) {
+    newLayout.push({
+      id: `star-gen-${i}`,
+      name: `节点 ${i + 1}`,
+      x: minX + Math.random() * rangeX,
+      y: minY + Math.random() * rangeY,
+      depth: 0.7 + Math.random() * 0.5,
+    });
   }
+  newLayout.sort((a, b) => a.x - b.x);
+  currentLayout.value = newLayout;
 };
 
 watch(tasks, updateLayout, { deep: true });
@@ -146,7 +145,7 @@ const mainStars = computed(() => {
   });
 
   // 确保布局更新后再映射，避免越界（虽然 updateLayout 是同步的）
-  if (currentLayout.value.length !== sortedSource.length && sortedSource.length !== 7) {
+  if (currentLayout.value.length !== sortedSource.length) {
     updateLayout();
   }
   return currentLayout.value.map((layout, index) => ({
@@ -232,7 +231,11 @@ const mainPolyline = computed(() => polylineFor(currentLayout.value));
 
 const loadTasks = async () => {
   try {
-    const res = await getTeamTasks();
+    const params = {};
+    if (route.query.teamId) {
+      params.team_id = route.query.teamId;
+    }
+    const res = await getTeamTasks(params);
     const data = res?.data?.items || res?.data || res;
     if (Array.isArray(data) && data.length) {
       tasks.value = data.map((item, index) => ({
@@ -514,7 +517,8 @@ onBeforeUnmount(() => {
   position: relative;
   margin-left: 28px;
   padding: 12px 16px;
-  min-width: 220px;
+  width: max-content;
+  max-width: 300px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 12px;
   background: rgba(6, 10, 28, 0.85);
@@ -680,7 +684,8 @@ onBeforeUnmount(() => {
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(5, 9, 24, 0.92);
-  min-width: 160px;
+  width: max-content;
+  max-width: 240px;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
 }
 
