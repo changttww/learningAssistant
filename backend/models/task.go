@@ -31,6 +31,7 @@ type Task struct {
 	CompletedAt     *time.Time     `gorm:"precision:3" json:"completed_at"`
 	EstimateMinutes *int           `json:"estimate_minutes"`
 	EffortPoints    int            `gorm:"default:0" json:"effort_points"`
+	Progress        int8           `gorm:"default:0" json:"progress"`
 	Subtasks        datatypes.JSON `gorm:"type:json" json:"subtasks"`
 	Comments        datatypes.JSON `gorm:"type:json" json:"comments"`
 }

@@ -419,6 +419,17 @@
                   </div>
                 </div>
                 <div>
+                  <label for="create-points" class="text-sm">任务积分</label>
+                  <input
+                    id="create-points"
+                    v-model.number="newTaskForm.effort_points"
+                    type="number"
+                    min="0"
+                    class="w-full mt-1 p-2 border rounded"
+                    placeholder="完成任务可获得的积分"
+                  />
+                </div>
+                <div>
                   <div class="flex items-center justify-between">
                     <span class="text-sm">子任务</span>
                     <button
@@ -993,6 +1004,7 @@ export default {
         title: "",
         description: "",
         due_date: "",
+        effort_points: 0,
         owner_team_id: "",
         subtasks: [""],
       },
@@ -1176,6 +1188,7 @@ export default {
       this.newTaskForm.title = "";
       this.newTaskForm.description = "";
       this.newTaskForm.due_date = "";
+      this.newTaskForm.effort_points = 0;
       this.newTaskForm.owner_team_id = "";
       this.newTaskForm.subtasks = [""];
     },
@@ -1278,13 +1291,20 @@ export default {
     },
     async loadTasks() {
       try {
-        const res = await getTeamTasks();
+        const params = {};
+        if (this.selectedTeam && this.selectedTeam.id) {
+          params.team_id = this.selectedTeam.id;
+        }
+        const res = await getTeamTasks(params);
         const items = res?.data?.items || res?.data || res;
         if (Array.isArray(items) && items.length) {
           this.tasks = items.map((item) => this.normalizeFetchedTask(item));
+        } else {
+          this.tasks = [];
         }
       } catch (error) {
         console.warn("加载团队任务失败：", error);
+        this.tasks = [];
       } finally {
         this.updateChart();
       }
@@ -1750,12 +1770,21 @@ export default {
         ? Number(this.newTaskForm.owner_team_id)
         : null;
       const subtasks = this.normalizeNewTaskSubtasks();
+      
+      let formattedDueDate = null;
+      if (this.newTaskForm.due_date) {
+        // 将 YYYY-MM-DD 转换为 ISO 8601 格式，以符合后端 time.Time 的解析要求
+        // 这里简单地将其转换为当天的 00:00:00 UTC
+        formattedDueDate = new Date(this.newTaskForm.due_date).toISOString();
+      }
+
       const payload = {
         title: this.newTaskForm.title.trim(),
         description: this.newTaskForm.description?.trim?.()
           ? this.newTaskForm.description.trim()
           : this.newTaskForm.description || "",
-        due_at: this.newTaskForm.due_date || null,
+        due_at: formattedDueDate,
+        effort_points: this.newTaskForm.effort_points || 0,
         task_type: 2,
       };
       if (ownerTeamId && !Number.isNaN(ownerTeamId)) {

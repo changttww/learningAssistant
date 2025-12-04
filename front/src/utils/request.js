@@ -5,7 +5,7 @@
 
 import axios from "axios";
 import { apiConfig, authConfig } from "@/config";
-import { getToken, removeToken } from "@/utils/auth";
+import { getToken, removeToken, clearAuth } from "@/utils/auth";
 import { ElMessage } from "element-plus";
 
 // 创建axios实例
@@ -66,7 +66,7 @@ service.interceptors.response.use(
           return data;
         case 401:
           ElMessage.error("登录已过期，请重新登录");
-          removeToken();
+          clearAuth();
           window.location.href = "/login";
           return Promise.reject(new Error("登录已过期"));
         case 403:
@@ -106,7 +106,7 @@ service.interceptors.response.use(
         break;
       case 401:
         ElMessage.error("未授权，请重新登录");
-        removeToken();
+        clearAuth();
         window.location.href = "/login";
         break;
       case 403:

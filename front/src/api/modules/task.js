@@ -92,7 +92,7 @@ export function getTaskProgress(taskId) {
  * 更新任务进度
  */
 export function updateTaskProgress(taskId, progress) {
-  return request.put(`/tasks/${taskId}/progress`, { progress });
+  return request.put(`/tasks/${taskId}`, { progress });
 }
 
 /**

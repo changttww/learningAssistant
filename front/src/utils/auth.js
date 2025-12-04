@@ -15,10 +15,11 @@ export function getToken() {
 /**
  * 设置token
  */
-export function setToken(token) {
+export function setToken(token, remember = false) {
   localStorage.setItem(authConfig.tokenKey, token);
   // 设置过期时间
-  const expireTime = Date.now() + authConfig.tokenExpireTime;
+  const duration = remember ? 7 * 24 * 60 * 60 * 1000 : authConfig.tokenExpireTime;
+  const expireTime = Date.now() + duration;
   localStorage.setItem(`${authConfig.tokenKey}_expire`, expireTime.toString());
 }
 

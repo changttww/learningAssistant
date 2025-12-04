@@ -254,8 +254,10 @@ import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { getNotificationList, getUnreadNotificationCount, markAllNotificationsAsRead, markNotificationAsRead } from '@/api/modules/notification';
 import { handleTeamRequest } from '@/api/modules/team';
+import { useCurrentUser } from "@/composables/useCurrentUser";
 
 const router = useRouter();
+const { profile } = useCurrentUser();
 const containerRef = ref(null);
 const isOpen = ref(false);
 const showModal = ref(false);
@@ -315,6 +317,7 @@ const fetchNotifications = async () => {
 };
 
 const fetchUnreadCount = async () => {
+  if (!profile.value?.id) return;
   try {
     const res = await getUnreadNotificationCount();
     // Backend returns {code: 0, data: count}
@@ -322,6 +325,9 @@ const fetchUnreadCount = async () => {
     unreadCount.value = typeof count === "number" ? count : 0;
   } catch (e) {
     console.error(e);
+    if (e.message && (e.message.includes('401') || e.message.includes('登录已过期'))) {
+      if (pollTimer) clearInterval(pollTimer);
+    }
   }
 };
 
@@ -460,8 +466,10 @@ const handleClickOutside = (event) => {
 };
 
 onMounted(() => {
-  fetchUnreadCount();
-  pollTimer = setInterval(fetchUnreadCount, 10000); // Poll every 10s for better "real-time" feel
+  if (profile.value?.id) {
+    fetchUnreadCount();
+    pollTimer = setInterval(fetchUnreadCount, 30000); // Poll every 30s
+  }
   document.addEventListener("click", handleClickOutside);
 });
 
