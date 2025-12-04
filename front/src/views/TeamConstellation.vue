@@ -33,7 +33,7 @@
             <div v-if="detailLoading" class="detail-loading">星图数据加载中...</div>
             
             <!-- 连线层 -->
-            <svg class="detail-connections">
+            <svg class="detail-connections" viewBox="-500 -500 1000 1000">
               <line 
                 v-for="sat in detailSatellites" 
                 :key="`${sat.id}-line`"
@@ -118,7 +118,7 @@ const updateLayout = () => {
   // 调整分布范围逻辑：
   // 基础范围给大一点，避免挤在一起 (0.6 起步)
   // 随数量增加适当扩大，最大铺满 90% 宽，75% 高
-  const baseSpread = 0.4; 
+  const baseSpread = 0.5; 
   const extraSpread = Math.min(0.4, count * 0.03); // 每增加一个任务增加一点范围
   const spreadFactor = baseSpread + extraSpread;
   
@@ -211,19 +211,23 @@ const detailSatellites = computed(() => {
   if (!items.length) return [];
 
   const satellites = [];
-  const minDistance = 60; // 卫星之间的最小间距
+  const minDistance = 50; // 卫星之间的最小间距
 
   for (const [index, item] of items.entries()) {
     let dx, dy;
     let attempts = 0;
     let valid = false;
 
+    // 兼容字符串类型的子任务（后端返回的是字符串数组）
+    const title = typeof item === 'string' ? item : item.title;
+    const id = (typeof item === 'object' && item.id) ? item.id : index;
+
     // 尝试生成不重叠的随机位置
     while (attempts < 50 && !valid) {
       // 随机角度
       const angle = Math.random() * Math.PI * 2;
-      // 随机半径 (120px - 250px)
-      const radius = 120 + Math.random() * 130;
+      // 随机半径 (80px - 180px)
+      const radius = 80 + Math.random() * 100;
       
       dx = Math.cos(angle) * radius;
       dy = Math.sin(angle) * radius;
@@ -240,14 +244,14 @@ const detailSatellites = computed(() => {
     }
 
     satellites.push({
-      id: `${selectedStar.value.id}-sub-${item.id || index}`,
+      id: `${selectedStar.value.id}-sub-${id}`,
       type: 'subtasks',
-      title: item.title,
+      title: title,
       x: dx,
       y: dy,
-      // 连线坐标：从主星中心(8,8)到卫星中心(dx+5, dy+5)
-      lineStart: { x: 8, y: 8 },
-      lineEnd: { x: dx + 5, y: dy + 5 }
+      // 连线坐标：从主星中心(0,0)到卫星中心(dx, dy)
+      lineStart: { x: 0, y: 0 },
+      lineEnd: { x: dx, y: dy }
     });
   }
 
@@ -279,8 +283,8 @@ const polylineFor = (layouts) =>
   layouts
     .map((layout) => {
       const { x, y } = projectPoint(layout);
-      // 偏移 +8px 以对齐到 16px 星星核心的中心
-      return `${x +8},${y +35}`;
+      // 此时 star-node 已对齐到中心，直接连接中心坐标即可
+      return `${x},${y}`;
     })
     .join(' ');
 
@@ -341,7 +345,8 @@ const focusOnStar = (star) => {
   const { x, y } = projectPoint(star);
   const centerX = viewportWidth.value / 2;
   const centerY = viewportHeight.value / 2;
-  const scale = 2.6;
+  // 减小缩放比例，避免子任务超出屏幕 (原 2.6 -> 1.6)
+  const scale = 1.6;
   zoomTransform.value = {
     x: centerX - x * scale,
     y: centerY - y * scale,
@@ -539,13 +544,17 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 0;
   left: 0;
+  width: 0;
+  height: 0;
   pointer-events: auto;
   transform: translate3d(0, 0, 0);
-  display: flex;
-  align-items: center;
+  overflow: visible;
 }
 
 .star-core {
+  position: absolute;
+  left: -8px;
+  top: -8px;
   display: block;
   width: 16px;
   height: 16px;
@@ -561,8 +570,9 @@ onBeforeUnmount(() => {
 }
 
 .star-dialog {
-  position: relative;
-  margin-left: 28px;
+  position: absolute;
+  left: 24px;
+  top: -24px;
   padding: 12px 16px;
   width: max-content;
   max-width: 300px;
@@ -575,9 +585,9 @@ onBeforeUnmount(() => {
 .star-dialog::before {
   content: '';
   position: absolute;
-  left: -60px;
-  top: 50%;
-  width: 52px;
+  left: -24px;
+  top: 24px;
+  width: 24px;
   height: 2px;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.7));
 }
@@ -677,6 +687,7 @@ onBeforeUnmount(() => {
   width: 0;
   height: 0;
   pointer-events: none;
+  overflow: visible; /* 关键：允许内容溢出 */
 }
 
 .detail-loading {
@@ -694,11 +705,10 @@ onBeforeUnmount(() => {
 
 .detail-connections {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
+  top: -500px;
+  left: -500px;
+  width: 1000px;
+  height: 1000px;
   pointer-events: none;
 }
 
@@ -711,12 +721,18 @@ onBeforeUnmount(() => {
 
 .satellite-node {
   position: absolute;
-  display: flex;
-  align-items: center;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
   pointer-events: auto;
 }
 
 .satellite-core {
+  position: absolute;
+  left: -5px;
+  top: -5px;
   display: block;
   width: 10px;
   height: 10px;
@@ -731,7 +747,9 @@ onBeforeUnmount(() => {
 }
 
 .satellite-dialog {
-  margin-left: 18px;
+  position: absolute;
+  left: 12px;
+  top: -16px;
   padding: 8px 12px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.2);
