@@ -62,11 +62,8 @@
     </div>
 
     <div class="hud">
-      <div class="status-card">
-        <p class="status-title">交互状态</p>
-        <p class="status-value">{{ interactionStatus }}</p>
-        <p class="status-meta">{{ interactionMeta }}</p>
-        <p class="status-tip">移动鼠标划开星尘 · 点击节点查看详情</p>
+      <div class="quote-card">
+        <p class="quote-text">{{ currentQuote.text }}</p>
       </div>
       <button
         class="hud-btn"
@@ -265,9 +262,19 @@ const layerStyle = computed(() => ({
       : 'translate3d(0, 0, 0) scale(1)',
 }));
 
-const interactionStatus = computed(() => (pointer.active ? '划开星尘' : '静待星海'));
-
-const interactionMeta = computed(() => `粒子${pointer.active ? '受扰动' : '平衡'}`);
+const quotes = [
+  { text: '天行健，君子以自强不息' },
+  { text: '路漫漫其修远兮，吾将上下而求索' },
+  { text: '学而不思则罔，思而不学则殆' },
+  { text: '博观而约取，厚积而薄发' },
+  { text: '业精于勤，荒于嬉；行成于思，毁于随' },
+  { text: '锲而不舍，金石可镂' },
+  { text: '不积跬步，无以至千里' },
+  { text: '会当凌绝顶，一览众山小' },
+  { text: '长风破浪会有时，直挂云帆济沧海' },
+  { text: '非淡泊无以明志，非宁静无以致远' }
+];
+const currentQuote = ref(quotes[0]);
 
 const projectPoint = (node) => ({
   x: node.x * viewportWidth.value,
@@ -457,11 +464,30 @@ const initParticles = () => {
       particle.x += particle.vx + Math.cos(particle.twinkle) * 0.25;
       particle.y += particle.vy + Math.sin(particle.twinkle) * 0.2;
 
+      // 边界检查与重置
       const buffer = 40;
-      if (particle.x < -buffer) particle.x = canvas.width + buffer;
-      if (particle.x > canvas.width + buffer) particle.x = -buffer;
-      if (particle.y < -buffer) particle.y = canvas.height + buffer;
-      if (particle.y > canvas.height + buffer) particle.y = -buffer;
+      const width = canvas.width;
+      const height = canvas.height;
+
+      // 防止 NaN 或无限大导致粒子消失
+      if (!Number.isFinite(particle.x) || !Number.isFinite(particle.y)) {
+        particle.x = Math.random() * width;
+        particle.y = Math.random() * height;
+        particle.vx = 0;
+        particle.vy = 0;
+      }
+
+      if (particle.x < -buffer) {
+        particle.x = width + buffer;
+      } else if (particle.x > width + buffer) {
+        particle.x = -buffer;
+      }
+
+      if (particle.y < -buffer) {
+        particle.y = height + buffer;
+      } else if (particle.y > height + buffer) {
+        particle.y = -buffer;
+      }
 
       const drawX = particle.x;
       const drawY = particle.y;
@@ -489,6 +515,10 @@ onMounted(() => {
   updateLayout();
   loadTasks();
   initParticles();
+  
+  // 随机展示古文
+  const idx = Math.floor(Math.random() * quotes.length);
+  currentQuote.value = quotes[idx];
 });
 
 onBeforeUnmount(() => {
@@ -617,32 +647,23 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 16px;
   z-index: 5;
+  align-items: flex-end;
 }
 
-.status-card {
+.quote-card {
   padding: 14px 18px;
   border-radius: 16px;
   background: rgba(8, 14, 46, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(6px);
+  max-width: 320px;
 }
 
-.status-title {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.status-value {
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.status-meta,
-.status-tip {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+.quote-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.8);
+  letter-spacing: 0.05em;
 }
 
 .hud-btn {
