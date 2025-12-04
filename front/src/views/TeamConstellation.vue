@@ -17,7 +17,7 @@
         :key="star.id"
         class="star-node"
         v-show="!detailViewActive || isFocusedStar(star)"
-        :class="{ 'is-focused': isFocusedStar(star) }"
+        :class="{ 'is-focused': isFocusedStar(star), 'star-node--left': star.x > 0.5 }"
         :style="starStyle(star)"
         @click="handleStarClick(star)"
       >
@@ -25,7 +25,7 @@
         <div class="star-dialog">
           <p class="star-name">{{ (star.task && star.task.title) || star.name }}</p>
           <p class="star-meta" v-if="star.task && star.task.due_date">截止：{{ formatDueDate(star.task.due_date) }}</p>
-          <small class="star-hint">点击进入详情</small>
+          <small class="star-hint" v-if="!detailViewActive">点击进入详情</small>
         </div>
 
         <transition name="detail-cluster">
@@ -47,7 +47,6 @@
               <span class="satellite-core"></span>
               <div class="satellite-dialog">
                 <p class="satellite-title">{{ satellite.title }}</p>
-                <small>{{ satellite.meta }}</small>
               </div>
             </div>
           </div>
@@ -64,7 +63,7 @@
       </div>
       <button
         class="hud-btn"
-        @click="detailViewActive ? closeDetail() : router.push('/team-tasks')"
+        @click="detailViewActive ? closeDetail() : router.go(-1)"
       >
         {{ detailViewActive ? '返回星图' : '返回团队任务' }}
       </button>
@@ -108,18 +107,12 @@ const dipperLayout = [
   { id: 'star-7', name: '摇光', x: 0.88, y: 0.58, depth: 0.8 },
 ];
 
-const fallbackTasks = [
-  { id: 1, title: '登录功能开发', description: '完善登录注册与安全策略', owner_name: '王同学', due_date: '2025-12-30' },
-  { id: 2, title: '支付模块设计', description: '设计支付流程与风控', owner_name: '陈同学', due_date: '2025-12-12' },
-  { id: 3, title: '学习看板重构', description: '实现全新任务看板交互', owner_name: '李同学', due_date: '2026-01-05' },
-  { id: 4, title: '通知中心优化', description: '重构实时通知分发链路', owner_name: '赵同学', due_date: '2025-12-03' },
-  { id: 5, title: '学习房间稳定性', description: '优化 WebRTC 链路和重连策略', owner_name: '周同学', due_date: '2026-02-01' },
-];
+const fallbackTasks = [];
 
 const currentLayout = ref([...dipperLayout]);
 
 const updateLayout = () => {
-  const source = tasks.value.length ? tasks.value : fallbackTasks;
+  const source = tasks.value;
   const count = source.length;
 
   if (count === 7) {
@@ -143,7 +136,7 @@ const updateLayout = () => {
 watch(tasks, updateLayout, { deep: true });
 
 const mainStars = computed(() => {
-  const source = tasks.value.length ? tasks.value : fallbackTasks;
+  const source = tasks.value;
   
   // 按照截止时间排序（从早到晚）
   const sortedSource = [...source].sort((a, b) => {
@@ -203,7 +196,7 @@ const detailSatellites = computed(() => {
     }));
   };
 
-  return [...buildNodes('subtasks'), ...buildNodes('attachments')];
+  return [...buildNodes('subtasks')];
 });
 
 const layerStyle = computed(() => ({
@@ -251,8 +244,8 @@ const loadTasks = async () => {
       }));
     }
   } catch (error) {
-    console.warn('获取团队任务失败，使用示例数据：', error);
-    tasks.value = fallbackTasks;
+    console.warn('获取团队任务失败：', error);
+    tasks.value = [];
   }
 };
 
@@ -263,34 +256,20 @@ const ensureTaskDetail = async (task) => {
     const raw = res?.data?.data || res?.data || res;
     return normalizeDetail(raw, task);
   } catch (error) {
-    console.warn('获取任务详情失败，使用示例：', error);
-    return buildMockDetail(task);
+    console.warn('获取任务详情失败：', error);
+    return { subtasks: [], attachments: [] };
   }
 };
 
 const normalizeDetail = (raw, task) => {
-  if (!raw) return buildMockDetail(task);
-  const mock = buildMockDetail(task);
+  if (!raw) return { subtasks: [], attachments: [] };
   return {
-    subtasks: Array.isArray(raw.subtasks) && raw.subtasks.length ? raw.subtasks : mock.subtasks,
-    attachments: Array.isArray(raw.attachments) && raw.attachments.length ? raw.attachments : mock.attachments,
+    subtasks: Array.isArray(raw.subtasks) ? raw.subtasks : [],
+    attachments: Array.isArray(raw.attachments) ? raw.attachments : [],
   };
 };
 
-const buildMockDetail = (task) => {
-  const baseTitle = task?.title || '任务';
-  return {
-    subtasks: [
-      { id: `${task?.id}-s1`, title: `${baseTitle} · 方案评审`, status: '进行中' },
-      { id: `${task?.id}-s2`, title: `${baseTitle} · 开发排期`, status: '未开始' },
-      { id: `${task?.id}-s3`, title: `${baseTitle} · 验收联调`, status: '待验收' },
-    ],
-    attachments: [
-      { id: `${task?.id}-a1`, name: '需求说明书.pdf', size: '2.4M' },
-      { id: `${task?.id}-a2`, name: '交互稿.fig', size: '4.1M' },
-    ],
-  };
-};
+const buildMockDetail = null;
 
 const isFocusedStar = (star) => Boolean(selectedStar.value && selectedStar.value.id === star.id);
 
@@ -298,7 +277,8 @@ const satelliteStyle = (node) => {
   const angleRad = (node.angle * Math.PI) / 180;
   const x = Math.cos(angleRad) * node.radius;
   const y = Math.sin(angleRad) * node.radius;
-  return { transform: `translate3d(${x}px, ${y}px, 0)` };
+  // 偏移 -5px 以使 10px 的圆点中心对齐
+  return { transform: `translate3d(${x - 5}px, ${y - 5}px, 0)` };
 };
 
 const satelliteLinkStyle = (node) => ({
@@ -511,6 +491,12 @@ onBeforeUnmount(() => {
   left: 0;
   pointer-events: auto;
   transform: translate3d(0, 0, 0);
+  display: flex;
+  align-items: center;
+}
+
+.star-node--left {
+  flex-direction: row-reverse;
 }
 
 .star-core {
@@ -530,7 +516,6 @@ onBeforeUnmount(() => {
 
 .star-dialog {
   position: relative;
-  margin-left: 28px;
   padding: 12px 16px;
   min-width: 220px;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -539,7 +524,15 @@ onBeforeUnmount(() => {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
-.star-dialog::before {
+.star-node:not(.star-node--left) .star-dialog {
+  margin-left: 28px;
+}
+
+.star-node--left .star-dialog {
+  margin-right: 28px;
+}
+
+.star-node:not(.star-node--left) .star-dialog::before {
   content: '';
   position: absolute;
   left: -60px;
@@ -547,6 +540,16 @@ onBeforeUnmount(() => {
   width: 52px;
   height: 2px;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.7));
+}
+
+.star-node--left .star-dialog::before {
+  content: '';
+  position: absolute;
+  right: -60px;
+  top: 50%;
+  width: 52px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0));
 }
 
 .star-name {
