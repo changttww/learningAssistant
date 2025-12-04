@@ -31,18 +31,25 @@
         <transition name="detail-cluster">
           <div v-if="detailViewActive && isFocusedStar(star)" class="detail-cluster">
             <div v-if="detailLoading" class="detail-loading">星图数据加载中...</div>
-            <div
-              v-for="satellite in detailSatellites"
-              :key="`${satellite.id}-link`"
-              class="satellite-link"
-              :style="satelliteLinkStyle(satellite)"
-            ></div>
+            
+            <!-- 连线层 -->
+            <svg class="detail-connections">
+              <line 
+                v-for="sat in detailSatellites" 
+                :key="`${sat.id}-line`"
+                :x1="sat.lineStart.x" 
+                :y1="sat.lineStart.y" 
+                :x2="sat.lineEnd.x" 
+                :y2="sat.lineEnd.y" 
+              />
+            </svg>
+
             <div
               v-for="satellite in detailSatellites"
               :key="satellite.id"
               class="satellite-node"
               :class="`satellite-node--${satellite.type}`"
-              :style="satelliteStyle(satellite)"
+              :style="{ transform: `translate3d(${satellite.x}px, ${satellite.y}px, 0)` }"
             >
               <span class="satellite-core"></span>
               <div class="satellite-dialog">
@@ -111,7 +118,7 @@ const updateLayout = () => {
   // 调整分布范围逻辑：
   // 基础范围给大一点，避免挤在一起 (0.6 起步)
   // 随数量增加适当扩大，最大铺满 90% 宽，75% 高
-  const baseSpread = 0.6; 
+  const baseSpread = 0.4; 
   const extraSpread = Math.min(0.4, count * 0.03); // 每增加一个任务增加一点范围
   const spreadFactor = baseSpread + extraSpread;
   
@@ -197,32 +204,54 @@ const formatDueDate = (dateStr) => {
   return `${year}年${month}月${day}日 ${pad(hours)}:${pad(minutes)}`;
 };
 
-const satelliteLayout = {
-  subtasks: { spread: 110, baseAngle: -10, radius: 190 },
-  attachments: { spread: 90, baseAngle: 155, radius: 210 },
-};
-
 const detailSatellites = computed(() => {
   if (!detailViewActive.value || !selectedStar.value) return [];
   const payload = detailData.value || {};
-  const buildNodes = (type) => {
-    const items = Array.isArray(payload[type]) ? payload[type].slice(0, 6) : [];
-    if (!items.length) return [];
-    const config = satelliteLayout[type];
-    const spread = config.spread;
-    const base = config.baseAngle - spread / 2;
-    const step = items.length > 1 ? spread / (items.length - 1) : spread / 2;
-    return items.map((item, index) => ({
-      id: `${selectedStar.value.id}-${type}-${item.id || index}`,
-      type,
-      title: type === 'subtasks' ? item.title : item.name,
-      meta: type === 'subtasks' ? item.status : item.size,
-      angle: base + step * index,
-      radius: config.radius + index * 6,
-    }));
-  };
+  const items = Array.isArray(payload.subtasks) ? payload.subtasks : [];
+  if (!items.length) return [];
 
-  return [...buildNodes('subtasks')];
+  const satellites = [];
+  const minDistance = 60; // 卫星之间的最小间距
+
+  for (const [index, item] of items.entries()) {
+    let dx, dy;
+    let attempts = 0;
+    let valid = false;
+
+    // 尝试生成不重叠的随机位置
+    while (attempts < 50 && !valid) {
+      // 随机角度
+      const angle = Math.random() * Math.PI * 2;
+      // 随机半径 (120px - 250px)
+      const radius = 120 + Math.random() * 130;
+      
+      dx = Math.cos(angle) * radius;
+      dy = Math.sin(angle) * radius;
+
+      valid = true;
+      for (const existing of satellites) {
+        const dist = Math.hypot(existing.x - dx, existing.y - dy);
+        if (dist < minDistance) {
+          valid = false;
+          break;
+        }
+      }
+      attempts++;
+    }
+
+    satellites.push({
+      id: `${selectedStar.value.id}-sub-${item.id || index}`,
+      type: 'subtasks',
+      title: item.title,
+      x: dx,
+      y: dy,
+      // 连线坐标：从主星中心(8,8)到卫星中心(dx+5, dy+5)
+      lineStart: { x: 8, y: 8 },
+      lineEnd: { x: dx + 5, y: dy + 5 }
+    });
+  }
+
+  return satellites;
 });
 
 const layerStyle = computed(() => ({
@@ -250,7 +279,8 @@ const polylineFor = (layouts) =>
   layouts
     .map((layout) => {
       const { x, y } = projectPoint(layout);
-      return `${x},${y}`;
+      // 偏移 +8px 以对齐到 16px 星星核心的中心
+      return `${x +8},${y +35}`;
     })
     .join(' ');
 
@@ -303,18 +333,8 @@ const buildMockDetail = null;
 
 const isFocusedStar = (star) => Boolean(selectedStar.value && selectedStar.value.id === star.id);
 
-const satelliteStyle = (node) => {
-  const angleRad = (node.angle * Math.PI) / 180;
-  const x = Math.cos(angleRad) * node.radius;
-  const y = Math.sin(angleRad) * node.radius;
-  // 偏移 -5px 以使 10px 的圆点中心对齐
-  return { transform: `translate3d(${x - 5}px, ${y - 5}px, 0)` };
-};
-
-const satelliteLinkStyle = (node) => ({
-  width: `${node.radius}px`,
-  transform: `rotate(${node.angle}deg)`,
-});
+const satelliteStyle = null;
+const satelliteLinkStyle = null;
 
 const focusOnStar = (star) => {
   if (!star) return;
@@ -672,16 +692,21 @@ onBeforeUnmount(() => {
   pointer-events: auto;
 }
 
-.satellite-link {
+.detail-connections {
   position: absolute;
   top: 0;
   left: 0;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.65), rgba(86, 171, 255, 0.35));
-  box-shadow: 0 0 12px rgba(126, 166, 255, 0.5);
-  opacity: 0.85;
-  transform-origin: 0 50%;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
   pointer-events: none;
+}
+
+.detail-connections line {
+  stroke: rgba(255, 255, 255, 0.65);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px rgba(126, 166, 255, 0.5));
 }
 
 .satellite-node {
