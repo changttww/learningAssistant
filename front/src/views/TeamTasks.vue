@@ -1314,11 +1314,28 @@ export default {
       const progressSource = raw?.progress ?? this.statusToProgress(status);
       const progress = this.clampProgress(Number(progressSource));
       const due = raw?.due_at || raw?.due_date || "";
+
+      let ownerName = raw?.owner_name || raw?.created_by_name;
+      
+      if (!ownerName) {
+        // 优先使用 owner_user_id，其次使用 created_by
+        const userId = raw?.owner_user_id || raw?.created_by;
+        if (userId) {
+          if (String(userId) === String(this.currentUserId)) {
+            const p = this.currentUserProfile;
+            ownerName = p?.name || p?.username || p?.basic_info?.name || "我";
+          } else {
+            // 如果没有名字，显示用户ID
+            ownerName = `用户 ${userId}`;
+          }
+        }
+      }
+
       return {
         id: raw?.id ?? Date.now(),
         title: raw?.title || raw?.name || "未命名任务",
         description: raw?.description || "",
-        owner_name: raw?.owner_name || raw?.created_by_name || "未知",
+        owner_name: ownerName || "未知",
         owner_team_id: raw?.owner_team_id ?? null,
         created_by: raw?.created_by ?? null,
         due_date:
