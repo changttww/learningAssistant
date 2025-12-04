@@ -24,8 +24,7 @@
         <span class="star-core"></span>
         <div class="star-dialog">
           <p class="star-name">{{ (star.task && star.task.title) || star.name }}</p>
-          <p class="star-meta" v-if="star.task && star.task.owner_name">负责人：{{ star.task.owner_name }}</p>
-          <p class="star-meta" v-if="star.task && star.task.due_date">截止：{{ star.task.due_date }}</p>
+          <p class="star-meta" v-if="star.task && star.task.due_date">截止：{{ formatDueDate(star.task.due_date) }}</p>
           <small class="star-hint">点击进入详情</small>
         </div>
 
@@ -75,7 +74,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { getTeamTasks, getTaskDetail } from '@/api/modules/task';
 
@@ -117,13 +116,67 @@ const fallbackTasks = [
   { id: 5, title: '学习房间稳定性', description: '优化 WebRTC 链路和重连策略', owner_name: '周同学', due_date: '2026-02-01' },
 ];
 
+const currentLayout = ref([...dipperLayout]);
+
+const updateLayout = () => {
+  const source = tasks.value.length ? tasks.value : fallbackTasks;
+  const count = source.length;
+
+  if (count === 7) {
+    currentLayout.value = dipperLayout;
+  } else {
+    const newLayout = [];
+    for (let i = 0; i < count; i++) {
+      newLayout.push({
+        id: `star-gen-${i}`,
+        name: `节点 ${i + 1}`,
+        x: 0.1 + Math.random() * 0.8,
+        y: 0.2 + Math.random() * 0.6,
+        depth: 0.7 + Math.random() * 0.5,
+      });
+    }
+    newLayout.sort((a, b) => a.x - b.x);
+    currentLayout.value = newLayout;
+  }
+};
+
+watch(tasks, updateLayout, { deep: true });
+
 const mainStars = computed(() => {
   const source = tasks.value.length ? tasks.value : fallbackTasks;
-  return dipperLayout.map((layout, index) => ({
+  
+  // 按照截止时间排序（从早到晚）
+  const sortedSource = [...source].sort((a, b) => {
+    const dateA = new Date(a.due_date || a.due_at || 0).getTime();
+    const dateB = new Date(b.due_date || b.due_at || 0).getTime();
+    return dateA - dateB;
+  });
+
+  // 确保布局更新后再映射，避免越界（虽然 updateLayout 是同步的）
+  if (currentLayout.value.length !== sortedSource.length && sortedSource.length !== 7) {
+    updateLayout();
+  }
+  return currentLayout.value.map((layout, index) => ({
     ...layout,
-    task: source[index % source.length] || null,
+    task: sortedSource[index] || null,
   }));
 });
+
+const formatDueDate = (dateStr) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return dateStr;
+  
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  
+  const pad = (n) => n < 10 ? `0${n}` : n;
+  
+  return `${year}年${month}月${day}日 ${pad(hours)}:${pad(minutes)}`;
+};
 
 const satelliteLayout = {
   subtasks: { spread: 110, baseAngle: -10, radius: 190 },
@@ -182,7 +235,7 @@ const polylineFor = (layouts) =>
     })
     .join(' ');
 
-const mainPolyline = computed(() => polylineFor(dipperLayout));
+const mainPolyline = computed(() => polylineFor(currentLayout.value));
 
 const loadTasks = async () => {
   try {
@@ -398,6 +451,7 @@ const initParticles = () => {
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 onMounted(() => {
+  updateLayout();
   loadTasks();
   initParticles();
 });
