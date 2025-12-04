@@ -17,7 +17,7 @@
         :key="star.id"
         class="star-node"
         v-show="!detailViewActive || isFocusedStar(star)"
-        :class="{ 'is-focused': isFocusedStar(star), 'star-node--left': star.x > 0.5 }"
+        :class="{ 'is-focused': isFocusedStar(star) }"
         :style="starStyle(star)"
         @click="handleStarClick(star)"
       >
@@ -495,10 +495,6 @@ onBeforeUnmount(() => {
   align-items: center;
 }
 
-.star-node--left {
-  flex-direction: row-reverse;
-}
-
 .star-core {
   display: block;
   width: 16px;
@@ -516,6 +512,7 @@ onBeforeUnmount(() => {
 
 .star-dialog {
   position: relative;
+  margin-left: 28px;
   padding: 12px 16px;
   min-width: 220px;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -524,15 +521,7 @@ onBeforeUnmount(() => {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
-.star-node:not(.star-node--left) .star-dialog {
-  margin-left: 28px;
-}
-
-.star-node--left .star-dialog {
-  margin-right: 28px;
-}
-
-.star-node:not(.star-node--left) .star-dialog::before {
+.star-dialog::before {
   content: '';
   position: absolute;
   left: -60px;
@@ -540,16 +529,6 @@ onBeforeUnmount(() => {
   width: 52px;
   height: 2px;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.7));
-}
-
-.star-node--left .star-dialog::before {
-  content: '';
-  position: absolute;
-  right: -60px;
-  top: 50%;
-  width: 52px;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0));
 }
 
 .star-name {
