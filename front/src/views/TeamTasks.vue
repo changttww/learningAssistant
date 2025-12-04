@@ -632,28 +632,6 @@
                 </div>
                 <div>
                   <div class="flex items-center justify-between mb-2">
-                    <h4 class="text-sm font-semibold text-gray-700">附件</h4>
-                    <span class="text-xs text-gray-400"
-                      >{{ getTaskDetail(task).attachments.length }} 个</span
-                    >
-                  </div>
-                  <ul
-                    v-if="getTaskDetail(task).attachments.length"
-                    class="space-y-1 text-sm"
-                  >
-                    <li
-                      v-for="file in getTaskDetail(task).attachments"
-                      :key="file.id"
-                      class="flex items-center justify-between"
-                    >
-                      <span>{{ file.name }}</span>
-                      <span class="text-xs text-gray-500">{{ file.size }}</span>
-                    </li>
-                  </ul>
-                  <p v-else class="text-xs text-gray-400">暂无附件</p>
-                </div>
-                <div>
-                  <div class="flex items-center justify-between mb-2">
                     <h4 class="text-sm font-semibold text-gray-700">评论</h4>
                     <span class="text-xs text-gray-400"
                       >{{ getTaskDetail(task).comments.length }} 条</span
@@ -661,22 +639,40 @@
                   </div>
                   <ul
                     v-if="getTaskDetail(task).comments.length"
-                    class="space-y-2 text-sm"
+                    class="space-y-2 text-sm mb-3"
                   >
                     <li
-                      v-for="comment in getTaskDetail(task).comments"
-                      :key="comment.id"
+                      v-for="(comment, idx) in getTaskDetail(task).comments"
+                      :key="idx"
+                      class="bg-gray-50 p-2 rounded"
                     >
-                      <div class="flex items-center justify-between">
-                        <span class="font-medium">{{ comment.author }}</span>
+                      <div class="flex items-center justify-between mb-1">
+                        <span class="font-medium text-xs text-blue-600">{{ comment.user_id === currentUserId ? '我' : `用户 ${comment.user_id}` }}</span>
                         <span class="text-xs text-gray-400">{{
-                          comment.time
+                          formatDate(comment.created_at)
                         }}</span>
                       </div>
                       <p class="text-gray-600">{{ comment.content }}</p>
                     </li>
                   </ul>
-                  <p v-else class="text-xs text-gray-400">暂无评论</p>
+                  <p v-else class="text-xs text-gray-400 mb-3">暂无评论</p>
+                  
+                  <div class="flex gap-2">
+                    <input 
+                      v-model="newCommentMap[task.id]" 
+                      type="text" 
+                      placeholder="写下你的评论..." 
+                      class="flex-1 text-sm border rounded px-2 py-1 focus:outline-none focus:border-blue-500"
+                      @keyup.enter="submitComment(task)"
+                    >
+                    <button 
+                      @click="submitComment(task)" 
+                      class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
+                      :disabled="!newCommentMap[task.id]"
+                    >
+                      发送
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -946,6 +942,7 @@ import {
   createTask,
   updateTaskProgress,
   getTaskDetail,
+  addTaskComment,
 } from "@/api/modules/task";
 import {
   getTeamList,
@@ -984,6 +981,7 @@ export default {
       },
       expandedTaskIds: [],
       taskDetailCache: {},
+      newCommentMap: {},
 
       // Team Management
       showInviteModal: false,
@@ -1846,6 +1844,26 @@ export default {
     async setCompleted(task) {
       const current = this.getTaskProgressValue(task);
       await this.changeProgress(task, 100 - current);
+    },
+    async submitComment(task) {
+      const content = this.newCommentMap[task.id];
+      if (!content || !content.trim()) return;
+      
+      try {
+        await addTaskComment(task.id, content);
+        this.newCommentMap[task.id] = "";
+        // Refresh task details
+        const res = await getTaskDetail(task.id);
+        const payload = res?.data?.data || res?.data || res;
+        const normalized = this.normalizeTaskDetail(payload, task);
+        this.taskDetailCache = {
+          ...this.taskDetailCache,
+          [task.id]: normalized,
+        };
+      } catch (error) {
+        console.error("发表评论失败", error);
+        alert("发表评论失败");
+      }
     },
   },
 };

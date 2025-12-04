@@ -272,7 +272,7 @@ const allSkills = computed(() => [
 const profileBadges = computed(() => profile.badges || []);
 
 const router = useRouter();
-const { clearCurrentUser } = useCurrentUser();
+const { profile: currentUser, clearCurrentUser } = useCurrentUser();
 
 const ProfileReadonlyInput = {
   name: "ProfileReadonlyInput",
@@ -338,11 +338,12 @@ async function fetchProfileData() {
   loading.value = true;
   error.value = "";
   try {
+    const userId = currentUser.value?.id || DEFAULT_USER_ID;
     const [profileRes, statsRes, achievementsRes, skillsRes] = await Promise.all([
-      getUserProfile(DEFAULT_USER_ID),
-      getUserStudyStats(DEFAULT_USER_ID),
-      getUserAchievements(DEFAULT_USER_ID),
-      getUserSkills(DEFAULT_USER_ID),
+      getUserProfile(userId),
+      getUserStudyStats(userId),
+      getUserAchievements(userId),
+      getUserSkills(userId),
     ]);
 
     Object.assign(profile, profileRes.data || {});

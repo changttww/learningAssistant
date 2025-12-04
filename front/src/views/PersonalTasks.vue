@@ -844,10 +844,6 @@
               >
                 <iconify-icon :icon="isParsing ? 'mdi:loading' : 'mdi:wand'" width="16" height="16" :class="{ 'animate-spin': isParsing }"></iconify-icon>
                 {{ isParsing ? '解析中...' : '解析' }}
-                class="text-white bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 rounded-lg text-sm font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105 flex items-center gap-2"
-              >
-                <iconify-icon icon="mdi:wand" width="16" height="16"></iconify-icon>
-                解析
               </button>
             </div>
             <p class="text-xs text-blue-600 mt-2 flex items-center gap-1">
