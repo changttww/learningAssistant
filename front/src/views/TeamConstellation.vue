@@ -108,23 +108,50 @@ const updateLayout = () => {
 
   const newLayout = [];
   
-  // 根据星星数量决定分布范围
-  // 数量越少，范围越小，且居中
-  // 数量越多，范围越大，最大铺满 80% 宽，60% 高
-  const spreadFactor = Math.min(1, Math.max(0.2, count / 10));
+  // 调整分布范围逻辑：
+  // 基础范围给大一点，避免挤在一起 (0.6 起步)
+  // 随数量增加适当扩大，最大铺满 90% 宽，75% 高
+  const baseSpread = 0.6; 
+  const extraSpread = Math.min(0.4, count * 0.03); // 每增加一个任务增加一点范围
+  const spreadFactor = baseSpread + extraSpread;
   
-  const rangeX = 0.8 * spreadFactor;
-  const rangeY = 0.6 * spreadFactor;
+  const rangeX = 0.9 * spreadFactor;
+  const rangeY = 0.75 * spreadFactor;
   
   const minX = 0.5 - rangeX / 2;
   const minY = 0.5 - rangeY / 2;
 
+  // 动态调整最小间距，任务越多间距容忍度越小
+  const minDistance = Math.max(0.08, 0.25 - count * 0.015);
+
   for (let i = 0; i < count; i++) {
+    let x, y;
+    let attempts = 0;
+    let valid = false;
+
+    // 尝试生成不重叠的坐标
+    while (attempts < 50 && !valid) {
+      x = minX + Math.random() * rangeX;
+      y = minY + Math.random() * rangeY;
+      
+      valid = true;
+      for (const existing of newLayout) {
+        // 考虑宽高比，让x轴的距离权重稍微大一点（因为屏幕通常是宽屏）
+        const dx = (existing.x - x) * 1.2; 
+        const dy = existing.y - y;
+        if (Math.sqrt(dx * dx + dy * dy) < minDistance) {
+          valid = false;
+          break;
+        }
+      }
+      attempts++;
+    }
+    
     newLayout.push({
       id: `star-gen-${i}`,
       name: `节点 ${i + 1}`,
-      x: minX + Math.random() * rangeX,
-      y: minY + Math.random() * rangeY,
+      x: x,
+      y: y,
       depth: 0.7 + Math.random() * 0.5,
     });
   }
