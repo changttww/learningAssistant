@@ -487,44 +487,6 @@
             <div class="chart-container" ref="teamProgressChart"></div>
           </div>
 
-          <!-- 我创建的团队任务 -->
-          <div v-if="myCreatedTeamTasks.length" class="mb-6">
-            <div class="flex items-center justify-between">
-              <h3 class="section-title">我创建的团队任务</h3>
-              <span class="text-sm text-gray-500"
-                >共 {{ myCreatedTeamTasks.length }} 个</span
-              >
-            </div>
-            <div class="grid gap-3 mt-3">
-              <div
-                v-for="task in myCreatedTeamTasks"
-                :key="`my-team-task-${task.id}`"
-                class="p-3 rounded-lg border border-blue-100 bg-blue-50 flex items-center justify-between gap-3 flex-wrap"
-              >
-                <div class="min-w-0">
-                  <p class="text-sm font-semibold text-gray-800 truncate">
-                    {{ task.title }}
-                  </p>
-                  <p class="text-xs text-gray-600 truncate">
-                    {{ task.description || "暂无描述" }}
-                  </p>
-                </div>
-                <div class="flex items-center gap-2">
-                  <span class="text-xs text-gray-500"
-                    >截止
-                    {{ task.due_date || task.created_at || "未设定" }}</span
-                  >
-                  <button
-                    class="text-xs text-blue-600 hover:underline"
-                    @click="focusTaskCard(task.id)"
-                  >
-                    查看详情
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <!-- 任务列表 -->
           <div class="space-y-4">
             <h3 class="section-title">当前任务</h3>
@@ -1049,12 +1011,6 @@ export default {
         profile?.basic_info?.id ||
         profile?.basic_info?.user_id ||
         null
-      );
-    },
-    myCreatedTeamTasks() {
-      if (!this.currentUserId) return [];
-      return this.tasks.filter(
-        (task) => task.created_by === this.currentUserId
       );
     },
   },
