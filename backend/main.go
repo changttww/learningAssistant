@@ -4,9 +4,12 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"learningAssistant-backend/config"
 	"learningAssistant-backend/database"
+	_ "learningAssistant-backend/docs" // 导入生成的 docs
 	"learningAssistant-backend/middleware"
 	"learningAssistant-backend/routes"
 )
@@ -29,6 +32,9 @@ func main() {
 	r.Use(middleware.RequestLogger())
 	r.Use(gin.Recovery())
 
+	// Swagger 文档路由
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	// 设置路由
 	routes.SetupRoutes(r)
 
@@ -36,7 +42,7 @@ func main() {
 	port := ":" + config.AppConfig.Server.Port
 	log.Printf("Server starting on port %s", config.AppConfig.Server.Port)
 	log.Printf("Server mode: %s", config.AppConfig.Server.Mode)
-	
+
 	if err := r.Run(port); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}

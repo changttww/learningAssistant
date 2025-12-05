@@ -71,7 +71,46 @@
           <span class="text-red-100 text-sm mt-1.5 font-medium">已逾期</span>
         </button>
       </div>
-
+ <!-- 我的团队任务 -->
+      <div class="mb-6">
+        <div class="bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-5">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="text-lg font-bold text-gray-800">我的团队任务</h3>
+              <p class="text-sm text-gray-500">展示你所属团队的最新任务</p>
+            </div>
+            <router-link to="/team-tasks" class="text-sm text-blue-600 hover:text-blue-500">前往团队任务</router-link>
+          </div>
+          <div v-if="teamTasksLoading" class="py-8 text-center text-sm text-gray-400">正在加载团队任务...</div>
+          <div v-else-if="teamTasksError" class="py-8 text-center text-sm text-red-500">{{ teamTasksError }}</div>
+          <div v-else-if="!teamTasks.length" class="py-8 text-center text-sm text-gray-400">暂未找到团队任务，加入团队后即可查看</div>
+          <div v-else class="grid gap-4 mt-4 md:grid-cols-2">
+            <div
+              v-for="task in teamTaskPreview"
+              :key="`team-preview-${task.id}`"
+              class="border-2 border-blue-100 rounded-xl p-4 bg-blue-50/70 shadow-sm"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="font-semibold text-gray-800">{{ task.title }}</p>
+                  <p class="text-xs text-gray-500 mt-1">所属团队ID：{{ task.teamId || '未关联团队' }}</p>
+                </div>
+                <span :class="['px-2 py-0.5 rounded-full text-xs font-semibold', getTeamTaskBadgeClass(task.status)]">
+                  {{ getTeamTaskStatusLabel(task.status) }}
+                </span>
+              </div>
+              <p class="text-xs text-gray-500 mt-2">截止 {{ task.dueDate || '未设置' }}</p>
+              <div class="w-full h-2 bg-white rounded-full overflow-hidden mt-3">
+                <div class="h-full bg-gradient-to-r from-blue-500 to-indigo-500" :style="{ width: `${task.progress}%` }"></div>
+              </div>
+              <p v-if="task.description" class="text-xs text-gray-600 mt-3 line-clamp-2">{{ task.description }}</p>
+            </div>
+          </div>
+          <p v-if="teamTasks.length > teamTaskPreview.length" class="text-xs text-gray-500 text-right mt-3">
+            还有 {{ teamTasks.length - teamTaskPreview.length }} 个团队任务，前往团队任务页查看更多
+          </p>
+        </div>
+      </div>
       <!-- 状态任务详情列表 -->
       <div v-if="statusFilter" class="mb-6 animate-modal-enter">
         <div class="bg-white border-2 border-gray-200 rounded-2xl shadow-lg overflow-hidden">
@@ -208,6 +247,16 @@
                             ></div>
                             {{ getTaskActualStatus(task) }}
                           </span>
+                          <!-- 笔记标签 -->
+                          <button
+                            v-if="getTaskNote(task.id)"
+                            @click.stop="openNotebookModal(getTaskNote(task.id))"
+                            class="text-xs px-2 py-1 rounded-md font-medium flex items-center gap-1 bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors ml-1"
+                            title="点击查看关联笔记"
+                          >
+                            <iconify-icon icon="mdi:notebook-outline" width="14" height="14"></iconify-icon>
+                            笔记
+                          </button>
                         </div>
                       </div>
                       <!-- 操作按钮 -->
@@ -552,11 +601,22 @@
                     ></div>
                     {{ getTaskActualStatus(task) }}
                   </span>
+                   <!-- 笔记标签 -->
+                  <button
+                    v-if="getTaskNote(task.id)"
+                    @click.stop="openNotebookModal(getTaskNote(task.id))"
+                    class="text-xs px-2 py-1 rounded-md font-medium flex items-center gap-1 bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors"
+                    title="点击查看关联笔记"
+                  >
+                    <iconify-icon icon="mdi:notebook-outline" width="14" height="14"></iconify-icon>
+                    笔记
+                  </button>
                 </div>
                 <!-- 时间显示 -->
                 <span class="text-xs text-gray-500 font-medium flex items-center gap-1">
                   <iconify-icon icon="mdi:clock-outline" width="14" height="14"></iconify-icon>
                   {{ task.time }}
+                  <span>结束时间：{{ formatTaskEndTime(task) }}</span>
                 </span>
               </div>
 
@@ -657,7 +717,7 @@
                   </button>
                   <!-- 删除按钮 -->
                   <button
-                    @click.stop="handleDelete(task)"
+                    @click.stop="handleDelete(task), openDeleteConfirm(task)"
                     class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                     title="删除任务"
                   >
@@ -733,6 +793,9 @@
                   <h3 class="font-bold text-gray-800 text-base mb-1 truncate group-hover:text-purple-600 transition-colors">
                     {{ note.title }}
                   </h3>
+                  <div class="flex items-center gap-1 text-xs text-gray-500">
+                    <span>创建时间：</span><span>{{ note.createdAt }}</span>
+                  </div>
                   <div class="flex items-center gap-2 text-xs text-gray-500">
                     <iconify-icon icon="mdi:calendar-outline" width="14" height="14"></iconify-icon>
                     <span>{{ note.date }}</span>
@@ -756,9 +819,24 @@
               ></div>
               <p v-else class="text-sm text-gray-400 italic mb-3">暂无内容</p>
 
+              <!-- 关联任务信息 -->
+              <div
+                v-if="note.taskId && getRelatedTask(note.taskId)"
+                class="mb-3 bg-blue-50 rounded-lg p-2.5 border border-blue-100 flex flex-col gap-1"
+              >
+                <div class="flex items-center gap-1.5 text-xs text-blue-800 font-bold">
+                  <iconify-icon icon="mdi:format-list-checks" width="14" height="14" class="text-blue-600"></iconify-icon>
+                  <span class="truncate">{{ getRelatedTask(note.taskId).title }}</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-[11px] text-blue-600">
+                  <iconify-icon icon="mdi:calendar-range" width="12" height="12"></iconify-icon>
+                  <span>{{ getRelatedTask(note.taskId).startDate }} ~ {{ getRelatedTask(note.taskId).endDate }}</span>
+                </div>
+              </div>
               <!-- 笔记底部 -->
               <div class="flex items-center justify-between pt-3 border-t border-gray-200">
                 <div class="flex items-center gap-1 text-xs text-gray-500">
+                  <span>最新保存时间：</span>
                   <iconify-icon icon="mdi:clock-outline" width="14" height="14"></iconify-icon>
                   <span>{{ note.lastUpdated }}</span>
                 </div>
@@ -977,6 +1055,44 @@
               {{ modalDateMode === 'edit' ? '💾 保存修改' : '✨ 创建任务' }}
             </button>
           </div>
+        </div>
+         </div>
+    </div>
+
+    <!-- 完成确认弹窗 -->
+    <div
+      v-if="showCompleteConfirm"
+      class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    >
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-modal-enter">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-lg font-bold text-gray-800">提示</h3>
+          <button @click="showCompleteConfirm = false" class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100">
+            <iconify-icon icon="mdi:close" width="20" height="20"></iconify-icon>
+          </button>
+        </div>
+        <div class="p-6 text-sm text-gray-700">
+          <p>该任务已完成，是否要创建关联笔记？</p>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+          <button @click="cancelCompleteWithoutNote" class="text-sm text-gray-700 bg-white border-2 border-gray-300 py-2 px-4 rounded-lg hover:bg-gray-50">取消</button>
+          <button @click="confirmCompleteWithNote" class="text-sm text-white bg-gradient-to-r from-purple-600 to-pink-600 py-2 px-4 rounded-lg hover:shadow-lg">确认</button>
+        </div>
+      </div>
+    </div>
+
+
+
+    <div
+      v-if="showDeleteConfirm"
+      class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    >
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-modal-enter">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-lg font-bold text-gray-800">确认删除</h3>
+          <button @click="cancelDeleteTask" class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100">
+            <iconify-icon icon="mdi:close" width="20" height="20"></iconify-icon>
+          </button>
         </div>
         <div class="p-6 text-sm text-gray-700">
           <p>您确定要删除该任务及其关联的所有笔记吗？此操作不可撤销。</p>
@@ -1197,11 +1313,394 @@
             </button>
             <button
               @click="closeAndSaveNote"
-              class="text-sm text-white bg-gradient-to-r from-purple-600 to-pink-600 py-2 px-5 rounded-lg hover:shadow-lg transition-all duration-200 transform hover:scale-105 font-medium flex items-center gap-2"
+              class="text-sm text-white bg-gradient-to-r from-purple-600 to-pink-600 py-2 px-5 rounded-lg hover:shadow-lg transition-all duration-200 transform hover:scale-105 font-medium flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              :disabled="isNoteSaving || !isNoteDirty"
             >
               <iconify-icon icon="mdi:content-save" width="16" height="16"></iconify-icon>
-              保存并关闭
+              {{ isNoteSaving ? "保存中..." : "保存并关闭" }}
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 任务指导弹窗 -->
+    <div
+      v-if="showGuidanceModal"
+      class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      @click="closeGuidanceModal"
+    >
+      <div
+        class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col animate-modal-enter"
+        @click.stop
+      >
+        <!-- 弹窗头部 -->
+        <div class="bg-gradient-to-r from-purple-500 to-pink-600 px-6 py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                <iconify-icon icon="mdi:lightbulb-on" width="20" height="20" class="text-white"></iconify-icon>
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-white">任务指导</h3>
+                <p class="text-purple-100 text-sm">{{ guidanceTask?.title }}</p>
+              </div>
+            </div>
+            <button
+              @click="closeGuidanceModal"
+              class="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+            >
+              <iconify-icon icon="mdi:close" width="20" height="20" class="text-white"></iconify-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- 弹窗内容 -->
+        <div class="flex-1 overflow-y-auto p-6">
+          <!-- 加载状态 -->
+          <div v-if="isLoadingGuidance" class="flex flex-col items-center justify-center py-12">
+            <iconify-icon icon="mdi:loading" width="48" height="48" class="text-purple-500 animate-spin"></iconify-icon>
+            <p class="text-gray-500 mt-4">AI 正在生成任务指导...</p>
+          </div>
+
+          <!-- 指导内容 -->
+          <div v-else-if="taskGuidance" class="space-y-6">
+            <!-- 执行步骤 -->
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-200">
+              <div class="flex items-center gap-2 mb-4">
+                <iconify-icon icon="mdi:format-list-numbered" width="20" height="20" class="text-blue-600"></iconify-icon>
+                <h4 class="font-bold text-blue-800">执行步骤</h4>
+              </div>
+              <ol class="space-y-3">
+                <li v-for="(step, index) in taskGuidance.steps" :key="index" class="flex items-start gap-3">
+                  <span class="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                    {{ index + 1 }}
+                  </span>
+                  <span class="text-gray-700 leading-relaxed">{{ step }}</span>
+                </li>
+              </ol>
+            </div>
+
+            <!-- 学习技巧 -->
+            <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-5 border border-green-200">
+              <div class="flex items-center gap-2 mb-4">
+                <iconify-icon icon="mdi:lightbulb" width="20" height="20" class="text-green-600"></iconify-icon>
+                <h4 class="font-bold text-green-800">学习技巧</h4>
+              </div>
+              <ul class="space-y-2">
+                <li v-for="(tip, index) in taskGuidance.tips" :key="index" class="flex items-start gap-2">
+                  <iconify-icon icon="mdi:check-circle" width="18" height="18" class="text-green-500 mt-0.5 flex-shrink-0"></iconify-icon>
+                  <span class="text-gray-700">{{ tip }}</span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- 时间建议 -->
+            <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-200">
+              <div class="flex items-center gap-2 mb-3">
+                <iconify-icon icon="mdi:clock-outline" width="20" height="20" class="text-orange-600"></iconify-icon>
+                <h4 class="font-bold text-orange-800">时间建议</h4>
+              </div>
+              <p class="text-gray-700">{{ taskGuidance.timeAdvice }}</p>
+            </div>
+
+            <!-- 相关资源 -->
+            <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-200">
+              <div class="flex items-center gap-2 mb-4">
+                <iconify-icon icon="mdi:link-variant" width="20" height="20" class="text-purple-600"></iconify-icon>
+                <h4 class="font-bold text-purple-800">相关资源</h4>
+              </div>
+              <div class="grid grid-cols-1 gap-3">
+                <a
+                  v-for="(resource, index) in taskGuidance.resources"
+                  :key="index"
+                  :href="resource.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="flex items-center gap-3 p-3 bg-white rounded-lg border border-purple-200 hover:border-purple-400 hover:shadow-md transition-all group"
+                >
+                  <div :class="[
+                    'w-10 h-10 rounded-lg flex items-center justify-center',
+                    resource.type === 'video' ? 'bg-red-100' :
+                    resource.type === 'course' ? 'bg-blue-100' :
+                    resource.type === 'article' ? 'bg-green-100' :
+                    'bg-gray-100'
+                  ]">
+                    <iconify-icon 
+                      :icon="
+                        resource.type === 'video' ? 'mdi:play-circle' :
+                        resource.type === 'course' ? 'mdi:school' :
+                        resource.type === 'article' ? 'mdi:file-document' :
+                        'mdi:tools'
+                      " 
+                      width="20" 
+                      height="20"
+                      :class="[
+                        resource.type === 'video' ? 'text-red-600' :
+                        resource.type === 'course' ? 'text-blue-600' :
+                        resource.type === 'article' ? 'text-green-600' :
+                        'text-gray-600'
+                      ]"
+                    ></iconify-icon>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="font-medium text-gray-800 group-hover:text-purple-600 truncate">{{ resource.title }}</p>
+                    <p class="text-xs text-gray-500 truncate">{{ resource.url }}</p>
+                  </div>
+                  <iconify-icon icon="mdi:open-in-new" width="16" height="16" class="text-gray-400 group-hover:text-purple-600"></iconify-icon>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- 无数据状态 -->
+          <div v-else class="flex flex-col items-center justify-center py-12">
+            <iconify-icon icon="mdi:alert-circle-outline" width="48" height="48" class="text-gray-400"></iconify-icon>
+            <p class="text-gray-500 mt-4">暂无指导信息</p>
+          </div>
+        </div>
+
+        <!-- 底部按钮 -->
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <div class="flex justify-end gap-3">
+            <button
+              @click="refreshGuidance"
+              :disabled="isLoadingGuidance"
+              class="px-4 py-2 text-purple-600 border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              <iconify-icon icon="mdi:refresh" width="16" height="16" :class="{ 'animate-spin': isLoadingGuidance }"></iconify-icon>
+              重新生成
+            </button>
+            <button
+              @click="closeGuidanceModal"
+              class="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-lg hover:shadow-lg transition-all"
+            >
+              关闭
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 智能测验弹窗 -->
+    <div
+      v-if="showQuizModal"
+      class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      @click="closeQuizModal"
+    >
+      <div
+        class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col animate-modal-enter"
+        @click.stop
+      >
+        <!-- 弹窗头部 -->
+        <div class="bg-gradient-to-r from-blue-500 to-cyan-600 px-6 py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                <iconify-icon icon="mdi:file-question" width="20" height="20" class="text-white"></iconify-icon>
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-white">智能测验</h3>
+                <p class="text-blue-100 text-sm">{{ quizTask?.title }}</p>
+              </div>
+            </div>
+            <button
+              @click="closeQuizModal"
+              class="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+            >
+              <iconify-icon icon="mdi:close" width="20" height="20" class="text-white"></iconify-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- 弹窗内容 -->
+        <div class="flex-1 overflow-y-auto p-6">
+          <!-- 加载状态 -->
+          <div v-if="isLoadingQuiz" class="flex flex-col items-center justify-center py-12">
+            <iconify-icon icon="mdi:loading" width="48" height="48" class="text-blue-500 animate-spin"></iconify-icon>
+            <p class="text-gray-500 mt-4">AI 正在生成智能测验...</p>
+          </div>
+
+          <!-- 测验内容 -->
+          <div v-else-if="quiz" class="space-y-6">
+            <!-- 选择题部分 -->
+            <div v-for="(question, index) in quiz.questions" :key="index" class="bg-white rounded-xl p-5 border-2 border-gray-200 hover:border-blue-300 transition-colors">
+              <div class="flex items-start gap-3 mb-4">
+                <span class="flex-shrink-0 w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">
+                  {{ index + 1 }}
+                </span>
+                <div class="flex-1">
+                  <p class="text-gray-800 font-medium leading-relaxed">{{ question.question }}</p>
+                  <span :class="[
+                    'inline-block mt-2 px-2 py-1 text-xs rounded-full',
+                    question.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
+                    question.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-red-100 text-red-700'
+                  ]">
+                    {{ question.difficulty === 'easy' ? '简单' : question.difficulty === 'medium' ? '中等' : '困难' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- 选项 -->
+              <div class="space-y-2 ml-11">
+                <label
+                  v-for="option in ['A', 'B', 'C', 'D']"
+                  :key="option"
+                  :class="[
+                    'flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all',
+                    userAnswers[index] === option
+                      ? quizSubmitted
+                        ? option === question.correctAnswer
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-red-500 bg-red-50'
+                        : 'border-blue-500 bg-blue-50'
+                      : quizSubmitted && option === question.correctAnswer
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
+                  ]"
+                >
+                  <input
+                    type="radio"
+                    :name="`question-${index}`"
+                    :value="option"
+                    v-model="userAnswers[index]"
+                    :disabled="quizSubmitted"
+                    class="mt-1 w-4 h-4 text-blue-600"
+                  />
+                  <span class="flex-1 text-gray-700">
+                    <span class="font-semibold">{{ option }}.</span> {{ question.options[option] }}
+                  </span>
+                  <iconify-icon
+                    v-if="quizSubmitted && option === question.correctAnswer"
+                    icon="mdi:check-circle"
+                    width="20"
+                    height="20"
+                    class="text-green-600 mt-1"
+                  ></iconify-icon>
+                  <iconify-icon
+                    v-else-if="quizSubmitted && userAnswers[index] === option && option !== question.correctAnswer"
+                    icon="mdi:close-circle"
+                    width="20"
+                    height="20"
+                    class="text-red-600 mt-1"
+                  ></iconify-icon>
+                </label>
+              </div>
+
+              <!-- 答案解析 -->
+              <div v-if="quizSubmitted" class="ml-11 mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div class="flex items-center gap-2 mb-2">
+                  <iconify-icon icon="mdi:lightbulb-on" width="18" height="18" class="text-blue-600"></iconify-icon>
+                  <span class="font-semibold text-blue-800">答案解析</span>
+                </div>
+                <p class="text-gray-700 leading-relaxed">{{ question.explanation }}</p>
+              </div>
+            </div>
+
+            <!-- 问答题部分 -->
+            <div v-if="quiz.essayQuestion" class="bg-white rounded-xl p-5 border-2 border-gray-200 hover:border-purple-300 transition-colors">
+              <div class="flex items-start gap-3 mb-4">
+                <span class="flex-shrink-0 w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold">
+                  {{ quiz.questions.length + 1 }}
+                </span>
+                <div class="flex-1">
+                  <p class="text-gray-800 font-medium leading-relaxed">{{ quiz.essayQuestion.question }}</p>
+                  <span class="inline-block mt-2 px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-700">
+                    问答题
+                  </span>
+                </div>
+              </div>
+
+              <!-- 文本框 -->
+              <div class="pl-11">
+                <textarea
+                  v-model="essayAnswer"
+                  :disabled="quizSubmitted"
+                  rows="6"
+                  placeholder="请在此输入你的答案..."
+                  class="w-full p-4 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all resize-none disabled:bg-gray-50"
+                ></textarea>
+              </div>
+
+              <!-- 学习建议 -->
+              <div v-if="quizSubmitted" class="pl-11 mt-4">
+                <div class="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                  <div class="flex items-center gap-2 mb-2">
+                    <iconify-icon icon="mdi:school" width="18" height="18" class="text-purple-600"></iconify-icon>
+                    <span class="font-semibold text-purple-800">学习建议</span>
+                  </div>
+                  <p class="text-gray-700 leading-relaxed">{{ quiz.essayQuestion.studySuggestion }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 测验结果 -->
+            <div v-if="quizSubmitted" class="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-6 border border-blue-200">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="flex items-center gap-2 mb-2">
+                    <iconify-icon icon="mdi:trophy" width="24" height="24" class="text-yellow-500"></iconify-icon>
+                    <h4 class="text-lg font-bold text-gray-800">测验完成</h4>
+                  </div>
+                  <p class="text-gray-600">
+                    选择题得分: <span class="font-bold text-blue-600">{{ quizScore }}</span> / {{ quiz.questions.length }}
+                  </p>
+                  <p class="text-sm text-gray-500 mt-1">
+                    正确率: {{ ((quizScore / quiz.questions.length) * 100).toFixed(1) }}%
+                  </p>
+                </div>
+                <div class="text-right">
+                  <div :class="[
+                    'text-5xl font-bold',
+                    (quizScore / quiz.questions.length) >= 0.8 ? 'text-green-500' :
+                    (quizScore / quiz.questions.length) >= 0.6 ? 'text-yellow-500' :
+                    'text-red-500'
+                  ]">
+                    {{ ((quizScore / quiz.questions.length) * 100).toFixed(0) }}
+                  </div>
+                  <div class="text-sm text-gray-500 mt-1">分</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 无数据状态 -->
+          <div v-else class="flex flex-col items-center justify-center py-12">
+            <iconify-icon icon="mdi:alert-circle-outline" width="48" height="48" class="text-gray-400"></iconify-icon>
+            <p class="text-gray-500 mt-4">暂无测验信息</p>
+          </div>
+        </div>
+
+        <!-- 底部按钮 -->
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <div class="flex justify-between items-center">
+            <button
+              v-if="quizSubmitted"
+              @click="regenerateQuiz"
+              :disabled="isLoadingQuiz"
+              class="px-4 py-2 text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              <iconify-icon icon="mdi:refresh" width="16" height="16" :class="{ 'animate-spin': isLoadingQuiz }"></iconify-icon>
+              重新生成
+            </button>
+            <div v-else></div>
+            <div class="flex gap-3">
+              <button
+                v-if="!quizSubmitted"
+                @click="submitQuiz"
+                :disabled="!canSubmitQuiz"
+                class="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                提交答案
+              </button>
+              <button
+                @click="closeQuizModal"
+                class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                关闭
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1596,8 +2095,9 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
-import { createTask, getPersonalTasks, completeTask, uncompleteTask, deleteTask, parseTaskWithAI, getTaskGuidance, generateQuiz } from "@/api/modules/task";
-
+import { createTask, getPersonalTasks, getTeamTasks, completeTask, completeTaskWithNote, uncompleteTask, deleteTask } from "@/api/modules/task";
+import { getStudyNotes, updateStudyNote, createStudyNote } from "@/api/modules/study";
+import { ElMessage } from "element-plus";
 // Name
 defineOptions({
   name: "PersonalTasks",
@@ -2278,19 +2778,39 @@ const saveTask = async () => {
 };
 
 const handleDelete = async (task) => {
-  if(!confirm("确定要删除此任务吗？")) {
-    return;
-  }
+   deletingTask.value = task;
+  showDeleteConfirm.value = true;
+};
+const openDeleteConfirm = (task) => {
+  deletingTask.value = task;
+  showDeleteConfirm.value = true;
+};
+const confirmDeleteTask = async () => {
+  if (!deletingTask.value) return;
+  const taskId = deletingTask.value.id;
   try {
-    const res = await deleteTask(task.id);
-    if(res.code === 0){
-      tasks.value = tasks.value.filter(t => t.id !== task.id);
-      alert("✅ 任务已删除");
+   const res = await deleteTask(taskId);
+    if (res.code === 0 || res.code === 200) {
+      tasks.value = tasks.value.filter((t) => t.id !== taskId);
+      notes.value = notes.value.filter((n) => n.taskId !== taskId);
+      alert("✅ 已删除该任务及其关联笔记");
+    } else {
+      throw new Error(res.msg || res.message || "删除失败");
     }
   } catch (error) {
-    console.error('删除任务失败:', error);
-    alert('删除任务失败，请检查网络连接');
+    console.error("删除任务失败:", error);
+    alert("删除任务失败，请稍后重试");
+    await loadPersonalTasks();
+    await loadNotes();
+  } finally {
+    showDeleteConfirm.value = false;
+    deletingTask.value = null;
   }
+};
+
+const cancelDeleteTask = () => {
+  showDeleteConfirm.value = false;
+  deletingTask.value = null;
 };
 
 const editTask = (task) => {

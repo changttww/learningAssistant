@@ -1,0 +1,1380 @@
+basePath: /api/v1
+definitions:
+  routes.CreateTaskRequest:
+    description: 创建任务的请求参数
+    properties:
+      category_id:
+        example: 1
+        type: integer
+      description:
+        example: 第三章习题1-20
+        type: string
+      due_at:
+        example: "2024-12-05T18:00:00Z"
+        type: string
+      effort_points:
+        example: 5
+        type: integer
+      estimate_minutes:
+        example: 60
+        type: integer
+      owner_team_id:
+        type: integer
+      priority:
+        enum:
+        - 1
+        - 2
+        - 3
+        example: 2
+        type: integer
+      start_at:
+        example: "2024-12-05T09:00:00Z"
+        type: string
+      subtasks:
+        example:
+        - '["子任务1"'
+        - '"子任务2"]'
+        items:
+          type: string
+        type: array
+      task_type:
+        enum:
+        - 1
+        - 2
+        example: 1
+        type: integer
+      title:
+        example: 完成数学作业
+        type: string
+    required:
+    - task_type
+    - title
+    type: object
+  routes.ParseTaskRequest:
+    properties:
+      input:
+        type: string
+    required:
+    - input
+    type: object
+  routes.QuizGenerateRequest:
+    properties:
+      content:
+        description: 学习内容/笔记（可选）
+        type: string
+      difficulty:
+        description: 难度：easy/medium/hard
+        type: string
+      includeEssay:
+        description: 是否包含简答题
+        type: boolean
+      quizCount:
+        description: 题目数量
+        type: integer
+      topic:
+        description: 主题
+        type: string
+    required:
+    - topic
+    type: object
+  routes.TaskGuidanceRequest:
+    properties:
+      category:
+        type: string
+      description:
+        type: string
+      title:
+        type: string
+    required:
+    - title
+    type: object
+  routes.UpdateTaskRequest:
+    properties:
+      category_id:
+        type: integer
+      description:
+        type: string
+      due_at:
+        type: string
+      effort_points:
+        type: integer
+      estimate_minutes:
+        type: integer
+      owner_team_id:
+        type: integer
+      priority:
+        type: integer
+      start_at:
+        type: string
+      status:
+        type: integer
+      subtasks:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+    type: object
+  routes.createStudyRoomRequest:
+    properties:
+      description:
+        type: string
+      max_members:
+        type: integer
+      name:
+        type: string
+      owner_user_id:
+        type: integer
+      password:
+        type: string
+      room_type:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      team_id:
+        type: integer
+    type: object
+  routes.loginRequestBody:
+    properties:
+      identifier:
+        example: zhangsan
+        type: string
+      password:
+        example: password123
+        type: string
+      remember:
+        example: false
+        type: boolean
+    type: object
+  routes.refreshRequestBody:
+    properties:
+      refresh_token:
+        example: mock-refresh-token-xxx
+        type: string
+    type: object
+  routes.registerRequestBody:
+    properties:
+      display_name:
+        example: 张三
+        type: string
+      email:
+        example: zhangsan@example.com
+        type: string
+      password:
+        example: password123
+        type: string
+      username:
+        example: zhangsan
+        type: string
+    type: object
+  routes.updateUserSettingsRequest:
+    properties:
+      notifications:
+        $ref: '#/definitions/routes.userNotificationPreferences'
+      privacy:
+        $ref: '#/definitions/routes.userPrivacySettings'
+      study_habits:
+        $ref: '#/definitions/routes.userStudyHabitSettings'
+    type: object
+  routes.userNotificationPreferences:
+    properties:
+      email:
+        type: boolean
+      in_app:
+        type: boolean
+      sms:
+        type: boolean
+      weekly_summary:
+        type: boolean
+    type: object
+  routes.userPrivacySettings:
+    properties:
+      show_email:
+        type: boolean
+      show_profile:
+        type: boolean
+      show_study_data:
+        type: boolean
+    type: object
+  routes.userStudyHabitSettings:
+    properties:
+      daily_goal_minutes:
+        type: integer
+      focus_mode:
+        type: boolean
+      preferred_period:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@learningassistant.com
+    name: API Support
+  description: 学习助手后端 API 接口文档，包含用户认证、任务管理、团队协作、学习室等功能模块。
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: 学习助手 API
+  version: "1.0"
+paths:
+  /tasks/ai/quiz:
+    post:
+      consumes:
+      - application/json
+      description: 根据主题和难度智能生成测验题目，包括选择题和简答题
+      parameters:
+      - description: 测验生成参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.QuizGenerateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 生成成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: AI 生成测验
+      tags:
+      - AI功能
+  /tasks/ai/parse:
+    post:
+      consumes:
+      - application/json
+      description: 使用人工智能解析自然语言输入，自动提取任务的标题、描述、时间等信息
+      parameters:
+      - description: 任务描述文本
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.ParseTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 解析成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: AI 解析任务
+      tags:
+      - AI功能
+  /tasks/ai/guidance:
+    post:
+      consumes:
+      - application/json
+      description: 根据任务标题和描述，AI 生成学习指导、分步骤建议和相关学习资源
+      parameters:
+      - description: 任务信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.TaskGuidanceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 生成成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: AI 任务指导
+      tags:
+      - AI功能
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 使用用户名/邮箱和密码登录
+      parameters:
+      - description: 登录信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.loginRequestBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登录成功，返回token和用户信息
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 认证失败
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 用户登录
+      tags:
+      - 认证
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: 退出当前登录状态
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 退出成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 用户退出
+      tags:
+      - 认证
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: 使用 refresh_token 获取新的 access_token
+      parameters:
+      - description: 刷新令牌
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.refreshRequestBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 刷新成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 令牌无效
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 刷新访问令牌
+      tags:
+      - 认证
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: 创建新用户账号
+      parameters:
+      - description: 注册信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.registerRequestBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 注册成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 用户注册
+      tags:
+      - 认证
+  /study/records:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户的学习记录列表
+      parameters:
+      - description: 用户ID
+        in: query
+        name: user_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 缺少或无效的用户ID
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取学习记录
+      tags:
+      - 学习室
+  /study/rooms:
+    get:
+      consumes:
+      - application/json
+      description: 获取所有学习房间的列表信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取学习房间列表
+      tags:
+      - 学习室
+    post:
+      consumes:
+      - application/json
+      description: 创建一个新的学习房间，支持公开或私密类型
+      parameters:
+      - description: 房间信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.createStudyRoomRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建学习房间
+      tags:
+      - 学习室
+  /study/rooms/{roomId}:
+    get:
+      consumes:
+      - application/json
+      description: 根据房间ID获取学习房间的详细信息
+      parameters:
+      - description: 房间ID
+        in: path
+        name: roomId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的房间ID
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 房间不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取学习房间详情
+      tags:
+      - 学习室
+  /study/rooms/{roomId}/join:
+    post:
+      consumes:
+      - application/json
+      description: 用户加入指定的学习房间，私密房间需要提供密码
+      parameters:
+      - description: 房间ID
+        in: path
+        name: roomId
+        required: true
+        type: integer
+      - description: 加入信息(password, user_id)
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 加入成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的房间ID
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: 密码错误或需要密码
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 房间不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 加入学习房间
+      tags:
+      - 学习室
+  /study/summary:
+    get:
+      consumes:
+      - application/json
+      description: 获取学习概览信息，包括活跃房间数、在线用户数、今日学习时长等
+      parameters:
+      - description: 用户ID（用于获取个人连续签到天数）
+        in: query
+        name: user_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取学习概览
+      tags:
+      - 学习室
+  /tasks:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前用户的所有任务
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取任务列表
+      tags:
+      - 任务管理
+    post:
+      consumes:
+      - application/json
+      description: 创建个人任务或团队任务
+      parameters:
+      - description: 任务信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.CreateTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建任务
+      tags:
+      - 任务管理
+  /tasks/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定的任务及其关联的笔记
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的任务ID
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 任务不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除任务
+      tags:
+      - 任务管理
+    get:
+      consumes:
+      - application/json
+      description: 根据任务ID获取任务的详细信息
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的任务ID
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 任务不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取任务详情
+      tags:
+      - 任务管理
+    put:
+      consumes:
+      - application/json
+      description: 更新任务的标题、描述、优先级、状态等信息
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 任务更新信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.UpdateTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 任务不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新任务
+      tags:
+      - 任务管理
+  /tasks/{id}/complete:
+    post:
+      consumes:
+      - application/json
+      description: 将任务标记为已完成状态
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 任务已完成
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的任务ID
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 任务不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 完成任务
+      tags:
+      - 任务管理
+  /tasks/{id}/complete-with-note:
+    post:
+      consumes:
+      - application/json
+      description: 将任务标记为已完成，同时创建一个关联的学习笔记
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 任务已完成并创建笔记
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的任务ID
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 任务不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 完成任务并创建笔记
+      tags:
+      - 任务管理
+  /tasks/{id}/uncomplete:
+    post:
+      consumes:
+      - application/json
+      description: 将已完成的任务重新设置为进行中状态
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 已取消完成状态
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的任务ID
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 任务不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 取消完成任务
+      tags:
+      - 任务管理
+  /tasks/categories:
+    get:
+      consumes:
+      - application/json
+      description: 获取所有可用的任务分类
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取任务分类列表
+      tags:
+      - 任务管理
+  /tasks/personal:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前用户的个人任务列表，支持状态、优先级、分类过滤和排序
+      parameters:
+      - description: '任务状态: 0-待处理, 1-进行中, 2-已完成'
+        in: query
+        name: status
+        type: integer
+      - description: '优先级: 1-低, 2-中, 3-高'
+        in: query
+        name: priority
+        type: integer
+      - description: 分类ID
+        in: query
+        name: category_id
+        type: integer
+      - default: created_at
+        description: 排序字段
+        in: query
+        name: order_by
+        type: string
+      - default: desc
+        description: 排序方向
+        in: query
+        name: order_dir
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取个人任务
+      tags:
+      - 任务管理
+  /tasks/statistics:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前用户任务的统计信息，包括总数、已完成、进行中、待处理、逾期等
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取任务统计
+      tags:
+      - 任务管理
+  /tasks/team:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前用户所在团队的所有任务
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 未授权
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取团队任务
+      tags:
+      - 任务管理
+  /users/{userId}:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定用户的详细资料信息
+      parameters:
+      - description: 用户ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的用户ID
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 用户不存在
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户资料
+      tags:
+      - 用户管理
+  /users/{userId}/achievements:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户已获得的成就列表和概览信息
+      parameters:
+      - description: 用户ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的用户ID
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户成就
+      tags:
+      - 用户管理
+  /users/{userId}/check-in:
+    post:
+      consumes:
+      - application/json
+      description: 用户进行每日签到，获取积分和连续签到记录
+      parameters:
+      - description: 用户ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 签到成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的用户ID或今日已签到
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 用户每日签到
+      tags:
+      - 用户管理
+  /users/{userId}/points/ledger:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户的积分明细记录
+      parameters:
+      - description: 用户ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      - default: 50
+        description: 记录数量限制
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的用户ID
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取积分账本
+      tags:
+      - 用户管理
+  /users/{userId}/settings:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户的通知、隐私和学习习惯设置
+      parameters:
+      - description: 用户ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的用户ID
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户设置
+      tags:
+      - 用户管理
+    put:
+      consumes:
+      - application/json
+      description: 更新用户的通知、隐私和学习习惯设置
+      parameters:
+      - description: 用户ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      - description: 设置信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.updateUserSettingsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新用户设置
+      tags:
+      - 用户管理
+  /users/{userId}/skills:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户的主要技能和次要技能列表
+      parameters:
+      - description: 用户ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的用户ID
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户技能
+      tags:
+      - 用户管理
+  /users/{userId}/study-stats:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户的学习统计信息，包括等级、积分、学习时长、任务完成率等
+      parameters:
+      - description: 用户ID
+        in: path
+        name: userId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 无效的用户ID
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户学习统计
+      tags:
+      - 用户管理
+securityDefinitions:
+  BearerAuth:
+    description: 请输入 Bearer token，格式：Bearer {token}
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
