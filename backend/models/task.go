@@ -32,6 +32,7 @@ type Task struct {
 	EstimateMinutes *int           `json:"estimate_minutes"`
 	EffortPoints    int            `gorm:"default:0" json:"effort_points"`
 	Subtasks        datatypes.JSON `gorm:"type:json" json:"subtasks"`
+	Comments        datatypes.JSON `gorm:"type:json" json:"comments"`
 }
 
 // TaskAssignee 任务分配模型

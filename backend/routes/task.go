@@ -67,6 +67,19 @@ type TaskResponse struct {
 	CreatedAt       time.Time             `json:"created_at"`
 	UpdatedAt       time.Time             `json:"updated_at"`
 	Subtasks        []string              `json:"subtasks"`
+	Comments        []TaskComment         `json:"comments"`
+}
+
+// TaskComment 任务评论结构
+type TaskComment struct {
+	Content   string    `json:"content"`
+	UserID    uint64    `json:"user_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// AddTaskCommentRequest 添加任务评论请求结构
+type AddTaskCommentRequest struct {
+	Content string `json:"content" binding:"required"`
 }
 
 // TaskCategoryResponse 任务分类响应结构
@@ -93,6 +106,7 @@ func registerTaskRoutes(r *gin.RouterGroup) {
 	r.POST("/:id/complete", completeTask)
 	r.POST("/:id/complete-with-note", completeTaskWithNote)
 	r.POST("/:id/uncomplete", uncompleteTask)
+	r.POST("/:id/comments", addComment)
 	r.GET("/categories", getTaskCategories)
 	r.GET("/statistics", getTaskStatistics)
 	// AI 解析自然语言任务
@@ -666,6 +680,65 @@ func getTaskStatistics(c *gin.Context) {
 	})
 }
 
+// addComment 添加任务评论
+func addComment(c *gin.Context) {
+	taskID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的任务ID"})
+		return
+	}
+
+	var req AddTaskCommentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
+		return
+	}
+
+	var task models.Task
+	if err := database.GetDB().First(&task, taskID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "任务不存在"})
+		return
+	}
+
+	// 解析现有评论
+	var comments []TaskComment
+	if len(task.Comments) > 0 {
+		json.Unmarshal(task.Comments, &comments)
+	}
+
+	// 添加新评论
+	newComment := TaskComment{
+		Content:   req.Content,
+		UserID:    userID.(uint64),
+		CreatedAt: time.Now(),
+	}
+	comments = append(comments, newComment)
+
+	// 保存回数据库
+	commentsJSON, err := json.Marshal(comments)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "处理评论失败"})
+		return
+	}
+
+	if err := database.GetDB().Model(&task).Update("comments", datatypes.JSON(commentsJSON)).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存评论失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"data": newComment,
+		"msg":  "评论成功",
+	})
+}
+
 // convertTaskToResponse 将Task模型转换为响应结构
 func convertTaskToResponse(task models.Task) TaskResponse {
 	response := TaskResponse{
@@ -689,6 +762,7 @@ func convertTaskToResponse(task models.Task) TaskResponse {
 	}
 
 	response.Subtasks = decodeSubtasksPayload(task.Subtasks)
+	response.Comments = decodeCommentsPayload(task.Comments)
 
 	// 如果有分类信息，添加到响应中
 	if task.Category != nil {
@@ -729,4 +803,15 @@ func decodeSubtasksPayload(payload datatypes.JSON) []string {
 		return []string{}
 	}
 	return subtasks
+}
+
+func decodeCommentsPayload(payload datatypes.JSON) []TaskComment {
+	if len(payload) == 0 {
+		return []TaskComment{}
+	}
+	var comments []TaskComment
+	if err := json.Unmarshal(payload, &comments); err != nil {
+		return []TaskComment{}
+	}
+	return comments
 }

@@ -47,6 +47,13 @@ export function updateTask(taskId, data) {
 }
 
 /**
+ * 添加任务评论
+ */
+export function addTaskComment(taskId, content) {
+  return request.post(`/tasks/${taskId}/comments`, { content });
+}
+
+/**
  * 删除任务
  */
 export function deleteTask(taskId) {
