@@ -57,20 +57,6 @@
         </button>
 
         <!-- 已逾期任务卡片 -->
-        <button
-          type="button"
-          @click="setStatusFilter('pending')"
-          class="stat-card group bg-gradient-to-br from-gray-500 to-slate-600 rounded-xl p-5 flex flex-col items-center justify-center cursor-pointer shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 active:scale-95 transition-all duration-300 transform hover:-translate-y-1 border-2 border-gray-600"
-          aria-label="待处理任务"
-        >
-          <div class="bg-white/20 backdrop-blur-sm w-14 h-14 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300">
-            <iconify-icon icon="mdi:clock-outline" width="28" height="28" class="text-white"></iconify-icon>
-          </div>
-          <span class="text-3xl font-bold text-white drop-shadow-md">{{ stats.pending }}</span>
-          <span class="text-gray-100 text-sm mt-1.5 font-medium">待处理</span>
-        </button>
-
-        <!-- 已逾期任务卡片 -->
 
         <button
           type="button"
@@ -85,7 +71,46 @@
           <span class="text-red-100 text-sm mt-1.5 font-medium">已逾期</span>
         </button>
       </div>
-
+ <!-- 我的团队任务 -->
+      <div class="mb-6">
+        <div class="bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-5">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="text-lg font-bold text-gray-800">我的团队任务</h3>
+              <p class="text-sm text-gray-500">展示你所属团队的最新任务</p>
+            </div>
+            <router-link to="/team-tasks" class="text-sm text-blue-600 hover:text-blue-500">前往团队任务</router-link>
+          </div>
+          <div v-if="teamTasksLoading" class="py-8 text-center text-sm text-gray-400">正在加载团队任务...</div>
+          <div v-else-if="teamTasksError" class="py-8 text-center text-sm text-red-500">{{ teamTasksError }}</div>
+          <div v-else-if="!teamTasks.length" class="py-8 text-center text-sm text-gray-400">暂未找到团队任务，加入团队后即可查看</div>
+          <div v-else class="grid gap-4 mt-4 md:grid-cols-2">
+            <div
+              v-for="task in teamTaskPreview"
+              :key="`team-preview-${task.id}`"
+              class="border-2 border-blue-100 rounded-xl p-4 bg-blue-50/70 shadow-sm"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="font-semibold text-gray-800">{{ task.title }}</p>
+                  <p class="text-xs text-gray-500 mt-1">所属团队ID：{{ task.teamId || '未关联团队' }}</p>
+                </div>
+                <span :class="['px-2 py-0.5 rounded-full text-xs font-semibold', getTeamTaskBadgeClass(task.status)]">
+                  {{ getTeamTaskStatusLabel(task.status) }}
+                </span>
+              </div>
+              <p class="text-xs text-gray-500 mt-2">截止 {{ task.dueDate || '未设置' }}</p>
+              <div class="w-full h-2 bg-white rounded-full overflow-hidden mt-3">
+                <div class="h-full bg-gradient-to-r from-blue-500 to-indigo-500" :style="{ width: `${task.progress}%` }"></div>
+              </div>
+              <p v-if="task.description" class="text-xs text-gray-600 mt-3 line-clamp-2">{{ task.description }}</p>
+            </div>
+          </div>
+          <p v-if="teamTasks.length > teamTaskPreview.length" class="text-xs text-gray-500 text-right mt-3">
+            还有 {{ teamTasks.length - teamTaskPreview.length }} 个团队任务，前往团队任务页查看更多
+          </p>
+        </div>
+      </div>
       <!-- 状态任务详情列表 -->
       <div v-if="statusFilter" class="mb-6 animate-modal-enter">
         <div class="bg-white border-2 border-gray-200 rounded-2xl shadow-lg overflow-hidden">
@@ -222,6 +247,16 @@
                             ></div>
                             {{ getTaskActualStatus(task) }}
                           </span>
+                          <!-- 笔记标签 -->
+                          <button
+                            v-if="getTaskNote(task.id)"
+                            @click.stop="openNotebookModal(getTaskNote(task.id))"
+                            class="text-xs px-2 py-1 rounded-md font-medium flex items-center gap-1 bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors ml-1"
+                            title="点击查看关联笔记"
+                          >
+                            <iconify-icon icon="mdi:notebook-outline" width="14" height="14"></iconify-icon>
+                            笔记
+                          </button>
                         </div>
                       </div>
                       <!-- 操作按钮 -->
@@ -566,11 +601,22 @@
                     ></div>
                     {{ getTaskActualStatus(task) }}
                   </span>
+                   <!-- 笔记标签 -->
+                  <button
+                    v-if="getTaskNote(task.id)"
+                    @click.stop="openNotebookModal(getTaskNote(task.id))"
+                    class="text-xs px-2 py-1 rounded-md font-medium flex items-center gap-1 bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors"
+                    title="点击查看关联笔记"
+                  >
+                    <iconify-icon icon="mdi:notebook-outline" width="14" height="14"></iconify-icon>
+                    笔记
+                  </button>
                 </div>
                 <!-- 时间显示 -->
                 <span class="text-xs text-gray-500 font-medium flex items-center gap-1">
                   <iconify-icon icon="mdi:clock-outline" width="14" height="14"></iconify-icon>
                   {{ task.time }}
+                  <span>结束时间：{{ formatTaskEndTime(task) }}</span>
                 </span>
               </div>
 
@@ -671,7 +717,7 @@
                   </button>
                   <!-- 删除按钮 -->
                   <button
-                    @click.stop="handleDelete(task)"
+                    @click.stop="handleDelete(task), openDeleteConfirm(task)"
                     class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                     title="删除任务"
                   >
@@ -747,6 +793,9 @@
                   <h3 class="font-bold text-gray-800 text-base mb-1 truncate group-hover:text-purple-600 transition-colors">
                     {{ note.title }}
                   </h3>
+                  <div class="flex items-center gap-1 text-xs text-gray-500">
+                    <span>创建时间：</span><span>{{ note.createdAt }}</span>
+                  </div>
                   <div class="flex items-center gap-2 text-xs text-gray-500">
                     <iconify-icon icon="mdi:calendar-outline" width="14" height="14"></iconify-icon>
                     <span>{{ note.date }}</span>
@@ -770,9 +819,24 @@
               ></div>
               <p v-else class="text-sm text-gray-400 italic mb-3">暂无内容</p>
 
+              <!-- 关联任务信息 -->
+              <div
+                v-if="note.taskId && getRelatedTask(note.taskId)"
+                class="mb-3 bg-blue-50 rounded-lg p-2.5 border border-blue-100 flex flex-col gap-1"
+              >
+                <div class="flex items-center gap-1.5 text-xs text-blue-800 font-bold">
+                  <iconify-icon icon="mdi:format-list-checks" width="14" height="14" class="text-blue-600"></iconify-icon>
+                  <span class="truncate">{{ getRelatedTask(note.taskId).title }}</span>
+                </div>
+                <div class="flex items-center gap-1.5 text-[11px] text-blue-600">
+                  <iconify-icon icon="mdi:calendar-range" width="12" height="12"></iconify-icon>
+                  <span>{{ getRelatedTask(note.taskId).startDate }} ~ {{ getRelatedTask(note.taskId).endDate }}</span>
+                </div>
+              </div>
               <!-- 笔记底部 -->
               <div class="flex items-center justify-between pt-3 border-t border-gray-200">
                 <div class="flex items-center gap-1 text-xs text-gray-500">
+                  <span>最新保存时间：</span>
                   <iconify-icon icon="mdi:clock-outline" width="14" height="14"></iconify-icon>
                   <span>{{ note.lastUpdated }}</span>
                 </div>
@@ -858,10 +922,6 @@
               >
                 <iconify-icon :icon="isParsing ? 'mdi:loading' : 'mdi:wand'" width="16" height="16" :class="{ 'animate-spin': isParsing }"></iconify-icon>
                 {{ isParsing ? '解析中...' : '解析' }}
-                class="text-white bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 rounded-lg text-sm font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105 flex items-center gap-2"
-              >
-                <iconify-icon icon="mdi:wand" width="16" height="16"></iconify-icon>
-                解析
               </button>
             </div>
             <p class="text-xs text-blue-600 mt-2 flex items-center gap-1">
@@ -995,6 +1055,44 @@
               {{ modalDateMode === 'edit' ? '💾 保存修改' : '✨ 创建任务' }}
             </button>
           </div>
+        </div>
+         </div>
+    </div>
+
+    <!-- 完成确认弹窗 -->
+    <div
+      v-if="showCompleteConfirm"
+      class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    >
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-modal-enter">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-lg font-bold text-gray-800">提示</h3>
+          <button @click="showCompleteConfirm = false" class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100">
+            <iconify-icon icon="mdi:close" width="20" height="20"></iconify-icon>
+          </button>
+        </div>
+        <div class="p-6 text-sm text-gray-700">
+          <p>该任务已完成，是否要创建关联笔记？</p>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+          <button @click="cancelCompleteWithoutNote" class="text-sm text-gray-700 bg-white border-2 border-gray-300 py-2 px-4 rounded-lg hover:bg-gray-50">取消</button>
+          <button @click="confirmCompleteWithNote" class="text-sm text-white bg-gradient-to-r from-purple-600 to-pink-600 py-2 px-4 rounded-lg hover:shadow-lg">确认</button>
+        </div>
+      </div>
+    </div>
+
+
+
+    <div
+      v-if="showDeleteConfirm"
+      class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    >
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-modal-enter">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-lg font-bold text-gray-800">确认删除</h3>
+          <button @click="cancelDeleteTask" class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100">
+            <iconify-icon icon="mdi:close" width="20" height="20"></iconify-icon>
+          </button>
         </div>
         <div class="p-6 text-sm text-gray-700">
           <p>您确定要删除该任务及其关联的所有笔记吗？此操作不可撤销。</p>
@@ -1215,10 +1313,11 @@
             </button>
             <button
               @click="closeAndSaveNote"
-              class="text-sm text-white bg-gradient-to-r from-purple-600 to-pink-600 py-2 px-5 rounded-lg hover:shadow-lg transition-all duration-200 transform hover:scale-105 font-medium flex items-center gap-2"
+              class="text-sm text-white bg-gradient-to-r from-purple-600 to-pink-600 py-2 px-5 rounded-lg hover:shadow-lg transition-all duration-200 transform hover:scale-105 font-medium flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              :disabled="isNoteSaving || !isNoteDirty"
             >
               <iconify-icon icon="mdi:content-save" width="16" height="16"></iconify-icon>
-              保存并关闭
+              {{ isNoteSaving ? "保存中..." : "保存并关闭" }}
             </button>
           </div>
         </div>
@@ -1614,8 +1713,9 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
-import { createTask, getPersonalTasks, completeTask, uncompleteTask, deleteTask, parseTaskWithAI, getTaskGuidance, generateQuiz } from "@/api/modules/task";
-
+import { createTask, getPersonalTasks, getTeamTasks, completeTask, completeTaskWithNote, uncompleteTask, deleteTask } from "@/api/modules/task";
+import { getStudyNotes, updateStudyNote, createStudyNote } from "@/api/modules/study";
+import { ElMessage } from "element-plus";
 // Name
 defineOptions({
   name: "PersonalTasks",
@@ -2296,19 +2396,39 @@ const saveTask = async () => {
 };
 
 const handleDelete = async (task) => {
-  if(!confirm("确定要删除此任务吗？")) {
-    return;
-  }
+   deletingTask.value = task;
+  showDeleteConfirm.value = true;
+};
+const openDeleteConfirm = (task) => {
+  deletingTask.value = task;
+  showDeleteConfirm.value = true;
+};
+const confirmDeleteTask = async () => {
+  if (!deletingTask.value) return;
+  const taskId = deletingTask.value.id;
   try {
-    const res = await deleteTask(task.id);
-    if(res.code === 0){
-      tasks.value = tasks.value.filter(t => t.id !== task.id);
-      alert("✅ 任务已删除");
+   const res = await deleteTask(taskId);
+    if (res.code === 0 || res.code === 200) {
+      tasks.value = tasks.value.filter((t) => t.id !== taskId);
+      notes.value = notes.value.filter((n) => n.taskId !== taskId);
+      alert("✅ 已删除该任务及其关联笔记");
+    } else {
+      throw new Error(res.msg || res.message || "删除失败");
     }
   } catch (error) {
-    console.error('删除任务失败:', error);
-    alert('删除任务失败，请检查网络连接');
+    console.error("删除任务失败:", error);
+    alert("删除任务失败，请稍后重试");
+    await loadPersonalTasks();
+    await loadNotes();
+  } finally {
+    showDeleteConfirm.value = false;
+    deletingTask.value = null;
   }
+};
+
+const cancelDeleteTask = () => {
+  showDeleteConfirm.value = false;
+  deletingTask.value = null;
 };
 
 const editTask = (task) => {

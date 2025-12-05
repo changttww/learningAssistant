@@ -148,6 +148,9 @@ export function getTaskGuidance(title, description, category) {
  */
 export function generateQuiz(data) {
   return request.post("/tasks/ai/quiz", data, { timeout: 60000 });
+}
+
+/**
  * 获取今日任务
  */
 export function getTodayTasks(userId) {
