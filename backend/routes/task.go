@@ -27,6 +27,7 @@ type CreateTaskRequest struct {
 	DueAt           *time.Time `json:"due_at"`
 	EstimateMinutes *int       `json:"estimate_minutes"`
 	EffortPoints    int        `json:"effort_points"`
+	Progress        int8       `json:"progress"`
 	OwnerTeamID     *uint64    `json:"owner_team_id"`
 	Subtasks        []string   `json:"subtasks"`
 }
@@ -42,6 +43,7 @@ type UpdateTaskRequest struct {
 	DueAt           *time.Time `json:"due_at"`
 	EstimateMinutes *int       `json:"estimate_minutes"`
 	EffortPoints    *int       `json:"effort_points"`
+	Progress        *int8      `json:"progress"`
 	OwnerTeamID     *uint64    `json:"owner_team_id"`
 	Subtasks        []string   `json:"subtasks"`
 }
@@ -64,6 +66,7 @@ type TaskResponse struct {
 	CompletedAt     *time.Time            `json:"completed_at"`
 	EstimateMinutes *int                  `json:"estimate_minutes"`
 	EffortPoints    int                   `json:"effort_points"`
+	Progress        int8                  `json:"progress"`
 	CreatedAt       time.Time             `json:"created_at"`
 	UpdatedAt       time.Time             `json:"updated_at"`
 	Subtasks        []string              `json:"subtasks"`
@@ -143,6 +146,7 @@ func createTask(c *gin.Context) {
 		DueAt:           req.DueAt,
 		EstimateMinutes: req.EstimateMinutes,
 		EffortPoints:    req.EffortPoints,
+		Progress:        req.Progress,
 		Status:          0, // 默认状态为待处理
 	}
 
@@ -151,8 +155,8 @@ func createTask(c *gin.Context) {
 		task.Subtasks = encoded
 	}
 
-	// 如果是个人任务，设置所有者为当前用户
-	if req.TaskType == 1 {
+	// 如果是个人任务或团队任务，设置所有者为当前用户
+	if req.TaskType == 1 || req.TaskType == 2 {
 		userIDValue := userID.(uint64)
 		task.OwnerUserID = &userIDValue
 	}
@@ -278,6 +282,13 @@ func getTeamTasks(c *gin.Context) {
 	db = db.Where("task_type = ? AND (created_by = ? OR owner_team_id IN (SELECT team_id FROM team_members WHERE user_id = ?))",
 		2, userID.(uint64), userID.(uint64))
 
+	// 支持按团队ID过滤
+	if teamID := c.Query("team_id"); teamID != "" {
+		if teamIDInt, err := strconv.ParseUint(teamID, 10, 64); err == nil {
+			db = db.Where("owner_team_id = ?", teamIDInt)
+		}
+	}
+
 	if err := db.Find(&tasks).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取团队任务失败"})
 		return
@@ -312,8 +323,20 @@ func getTaskDetail(c *gin.Context) {
 	var task models.Task
 	db := database.GetDB().Preload("Category")
 
-	// 确保用户只能访问自己相关的任务
-	if err := db.Where("id = ? AND (created_by = ? OR owner_user_id = ?)", taskID, userID.(uint64), userID.(uint64)).First(&task).Error; err != nil {
+	// 确保用户只能访问自己相关的任务（个人任务或团队任务）
+	// 权限逻辑：
+	// 1. 任务创建者
+	// 2. 任务指派给该用户 (owner_user_id)
+	// 3. 团队任务且用户是团队成员
+	if err := db.Where(`
+		id = ? AND (
+			created_by = ? 
+			OR owner_user_id = ? 
+			OR (
+				task_type = 2 
+				AND owner_team_id IN (SELECT team_id FROM team_members WHERE user_id = ?)
+			)
+		)`, taskID, userID.(uint64), userID.(uint64), userID.(uint64)).First(&task).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "任务不存在或无权限访问"})
 		} else {
@@ -352,7 +375,15 @@ func updateTask(c *gin.Context) {
 
 	// 检查任务是否存在且用户有权限
 	var task models.Task
-	if err := database.GetDB().Where("id = ? AND (created_by = ? OR owner_user_id = ?)", taskID, userID.(uint64), userID.(uint64)).First(&task).Error; err != nil {
+	if err := database.GetDB().Where(`
+		id = ? AND (
+			created_by = ? 
+			OR owner_user_id = ? 
+			OR (
+				task_type = 2 
+				AND owner_team_id IN (SELECT team_id FROM team_members WHERE user_id = ?)
+			)
+		)`, taskID, userID.(uint64), userID.(uint64), userID.(uint64)).First(&task).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "任务不存在或无权限访问"})
 		} else {
@@ -397,6 +428,9 @@ func updateTask(c *gin.Context) {
 	if req.EffortPoints != nil {
 		updateData["effort_points"] = *req.EffortPoints
 	}
+	if req.Progress != nil {
+		updateData["progress"] = *req.Progress
+	}
 	if req.OwnerTeamID != nil {
 		updateData["owner_team_id"] = *req.OwnerTeamID
 	}
@@ -436,7 +470,15 @@ func deleteTask(c *gin.Context) {
 
 	// 检查任务是否存在且用户有权限
 	var task models.Task
-	if err := database.GetDB().Where("id = ? AND (created_by = ? OR owner_user_id = ?)", taskID, userID.(uint64), userID.(uint64)).First(&task).Error; err != nil {
+	if err := database.GetDB().Where(`
+		id = ? AND (
+			created_by = ? 
+			OR owner_user_id = ? 
+			OR (
+				task_type = 2 
+				AND owner_team_id IN (SELECT team_id FROM team_members WHERE user_id = ?)
+			)
+		)`, taskID, userID.(uint64), userID.(uint64), userID.(uint64)).First(&task).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "任务不存在或无权限访问"})
 		} else {
@@ -481,7 +523,15 @@ func completeTask(c *gin.Context) {
 
 	// 检查任务是否存在且用户有权限
 	var task models.Task
-	if err := database.GetDB().Where("id = ? AND (created_by = ? OR owner_user_id = ?)", taskID, userID.(uint64), userID.(uint64)).First(&task).Error; err != nil {
+	if err := database.GetDB().Where(`
+		id = ? AND (
+			created_by = ? 
+			OR owner_user_id = ? 
+			OR (
+				task_type = 2 
+				AND owner_team_id IN (SELECT team_id FROM team_members WHERE user_id = ?)
+			)
+		)`, taskID, userID.(uint64), userID.(uint64), userID.(uint64)).First(&task).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "任务不存在或无权限访问"})
 		} else {
@@ -522,7 +572,15 @@ func completeTaskWithNote(c *gin.Context) {
 	}
 
 	var task models.Task
-	if err := database.GetDB().Where("id = ? AND (created_by = ? OR owner_user_id = ?)", taskID, userID.(uint64), userID.(uint64)).First(&task).Error; err != nil {
+	if err := database.GetDB().Where(`
+		id = ? AND (
+			created_by = ? 
+			OR owner_user_id = ? 
+			OR (
+				task_type = 2 
+				AND owner_team_id IN (SELECT team_id FROM team_members WHERE user_id = ?)
+			)
+		)`, taskID, userID.(uint64), userID.(uint64), userID.(uint64)).First(&task).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "任务不存在或无权限访问"})
 		} else {
@@ -589,7 +647,15 @@ func uncompleteTask(c *gin.Context) {
 
 	// 检查任务是否存在且用户有权限
 	var task models.Task
-	if err := database.GetDB().Where("id = ? AND (created_by = ? OR owner_user_id = ?)", taskID, userID.(uint64), userID.(uint64)).First(&task).Error; err != nil {
+	if err := database.GetDB().Where(`
+		id = ? AND (
+			created_by = ? 
+			OR owner_user_id = ? 
+			OR (
+				task_type = 2 
+				AND owner_team_id IN (SELECT team_id FROM team_members WHERE user_id = ?)
+			)
+		)`, taskID, userID.(uint64), userID.(uint64), userID.(uint64)).First(&task).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "任务不存在或无权限访问"})
 		} else {
@@ -701,8 +767,21 @@ func addComment(c *gin.Context) {
 	}
 
 	var task models.Task
-	if err := database.GetDB().First(&task, taskID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "任务不存在"})
+	// 检查任务是否存在且用户有权限（创建者、所有者或团队成员）
+	if err := database.GetDB().Where(`
+		id = ? AND (
+			created_by = ? 
+			OR owner_user_id = ? 
+			OR (
+				task_type = 2 
+				AND owner_team_id IN (SELECT team_id FROM team_members WHERE user_id = ?)
+			)
+		)`, taskID, userID.(uint64), userID.(uint64), userID.(uint64)).First(&task).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "任务不存在或无权限访问"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询任务失败"})
+		}
 		return
 	}
 
@@ -757,6 +836,7 @@ func convertTaskToResponse(task models.Task) TaskResponse {
 		CompletedAt:     task.CompletedAt,
 		EstimateMinutes: task.EstimateMinutes,
 		EffortPoints:    task.EffortPoints,
+		Progress:        task.Progress,
 		CreatedAt:       task.CreatedAt,
 		UpdatedAt:       task.UpdatedAt,
 	}

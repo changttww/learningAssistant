@@ -31,18 +31,25 @@
         <transition name="detail-cluster">
           <div v-if="detailViewActive && isFocusedStar(star)" class="detail-cluster">
             <div v-if="detailLoading" class="detail-loading">星图数据加载中...</div>
-            <div
-              v-for="satellite in detailSatellites"
-              :key="`${satellite.id}-link`"
-              class="satellite-link"
-              :style="satelliteLinkStyle(satellite)"
-            ></div>
+            
+            <!-- 连线层 -->
+            <svg class="detail-connections" viewBox="-500 -500 1000 1000">
+              <line 
+                v-for="sat in detailSatellites" 
+                :key="`${sat.id}-line`"
+                :x1="sat.lineStart.x" 
+                :y1="sat.lineStart.y" 
+                :x2="sat.lineEnd.x" 
+                :y2="sat.lineEnd.y" 
+              />
+            </svg>
+
             <div
               v-for="satellite in detailSatellites"
               :key="satellite.id"
               class="satellite-node"
               :class="`satellite-node--${satellite.type}`"
-              :style="satelliteStyle(satellite)"
+              :style="{ transform: `translate3d(${satellite.x}px, ${satellite.y}px, 0)` }"
             >
               <span class="satellite-core"></span>
               <div class="satellite-dialog">
@@ -55,11 +62,8 @@
     </div>
 
     <div class="hud">
-      <div class="status-card">
-        <p class="status-title">交互状态</p>
-        <p class="status-value">{{ interactionStatus }}</p>
-        <p class="status-meta">{{ interactionMeta }}</p>
-        <p class="status-tip">移动鼠标划开星尘 · 点击节点查看详情</p>
+      <div class="quote-card">
+        <p class="quote-text">{{ currentQuote.text }}</p>
       </div>
       <button
         class="hud-btn"
@@ -74,11 +78,12 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { getTeamTasks, getTaskDetail } from '@/api/modules/task';
 
 const runtimeWindow = typeof globalThis === 'undefined' ? undefined : globalThis.window;
 const router = useRouter();
+const route = useRoute();
 const containerRef = ref(null);
 const particleCanvas = ref(null);
 const viewportWidth = ref(runtimeWindow?.innerWidth || 1920);
@@ -97,40 +102,65 @@ let pointerIdleTimer = null;
 let resizeHandler = null;
 let particleAnimationId = null;
 
-const dipperLayout = [
-  { id: 'star-1', name: '天枢', x: 0.12, y: 0.62, depth: 0.85 },
-  { id: 'star-2', name: '天璇', x: 0.24, y: 0.46, depth: 0.7 },
-  { id: 'star-3', name: '天玑', x: 0.36, y: 0.34, depth: 0.95 },
-  { id: 'star-4', name: '天权', x: 0.5, y: 0.4, depth: 1.1 },
-  { id: 'star-5', name: '玉衡', x: 0.63, y: 0.29, depth: 0.9 },
-  { id: 'star-6', name: '开阳', x: 0.76, y: 0.43, depth: 1.05 },
-  { id: 'star-7', name: '摇光', x: 0.88, y: 0.58, depth: 0.8 },
-];
-
 const fallbackTasks = [];
 
-const currentLayout = ref([...dipperLayout]);
+const currentLayout = ref([]);
 
 const updateLayout = () => {
   const source = tasks.value;
   const count = source.length;
 
-  if (count === 7) {
-    currentLayout.value = dipperLayout;
-  } else {
-    const newLayout = [];
-    for (let i = 0; i < count; i++) {
-      newLayout.push({
-        id: `star-gen-${i}`,
-        name: `节点 ${i + 1}`,
-        x: 0.1 + Math.random() * 0.8,
-        y: 0.2 + Math.random() * 0.6,
-        depth: 0.7 + Math.random() * 0.5,
-      });
+  const newLayout = [];
+  
+  // 调整分布范围逻辑：
+  // 基础范围给大一点，避免挤在一起 (0.6 起步)
+  // 随数量增加适当扩大，最大铺满 90% 宽，75% 高
+  const baseSpread = 0.5; 
+  const extraSpread = Math.min(0.4, count * 0.03); // 每增加一个任务增加一点范围
+  const spreadFactor = baseSpread + extraSpread;
+  
+  const rangeX = 0.9 * spreadFactor;
+  const rangeY = 0.75 * spreadFactor;
+  
+  const minX = 0.5 - rangeX / 2;
+  const minY = 0.5 - rangeY / 2;
+
+  // 动态调整最小间距，任务越多间距容忍度越小
+  const minDistance = Math.max(0.08, 0.25 - count * 0.015);
+
+  for (let i = 0; i < count; i++) {
+    let x, y;
+    let attempts = 0;
+    let valid = false;
+
+    // 尝试生成不重叠的坐标
+    while (attempts < 50 && !valid) {
+      x = minX + Math.random() * rangeX;
+      y = minY + Math.random() * rangeY;
+      
+      valid = true;
+      for (const existing of newLayout) {
+        // 考虑宽高比，让x轴的距离权重稍微大一点（因为屏幕通常是宽屏）
+        const dx = (existing.x - x) * 1.2; 
+        const dy = existing.y - y;
+        if (Math.sqrt(dx * dx + dy * dy) < minDistance) {
+          valid = false;
+          break;
+        }
+      }
+      attempts++;
     }
-    newLayout.sort((a, b) => a.x - b.x);
-    currentLayout.value = newLayout;
+    
+    newLayout.push({
+      id: `star-gen-${i}`,
+      name: `节点 ${i + 1}`,
+      x: x,
+      y: y,
+      depth: 0.7 + Math.random() * 0.5,
+    });
   }
+  newLayout.sort((a, b) => a.x - b.x);
+  currentLayout.value = newLayout;
 };
 
 watch(tasks, updateLayout, { deep: true });
@@ -146,7 +176,7 @@ const mainStars = computed(() => {
   });
 
   // 确保布局更新后再映射，避免越界（虽然 updateLayout 是同步的）
-  if (currentLayout.value.length !== sortedSource.length && sortedSource.length !== 7) {
+  if (currentLayout.value.length !== sortedSource.length) {
     updateLayout();
   }
   return currentLayout.value.map((layout, index) => ({
@@ -171,32 +201,58 @@ const formatDueDate = (dateStr) => {
   return `${year}年${month}月${day}日 ${pad(hours)}:${pad(minutes)}`;
 };
 
-const satelliteLayout = {
-  subtasks: { spread: 110, baseAngle: -10, radius: 190 },
-  attachments: { spread: 90, baseAngle: 155, radius: 210 },
-};
-
 const detailSatellites = computed(() => {
   if (!detailViewActive.value || !selectedStar.value) return [];
   const payload = detailData.value || {};
-  const buildNodes = (type) => {
-    const items = Array.isArray(payload[type]) ? payload[type].slice(0, 6) : [];
-    if (!items.length) return [];
-    const config = satelliteLayout[type];
-    const spread = config.spread;
-    const base = config.baseAngle - spread / 2;
-    const step = items.length > 1 ? spread / (items.length - 1) : spread / 2;
-    return items.map((item, index) => ({
-      id: `${selectedStar.value.id}-${type}-${item.id || index}`,
-      type,
-      title: type === 'subtasks' ? item.title : item.name,
-      meta: type === 'subtasks' ? item.status : item.size,
-      angle: base + step * index,
-      radius: config.radius + index * 6,
-    }));
-  };
+  const items = Array.isArray(payload.subtasks) ? payload.subtasks : [];
+  if (!items.length) return [];
 
-  return [...buildNodes('subtasks')];
+  const satellites = [];
+  const minDistance = 50; // 卫星之间的最小间距
+
+  for (const [index, item] of items.entries()) {
+    let dx, dy;
+    let attempts = 0;
+    let valid = false;
+
+    // 兼容字符串类型的子任务（后端返回的是字符串数组）
+    const title = typeof item === 'string' ? item : item.title;
+    const id = (typeof item === 'object' && item.id) ? item.id : index;
+
+    // 尝试生成不重叠的随机位置
+    while (attempts < 50 && !valid) {
+      // 随机角度
+      const angle = Math.random() * Math.PI * 2;
+      // 随机半径 (80px - 180px)
+      const radius = 80 + Math.random() * 100;
+      
+      dx = Math.cos(angle) * radius;
+      dy = Math.sin(angle) * radius;
+
+      valid = true;
+      for (const existing of satellites) {
+        const dist = Math.hypot(existing.x - dx, existing.y - dy);
+        if (dist < minDistance) {
+          valid = false;
+          break;
+        }
+      }
+      attempts++;
+    }
+
+    satellites.push({
+      id: `${selectedStar.value.id}-sub-${id}`,
+      type: 'subtasks',
+      title: title,
+      x: dx,
+      y: dy,
+      // 连线坐标：从主星中心(0,0)到卫星中心(dx, dy)
+      lineStart: { x: 0, y: 0 },
+      lineEnd: { x: dx, y: dy }
+    });
+  }
+
+  return satellites;
 });
 
 const layerStyle = computed(() => ({
@@ -206,9 +262,19 @@ const layerStyle = computed(() => ({
       : 'translate3d(0, 0, 0) scale(1)',
 }));
 
-const interactionStatus = computed(() => (pointer.active ? '划开星尘' : '静待星海'));
-
-const interactionMeta = computed(() => `粒子${pointer.active ? '受扰动' : '平衡'}`);
+const quotes = [
+  { text: '天行健，君子以自强不息' },
+  { text: '路漫漫其修远兮，吾将上下而求索' },
+  { text: '学而不思则罔，思而不学则殆' },
+  { text: '博观而约取，厚积而薄发' },
+  { text: '业精于勤，荒于嬉；行成于思，毁于随' },
+  { text: '锲而不舍，金石可镂' },
+  { text: '不积跬步，无以至千里' },
+  { text: '会当凌绝顶，一览众山小' },
+  { text: '长风破浪会有时，直挂云帆济沧海' },
+  { text: '非淡泊无以明志，非宁静无以致远' }
+];
+const currentQuote = ref(quotes[0]);
 
 const projectPoint = (node) => ({
   x: node.x * viewportWidth.value,
@@ -224,6 +290,7 @@ const polylineFor = (layouts) =>
   layouts
     .map((layout) => {
       const { x, y } = projectPoint(layout);
+      // 此时 star-node 已对齐到中心，直接连接中心坐标即可
       return `${x},${y}`;
     })
     .join(' ');
@@ -232,7 +299,11 @@ const mainPolyline = computed(() => polylineFor(currentLayout.value));
 
 const loadTasks = async () => {
   try {
-    const res = await getTeamTasks();
+    const params = {};
+    if (route.query.teamId) {
+      params.team_id = route.query.teamId;
+    }
+    const res = await getTeamTasks(params);
     const data = res?.data?.items || res?.data || res;
     if (Array.isArray(data) && data.length) {
       tasks.value = data.map((item, index) => ({
@@ -273,25 +344,16 @@ const buildMockDetail = null;
 
 const isFocusedStar = (star) => Boolean(selectedStar.value && selectedStar.value.id === star.id);
 
-const satelliteStyle = (node) => {
-  const angleRad = (node.angle * Math.PI) / 180;
-  const x = Math.cos(angleRad) * node.radius;
-  const y = Math.sin(angleRad) * node.radius;
-  // 偏移 -5px 以使 10px 的圆点中心对齐
-  return { transform: `translate3d(${x - 5}px, ${y - 5}px, 0)` };
-};
-
-const satelliteLinkStyle = (node) => ({
-  width: `${node.radius}px`,
-  transform: `rotate(${node.angle}deg)`,
-});
+const satelliteStyle = null;
+const satelliteLinkStyle = null;
 
 const focusOnStar = (star) => {
   if (!star) return;
   const { x, y } = projectPoint(star);
   const centerX = viewportWidth.value / 2;
   const centerY = viewportHeight.value / 2;
-  const scale = 2.6;
+  // 减小缩放比例，避免子任务超出屏幕 (原 2.6 -> 1.6)
+  const scale = 1.6;
   zoomTransform.value = {
     x: centerX - x * scale,
     y: centerY - y * scale,
@@ -402,11 +464,30 @@ const initParticles = () => {
       particle.x += particle.vx + Math.cos(particle.twinkle) * 0.25;
       particle.y += particle.vy + Math.sin(particle.twinkle) * 0.2;
 
+      // 边界检查与重置
       const buffer = 40;
-      if (particle.x < -buffer) particle.x = canvas.width + buffer;
-      if (particle.x > canvas.width + buffer) particle.x = -buffer;
-      if (particle.y < -buffer) particle.y = canvas.height + buffer;
-      if (particle.y > canvas.height + buffer) particle.y = -buffer;
+      const width = canvas.width;
+      const height = canvas.height;
+
+      // 防止 NaN 或无限大导致粒子消失
+      if (!Number.isFinite(particle.x) || !Number.isFinite(particle.y)) {
+        particle.x = Math.random() * width;
+        particle.y = Math.random() * height;
+        particle.vx = 0;
+        particle.vy = 0;
+      }
+
+      if (particle.x < -buffer) {
+        particle.x = width + buffer;
+      } else if (particle.x > width + buffer) {
+        particle.x = -buffer;
+      }
+
+      if (particle.y < -buffer) {
+        particle.y = height + buffer;
+      } else if (particle.y > height + buffer) {
+        particle.y = -buffer;
+      }
 
       const drawX = particle.x;
       const drawY = particle.y;
@@ -434,6 +515,10 @@ onMounted(() => {
   updateLayout();
   loadTasks();
   initParticles();
+  
+  // 随机展示古文
+  const idx = Math.floor(Math.random() * quotes.length);
+  currentQuote.value = quotes[idx];
 });
 
 onBeforeUnmount(() => {
@@ -489,13 +574,17 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 0;
   left: 0;
+  width: 0;
+  height: 0;
   pointer-events: auto;
   transform: translate3d(0, 0, 0);
-  display: flex;
-  align-items: center;
+  overflow: visible;
 }
 
 .star-core {
+  position: absolute;
+  left: -8px;
+  top: -8px;
   display: block;
   width: 16px;
   height: 16px;
@@ -511,10 +600,12 @@ onBeforeUnmount(() => {
 }
 
 .star-dialog {
-  position: relative;
-  margin-left: 28px;
+  position: absolute;
+  left: 24px;
+  top: -24px;
   padding: 12px 16px;
-  min-width: 220px;
+  width: max-content;
+  max-width: 300px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 12px;
   background: rgba(6, 10, 28, 0.85);
@@ -524,9 +615,9 @@ onBeforeUnmount(() => {
 .star-dialog::before {
   content: '';
   position: absolute;
-  left: -60px;
-  top: 50%;
-  width: 52px;
+  left: -24px;
+  top: 24px;
+  width: 24px;
   height: 2px;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.7));
 }
@@ -556,32 +647,23 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 16px;
   z-index: 5;
+  align-items: flex-end;
 }
 
-.status-card {
+.quote-card {
   padding: 14px 18px;
   border-radius: 16px;
   background: rgba(8, 14, 46, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(6px);
+  max-width: 320px;
 }
 
-.status-title {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.status-value {
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.status-meta,
-.status-tip {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+.quote-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.8);
+  letter-spacing: 0.05em;
 }
 
 .hud-btn {
@@ -626,6 +708,7 @@ onBeforeUnmount(() => {
   width: 0;
   height: 0;
   pointer-events: none;
+  overflow: visible; /* 关键：允许内容溢出 */
 }
 
 .detail-loading {
@@ -641,26 +724,36 @@ onBeforeUnmount(() => {
   pointer-events: auto;
 }
 
-.satellite-link {
+.detail-connections {
   position: absolute;
-  top: 0;
-  left: 0;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.65), rgba(86, 171, 255, 0.35));
-  box-shadow: 0 0 12px rgba(126, 166, 255, 0.5);
-  opacity: 0.85;
-  transform-origin: 0 50%;
+  top: -500px;
+  left: -500px;
+  width: 1000px;
+  height: 1000px;
   pointer-events: none;
+}
+
+.detail-connections line {
+  stroke: rgba(255, 255, 255, 0.65);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px rgba(126, 166, 255, 0.5));
 }
 
 .satellite-node {
   position: absolute;
-  display: flex;
-  align-items: center;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
   pointer-events: auto;
 }
 
 .satellite-core {
+  position: absolute;
+  left: -5px;
+  top: -5px;
   display: block;
   width: 10px;
   height: 10px;
@@ -675,12 +768,15 @@ onBeforeUnmount(() => {
 }
 
 .satellite-dialog {
-  margin-left: 18px;
+  position: absolute;
+  left: 12px;
+  top: -16px;
   padding: 8px 12px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(5, 9, 24, 0.92);
-  min-width: 160px;
+  width: max-content;
+  max-width: 240px;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
 }
 

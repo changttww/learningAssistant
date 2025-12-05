@@ -187,7 +187,7 @@
             throw new Error("登录响应缺少必要信息");
           }
 
-          setToken(token);
+          setToken(token, this.loginForm.remember);
           if (refreshToken) {
             setRefreshToken(refreshToken);
           }

@@ -419,6 +419,17 @@
                   </div>
                 </div>
                 <div>
+                  <label for="create-points" class="text-sm">任务积分</label>
+                  <input
+                    id="create-points"
+                    v-model.number="newTaskForm.effort_points"
+                    type="number"
+                    min="0"
+                    class="w-full mt-1 p-2 border rounded"
+                    placeholder="完成任务可获得的积分"
+                  />
+                </div>
+                <div>
                   <div class="flex items-center justify-between">
                     <span class="text-sm">子任务</span>
                     <button
@@ -474,44 +485,6 @@
           <div class="mb-6">
             <h2 class="section-title">团队进度概览</h2>
             <div class="chart-container" ref="teamProgressChart"></div>
-          </div>
-
-          <!-- 我创建的团队任务 -->
-          <div v-if="myCreatedTeamTasks.length" class="mb-6">
-            <div class="flex items-center justify-between">
-              <h3 class="section-title">我创建的团队任务</h3>
-              <span class="text-sm text-gray-500"
-                >共 {{ myCreatedTeamTasks.length }} 个</span
-              >
-            </div>
-            <div class="grid gap-3 mt-3">
-              <div
-                v-for="task in myCreatedTeamTasks"
-                :key="`my-team-task-${task.id}`"
-                class="p-3 rounded-lg border border-blue-100 bg-blue-50 flex items-center justify-between gap-3 flex-wrap"
-              >
-                <div class="min-w-0">
-                  <p class="text-sm font-semibold text-gray-800 truncate">
-                    {{ task.title }}
-                  </p>
-                  <p class="text-xs text-gray-600 truncate">
-                    {{ task.description || "暂无描述" }}
-                  </p>
-                </div>
-                <div class="flex items-center gap-2">
-                  <span class="text-xs text-gray-500"
-                    >截止
-                    {{ task.due_date || task.created_at || "未设定" }}</span
-                  >
-                  <button
-                    class="text-xs text-blue-600 hover:underline"
-                    @click="focusTaskCard(task.id)"
-                  >
-                    查看详情
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
 
           <!-- 任务列表 -->
@@ -993,6 +966,7 @@ export default {
         title: "",
         description: "",
         due_date: "",
+        effort_points: 0,
         owner_team_id: "",
         subtasks: [""],
       },
@@ -1037,12 +1011,6 @@ export default {
         profile?.basic_info?.id ||
         profile?.basic_info?.user_id ||
         null
-      );
-    },
-    myCreatedTeamTasks() {
-      if (!this.currentUserId) return [];
-      return this.tasks.filter(
-        (task) => task.created_by === this.currentUserId
       );
     },
   },
@@ -1176,6 +1144,7 @@ export default {
       this.newTaskForm.title = "";
       this.newTaskForm.description = "";
       this.newTaskForm.due_date = "";
+      this.newTaskForm.effort_points = 0;
       this.newTaskForm.owner_team_id = "";
       this.newTaskForm.subtasks = [""];
     },
@@ -1195,7 +1164,14 @@ export default {
         .filter((item) => item.length > 0);
     },
     goToConstellation() {
-      this.$router.push("/team-tasks/constellation");
+      if (this.selectedTeam) {
+        this.$router.push({
+          path: "/team-tasks/constellation",
+          query: { teamId: this.selectedTeam.id },
+        });
+      } else {
+        this.$router.push("/team-tasks/constellation");
+      }
     },
     handleResize() {
       if (this.chart) this.chart.resize();
@@ -1278,13 +1254,20 @@ export default {
     },
     async loadTasks() {
       try {
-        const res = await getTeamTasks();
+        const params = {};
+        if (this.selectedTeam && this.selectedTeam.id) {
+          params.team_id = this.selectedTeam.id;
+        }
+        const res = await getTeamTasks(params);
         const items = res?.data?.items || res?.data || res;
         if (Array.isArray(items) && items.length) {
           this.tasks = items.map((item) => this.normalizeFetchedTask(item));
+        } else {
+          this.tasks = [];
         }
       } catch (error) {
         console.warn("加载团队任务失败：", error);
+        this.tasks = [];
       } finally {
         this.updateChart();
       }
@@ -1294,11 +1277,28 @@ export default {
       const progressSource = raw?.progress ?? this.statusToProgress(status);
       const progress = this.clampProgress(Number(progressSource));
       const due = raw?.due_at || raw?.due_date || "";
+
+      let ownerName = raw?.owner_name || raw?.created_by_name;
+      
+      if (!ownerName) {
+        // 优先使用 owner_user_id，其次使用 created_by
+        const userId = raw?.owner_user_id || raw?.created_by;
+        if (userId) {
+          if (String(userId) === String(this.currentUserId)) {
+            const p = this.currentUserProfile;
+            ownerName = p?.name || p?.username || p?.basic_info?.name || "我";
+          } else {
+            // 如果没有名字，显示用户ID
+            ownerName = `用户 ${userId}`;
+          }
+        }
+      }
+
       return {
         id: raw?.id ?? Date.now(),
         title: raw?.title || raw?.name || "未命名任务",
         description: raw?.description || "",
-        owner_name: raw?.owner_name || raw?.created_by_name || "未知",
+        owner_name: ownerName || "未知",
         owner_team_id: raw?.owner_team_id ?? null,
         created_by: raw?.created_by ?? null,
         due_date:
@@ -1750,12 +1750,21 @@ export default {
         ? Number(this.newTaskForm.owner_team_id)
         : null;
       const subtasks = this.normalizeNewTaskSubtasks();
+      
+      let formattedDueDate = null;
+      if (this.newTaskForm.due_date) {
+        // 将 YYYY-MM-DD 转换为 ISO 8601 格式，以符合后端 time.Time 的解析要求
+        // 这里简单地将其转换为当天的 00:00:00 UTC
+        formattedDueDate = new Date(this.newTaskForm.due_date).toISOString();
+      }
+
       const payload = {
         title: this.newTaskForm.title.trim(),
         description: this.newTaskForm.description?.trim?.()
           ? this.newTaskForm.description.trim()
           : this.newTaskForm.description || "",
-        due_at: this.newTaskForm.due_date || null,
+        due_at: formattedDueDate,
+        effort_points: this.newTaskForm.effort_points || 0,
         task_type: 2,
       };
       if (ownerTeamId && !Number.isNaN(ownerTeamId)) {
