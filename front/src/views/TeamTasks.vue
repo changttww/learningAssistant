@@ -1,8 +1,8 @@
 <template>
-  <div class="w-full h-full overflow-auto px-4">
+  <div class="w-full min-h-full flex flex-col px-4">
     <div
       v-if="!selectedTeam"
-      class="relative w-full h-full min-h-[80vh] flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50"
+      class="relative w-full flex-1 min-h-[80vh] flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl"
     >
       <!-- 粒子背景 Canvas -->
       <canvas
@@ -308,6 +308,13 @@
           }}</span>
         </div>
         <div class="ml-auto flex items-center gap-2">
+          <button
+            @click="openMembersModal"
+            class="flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+          >
+            <iconify-icon icon="mdi:account-group" class="mr-1"></iconify-icon>
+            团队成员
+          </button>
           <button
             @click="openInviteModal"
             class="flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
@@ -905,6 +912,70 @@
         </div>
       </div>
     </div>
+
+    <!-- 团队成员列表模态框 -->
+    <div
+      v-if="showMembersModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+    >
+      <div class="bg-white p-6 rounded-xl shadow-xl w-full max-w-lg">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold">团队成员</h3>
+          <button
+            @click="showMembersModal = false"
+            class="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <iconify-icon icon="mdi:close" width="24" height="24"></iconify-icon>
+          </button>
+        </div>
+        
+        <div v-if="loadingMembers" class="text-center py-8 text-gray-500">
+          <iconify-icon icon="mdi:loading" class="animate-spin" width="32" height="32"></iconify-icon>
+          <p class="mt-2">加载中...</p>
+        </div>
+        
+        <div v-else-if="teamMembers.length === 0" class="text-center py-8 text-gray-500">
+          <iconify-icon icon="mdi:account-off" width="48" height="48"></iconify-icon>
+          <p class="mt-2">暂无成员</p>
+        </div>
+        
+        <div v-else class="max-h-96 overflow-y-auto">
+          <div
+            v-for="member in teamMembers"
+            :key="member.user_id"
+            class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors"
+          >
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold">
+                {{ (member.nickname || member.account || '?').charAt(0).toUpperCase() }}
+              </div>
+              <div>
+                <p class="font-medium text-gray-800">{{ member.nickname || member.account }}</p>
+                <p class="text-sm text-gray-500">{{ member.account }}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span
+                v-if="member.user_id === selectedTeam.owner_user_id"
+                class="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full font-medium"
+              >
+                队长
+              </span>
+              <span
+                v-else
+                class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full font-medium"
+              >
+                成员
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="mt-4 pt-4 border-t border-gray-200 text-center text-sm text-gray-500">
+          共 {{ teamMembers.length }} 位成员
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -922,6 +993,7 @@ import {
   joinTeamByName,
   createTeam,
   inviteMember,
+  getTeamMembers,
 } from "@/api/modules/team";
 import { useCurrentUser } from "@/composables/useCurrentUser";
 
@@ -959,6 +1031,9 @@ export default {
       // Team Management
       showInviteModal: false,
       inviteAccount: "",
+      showMembersModal: false,
+      teamMembers: [],
+      loadingMembers: false,
       detailLoadingMap: {},
       ownedTeams: [],
       ownedTeamsLoading: false,
@@ -1084,6 +1159,20 @@ export default {
         this.showInviteModal = false;
       } catch (error) {
         alert(error.response?.data?.error || "邀请失败");
+      }
+    },
+    async openMembersModal() {
+      this.showMembersModal = true;
+      this.teamMembers = [];
+      this.loadingMembers = true;
+      try {
+        const res = await getTeamMembers(this.selectedTeam.id);
+        this.teamMembers = res.data || [];
+      } catch (error) {
+        console.error("获取团队成员失败", error);
+        alert(error.response?.data?.error || "获取成员列表失败");
+      } finally {
+        this.loadingMembers = false;
       }
     },
     async handleCreateTeam() {
