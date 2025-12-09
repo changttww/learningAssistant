@@ -22,6 +22,7 @@ func registerTeamRoutes(r *gin.RouterGroup) {
 	r.POST("/", createTeam)
 	r.POST("/join_by_name", joinTeamByName)
 	r.POST("/:id/invite", inviteMember)
+	r.GET("/:id/members", listTeamMembers)
 	r.GET("/:id/requests", listTeamRequests)
 	r.POST("/:id/requests/:requestId/handle", handleTeamRequest)
 }
@@ -413,4 +414,34 @@ func listTeams(c *gin.Context) {
 		"data": teams,
 		"msg":  "获取成功",
 	})
+}
+
+func listTeamMembers(c *gin.Context) {
+	teamID := c.Param("id")
+	if teamID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Team ID is required"})
+		return
+	}
+
+	var members []struct {
+		UserID   uint64 `json:"user_id"`
+		Account  string `json:"account"`
+		Nickname string `json:"nickname"`
+		Avatar   string `json:"avatar"`
+		Role     int8   `json:"role"`
+	}
+
+	db := database.GetDB()
+	err := db.Table("team_members").
+		Select("team_members.user_id, users.account, users.display_name as nickname, users.avatar_url as avatar, team_members.role").
+		Joins("JOIN users ON users.id = team_members.user_id").
+		Where("team_members.team_id = ?", teamID).
+		Scan(&members).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch team members"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": members})
 }
