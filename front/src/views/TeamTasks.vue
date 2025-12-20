@@ -836,6 +836,7 @@
           <div class="grid grid-cols-2 gap-3">
             <button
               class="py-3 bg-blue-50 hover:bg-blue-100 rounded-lg flex flex-col items-center justify-center transition-colors"
+              @click="openQuickMeeting"
             >
               <iconify-icon
                 icon="mdi:video"
@@ -843,7 +844,7 @@
                 height="24"
                 style="color: #2d5bff"
               ></iconify-icon>
-              <span class="mt-2 text-sm text-gray-700">视频会议</span>
+              <span class="mt-2 text-sm text-gray-700">快速会议室</span>
             </button>
             <button
               class="py-3 bg-orange-50 hover:bg-orange-100 rounded-lg flex flex-col items-center justify-center transition-colors"
@@ -1174,6 +1175,24 @@ export default {
       } finally {
         this.loadingMembers = false;
       }
+    },
+    openQuickMeeting() {
+      if (!this.selectedTeam?.id) {
+        alert("请先选择一个团队再进入会议室");
+        return;
+      }
+      try {
+        sessionStorage.setItem(
+          "team:quickMeeting",
+          String(this.selectedTeam.id)
+        );
+      } catch (error) {
+        console.warn("无法写入会议室访问标记", error);
+      }
+      this.$router.push({
+        name: "TeamMeetingRoom",
+        params: { teamId: this.selectedTeam.id },
+      });
     },
     async handleCreateTeam() {
       if (!this.newTeamForm.name.trim()) {

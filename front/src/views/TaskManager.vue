@@ -27,12 +27,6 @@
           />
         </main>
       </div>
-      
-      <InteractionPanel
-        :is-chat-expanded="isChatExpanded"
-        @toggle-chat="toggleChatList"
-        @open-chat="goToChatHistory"
-      />
     </div>
   </div>
 
@@ -410,7 +404,6 @@
   import TaskProgressOverview from "@/components/TaskManager/TaskProgressOverview.vue";
   import AnalysisEntryGrid from "@/components/TaskManager/AnalysisEntryGrid.vue";
   import TaskTabsSection from "@/components/TaskManager/TaskTabsSection.vue";
-  import InteractionPanel from "@/components/TaskManager/InteractionPanel.vue";
 
   const createEmptyTimeData = () => ({
     chartData: [],
@@ -438,12 +431,9 @@
       TaskProgressOverview,
       AnalysisEntryGrid,
       TaskTabsSection,
-      InteractionPanel,
     },
     data() {
       return {
-        // 聊天相关状态
-        isChatExpanded: false, // 聊天列表展开状态
         // 学习效率分析相关状态
         showEfficiencyModal: false,
         showSummaryModal: false,
@@ -775,27 +765,6 @@
         });
       },
 
-      // 聊天相关方法
-      toggleChatList() {
-        this.isChatExpanded = !this.isChatExpanded;
-      },
-
-      // 跳转到历史聊天界面
-      goToChatHistory(friendName) {
-        // 这里可以使用Vue Router进行页面跳转
-        // 假设有一个聊天页面路由，传递好友名称作为参数
-        console.log(`跳转到与 ${friendName} 的聊天界面`);
-
-        // 示例：使用Vue Router跳转到聊天页面
-        // this.$router.push({
-        //   name: 'ChatHistory',
-        //   params: { friendName: friendName },
-        //   query: { autoFocus: true } // 自动聚焦到输入框
-        // });
-
-        // 临时实现：显示提示信息
-        alert(`即将跳转到与 ${friendName} 的聊天界面，并自动聚焦到消息输入框`);
-      },
 
     },
   };
