@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -125,7 +124,7 @@ func ParseTaskWithAI(c *gin.Context) {
 		return
 	}
 
-	apiKey := os.Getenv("QWEN_API_KEY")
+	apiKey := getQwenAPIKey()
 	if apiKey == "" {
 		fmt.Println("未配置 QWEN_API_KEY，使用本地解析")
 		result := mockParseTask(req.Input)
@@ -160,7 +159,7 @@ func GenerateQuiz(c *gin.Context) {
 		req.QuizCount = 3
 	}
 
-	apiKey := os.Getenv("QWEN_API_KEY")
+	apiKey := getQwenAPIKey()
 	if apiKey == "" {
 		fmt.Println("未配置 QWEN_API_KEY，使用默认测验")
 		result := mockQuiz(req.Topic, req.QuizCount, req.IncludeEssay)
@@ -187,7 +186,7 @@ func GetTaskGuidance(c *gin.Context) {
 		return
 	}
 
-	apiKey := os.Getenv("QWEN_API_KEY")
+	apiKey := getQwenAPIKey()
 	if apiKey == "" {
 		fmt.Println("未配置 QWEN_API_KEY，使用默认指导")
 		result := mockTaskGuidance(req.Title, req.Category)
@@ -258,7 +257,7 @@ func callQwenForGuidance(apiKey, title, description, category string) (*TaskGuid
 	}
 
 	jsonData, _ := json.Marshal(reqBody)
-	apiURL := "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+	apiURL := qwenChatURL()
 
 	req, _ := http.NewRequest("POST", apiURL, bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")
@@ -396,7 +395,7 @@ func callQwenForQuiz(apiKey string, req QuizGenerateRequest) (*QuizResponse, err
 	}
 
 	jsonData, _ := json.Marshal(reqBody)
-	apiURL := "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+	apiURL := qwenChatURL()
 
 	httpReq, _ := http.NewRequest("POST", apiURL, bytes.NewBuffer(jsonData))
 	httpReq.Header.Set("Content-Type", "application/json")
@@ -598,8 +597,7 @@ func callQwenAPI(apiKey, input string) (*ParseTaskResponse, error) {
 
 	jsonData, _ := json.Marshal(reqBody)
 
-	// 通义千问 API 地址
-	apiURL := "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+	apiURL := qwenChatURL()
 
 	req, _ := http.NewRequest("POST", apiURL, bytes.NewBuffer(jsonData))
 	req.Header.Set("Content-Type", "application/json")

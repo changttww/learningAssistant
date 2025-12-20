@@ -18,9 +18,10 @@
           />
 
           <AnalysisEntryGrid
+            :summary="efficiencySummary"
+            :loading="efficiencyLoading"
             @show-efficiency="showEfficiencyAnalysis"
             @show-summary="showSmartSummary"
-            @show-check-in="showCheckInAnalysis"
           />
 
           <TaskTabsSection
@@ -40,128 +41,192 @@
       class="bg-white rounded-2xl p-6 w-[800px] max-h-[80vh] overflow-y-auto"
       @click.stop
     >
-      <div class="flex justify-between items-center mb-6">
-        <h3 class="text-2xl font-bold text-gray-800">学习效率分析报告</h3>
-        <button
-          @click="closeEfficiencyModal"
-          class="text-gray-500 hover:text-gray-700"
+      <div class="relative">
+        <div
+          v-if="efficiencyLoading"
+          class="absolute inset-0 flex flex-col items-center justify-center bg-white bg-opacity-80 rounded-2xl z-10"
         >
-          <iconify-icon icon="mdi:close" class="text-2xl"></iconify-icon>
-        </button>
-      </div>
-
-      <!-- 效率概览 -->
-      <div class="grid grid-cols-3 gap-4 mb-6">
-        <div class="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-xl">
-          <div class="flex items-center mb-2">
-            <iconify-icon
-              icon="mdi:clock-outline"
-              class="text-purple-600 text-xl mr-2"
-            ></iconify-icon>
-            <span class="text-gray-600 text-sm">本周学习时长</span>
-          </div>
-          <div class="text-2xl font-bold text-purple-600">
-            {{ efficiencyData.weeklyStudyTime }}小时
-          </div>
-        </div>
-        <div class="bg-gradient-to-br from-green-50 to-teal-50 p-4 rounded-xl">
-          <div class="flex items-center mb-2">
-            <iconify-icon
-              icon="mdi:target"
-              class="text-green-600 text-xl mr-2"
-            ></iconify-icon>
-            <span class="text-gray-600 text-sm">专注度评分</span>
-          </div>
-          <div class="text-2xl font-bold text-green-600">
-            {{ efficiencyData.focusScore }}分
-          </div>
-        </div>
-        <div class="bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-xl">
-          <div class="flex items-center mb-2">
-            <iconify-icon
-              icon="mdi:check-circle-outline"
-              class="text-blue-600 text-xl mr-2"
-            ></iconify-icon>
-            <span class="text-gray-600 text-sm">任务完成率</span>
-          </div>
-          <div class="text-2xl font-bold text-blue-600">
-            {{ efficiencyData.taskCompletionRate }}%
-          </div>
-        </div>
-      </div>
-
-      <!-- 学习趋势图表 -->
-      <div class="mb-6">
-        <h4 class="text-lg font-bold text-gray-800 mb-4">学习趋势分析</h4>
-        <div class="grid grid-cols-2 gap-4">
-          <div class="bg-gray-50 p-4 rounded-xl">
-            <h5 class="text-sm font-medium text-gray-600 mb-3">
-              每日学习时长 (小时)
-            </h5>
-            <div class="h-32" ref="studyTrendChart"></div>
-          </div>
-          <div class="bg-gray-50 p-4 rounded-xl">
-            <h5 class="text-sm font-medium text-gray-600 mb-3">
-              每日专注度评分
-            </h5>
-            <div class="h-32" ref="focusTrendChart"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 智能建议 -->
-      <div class="mb-6">
-        <h4 class="text-lg font-bold text-gray-800 mb-4">智能建议</h4>
-        <div class="space-y-3">
-          <div
-            v-for="(suggestion, index) in efficiencyData.suggestions"
-            :key="index"
-            class="flex items-start p-3 rounded-lg"
-            :class="{
-              'bg-green-50 border-l-4 border-green-500':
-                suggestion.type === 'positive',
-              'bg-yellow-50 border-l-4 border-yellow-500':
-                suggestion.type === 'warning',
-              'bg-blue-50 border-l-4 border-blue-500':
-                suggestion.type === 'tip',
-            }"
+          <svg
+            class="animate-spin h-10 w-10 text-blue-600"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
           >
-            <iconify-icon
-              :icon="
-                suggestion.type === 'positive'
-                  ? 'mdi:thumb-up'
-                  : suggestion.type === 'warning'
-                  ? 'mdi:alert'
-                  : 'mdi:lightbulb'
-              "
-              :class="{
-                'text-green-600': suggestion.type === 'positive',
-                'text-yellow-600': suggestion.type === 'warning',
-                'text-blue-600': suggestion.type === 'tip',
-              }"
-              class="text-xl mr-3 mt-0.5"
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+            ></path>
+          </svg>
+          <p class="text-gray-600 mt-3">正在获取学习效率分析...</p>
+        </div>
+
+        <div :class="{ 'opacity-40 pointer-events-none': efficiencyLoading }">
+          <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-bold text-gray-800">学习效率分析报告</h3>
+            <button
+              @click="closeEfficiencyModal"
+              class="text-gray-500 hover:text-gray-700"
             >
-            </iconify-icon>
-            <span class="text-gray-700">{{ suggestion.message }}</span>
+              <iconify-icon icon="mdi:close" class="text-2xl"></iconify-icon>
+            </button>
+          </div>
+
+          <!-- 效率概览 -->
+          <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-xl">
+              <div class="flex items-center mb-2">
+                <iconify-icon
+                  icon="mdi:clock-outline"
+                  class="text-purple-600 text-xl mr-2"
+                ></iconify-icon>
+                <span class="text-gray-600 text-sm">本周学习时长</span>
+              </div>
+              <div class="text-2xl font-bold text-purple-600">
+                {{ efficiencyData.weeklyStudyTime }}小时
+              </div>
+              <p class="text-xs text-gray-500 mt-1">
+                连续打卡 {{ efficiencyData.detailStats.streakDays }} 天 · 共计
+                {{ efficiencyData.detailStats.totalStudyMinutes }} 分钟
+              </p>
+            </div>
+            <div class="bg-gradient-to-br from-green-50 to-teal-50 p-4 rounded-xl">
+              <div class="flex items-center mb-2">
+                <iconify-icon
+                  icon="mdi:target"
+                  class="text-green-600 text-xl mr-2"
+                ></iconify-icon>
+                <span class="text-gray-600 text-sm">专注度评分</span>
+              </div>
+              <div class="text-2xl font-bold text-green-600">
+                {{ efficiencyData.focusScore }}分
+              </div>
+              <p class="text-xs text-gray-500 mt-1">
+                基于最近 14 天学习记录的综合专注度评估
+              </p>
+            </div>
+            <div class="bg-gradient-to-br from-blue-50 to-cyan-50 p-4 rounded-xl">
+              <div class="flex items-center mb-2">
+                <iconify-icon
+                  icon="mdi:check-circle-outline"
+                  class="text-blue-600 text-xl mr-2"
+                ></iconify-icon>
+                <span class="text-gray-600 text-sm">任务完成率</span>
+              </div>
+              <div class="text-2xl font-bold text-blue-600">
+                {{ efficiencyData.taskCompletionRate }}%
+              </div>
+              <p class="text-xs text-gray-500 mt-1">
+                已完成 {{ efficiencyData.detailStats.completedTasks }} 项 ·
+                进行中 {{ efficiencyData.detailStats.inProgressTasks }} 项
+              </p>
+            </div>
+          </div>
+
+          <!-- 关键洞察 -->
+          <div class="mb-6" v-if="efficiencyData.insights.length">
+            <h4 class="text-lg font-bold text-gray-800 mb-4">关键洞察</h4>
+            <div class="space-y-3">
+              <div
+                v-for="(insight, index) in efficiencyData.insights"
+                :key="index"
+                class="flex items-start p-4 rounded-lg bg-purple-50 border border-purple-100"
+              >
+                <iconify-icon
+                  icon="mdi:lightbulb-on-outline"
+                  class="text-purple-600 text-xl mr-3 mt-0.5"
+                ></iconify-icon>
+                <div class="flex-1">
+                  <p class="text-gray-800 font-semibold">
+                    洞察 {{ index + 1 }}
+                  </p>
+                  <p class="text-gray-600 text-sm leading-relaxed">
+                    {{ insight }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 智能建议 -->
+          <div class="mb-6">
+            <h4 class="text-lg font-bold text-gray-800 mb-4">智能建议</h4>
+            <div class="space-y-3">
+              <div
+                v-for="(suggestion, index) in efficiencyData.suggestions"
+                :key="index"
+                class="flex items-start p-3 rounded-lg"
+                :class="{
+                  'bg-green-50 border-l-4 border-green-500':
+                    suggestion.type === 'positive',
+                  'bg-yellow-50 border-l-4 border-yellow-500':
+                    suggestion.type === 'warning',
+                    'bg-blue-50 border-l-4 border-blue-500':
+                      suggestion.type === 'tip',
+                }"
+              >
+                <iconify-icon
+                  :icon="
+                    suggestion.type === 'positive'
+                      ? 'mdi:thumb-up'
+                      : suggestion.type === 'warning'
+                      ? 'mdi:alert'
+                      : 'mdi:lightbulb'
+                  "
+                  :class="{
+                    'text-green-600': suggestion.type === 'positive',
+                    'text-yellow-600': suggestion.type === 'warning',
+                    'text-blue-600': suggestion.type === 'tip',
+                  }"
+                  class="text-xl mr-3 mt-0.5"
+                >
+                </iconify-icon>
+                <div class="flex-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-gray-800 font-semibold">
+                      {{ suggestion.title }}
+                    </span>
+                    <span
+                      v-if="suggestion.impact"
+                      class="text-xs px-2 py-1 rounded-full bg-white/60 text-gray-600 border border-gray-200"
+                    >
+                      影响：{{ suggestion.impact }}
+                    </span>
+                  </div>
+                  <p class="text-gray-700 text-sm leading-relaxed mt-1">
+                    {{ suggestion.description || suggestion.message }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 操作按钮 -->
+          <div class="flex flex-wrap gap-3">
+            <button
+              @click="regenerateEfficiency"
+              class="flex-1 border border-blue-200 text-blue-700 py-3 px-4 rounded-lg font-medium hover:border-blue-300 hover:bg-blue-50 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+              :disabled="efficiencyLoading"
+            >
+              <iconify-icon icon="mdi:refresh" class="mr-2"></iconify-icon>
+              重新生成报告
+            </button>
+            <button
+              @click="closeEfficiencyModal"
+              class="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-300"
+            >
+              关闭
+            </button>
           </div>
         </div>
-      </div>
-
-      <!-- 操作按钮 -->
-      <div class="flex gap-3">
-        <button
-          @click="generateReport"
-          class="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 flex items-center justify-center"
-        >
-          <iconify-icon icon="mdi:download" class="mr-2"></iconify-icon>
-          生成详细报告
-        </button>
-        <button
-          @click="closeEfficiencyModal"
-          class="flex-1 bg-gray-200 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-300"
-        >
-          关闭
-        </button>
       </div>
     </div>
   </div>
@@ -216,7 +281,7 @@
       <!-- 待复习内容 -->
       <div class="mb-6">
         <h4 class="text-lg font-bold text-gray-800 mb-4">待复习内容</h4>
-        <div class="space-y-3">
+        <div v-if="summaryData.reviewItems.length" class="space-y-3">
           <div
             v-for="(item, index) in summaryData.reviewItems"
             :key="index"
@@ -246,12 +311,13 @@
             </button>
           </div>
         </div>
+        <p v-else class="text-sm text-gray-500">暂无AI生成的复习清单，稍后再试</p>
       </div>
 
       <!-- 复习提醒 -->
       <div class="mb-6">
         <h4 class="text-lg font-bold text-gray-800 mb-4">复习提醒</h4>
-        <div class="space-y-3">
+        <div v-if="summaryData.reminders.length" class="space-y-3">
           <div
             v-for="(reminder, index) in summaryData.reminders"
             :key="index"
@@ -277,6 +343,7 @@
             </button>
           </div>
         </div>
+        <p v-else class="text-sm text-gray-500">暂无AI生成的复习提醒</p>
       </div>
 
       <!-- 操作按钮 -->
@@ -399,10 +466,15 @@
   import * as echarts from "echarts";
   import { ElMessage } from "element-plus";
   import { getTaskBarStats } from "@/api/modules/task";
+  import { fetchEfficiencyAnalysis } from "@/api/modules/analysis";
+  import { getUserInfo } from "@/utils/auth";
   import TaskSidebar from "@/components/TaskManager/TaskSidebar.vue";
   import LearningBoardHeader from "@/components/TaskManager/LearningBoardHeader.vue";
   import TaskProgressOverview from "@/components/TaskManager/TaskProgressOverview.vue";
-  import AnalysisEntryGrid from "@/components/TaskManager/AnalysisEntryGrid.vue";
+  import AnalysisEntryGrid, {
+    parseEfficiencyPayload,
+    transformEfficiencyData,
+  } from "@/components/TaskManager/AnalysisEntryGrid.vue";
   import TaskTabsSection from "@/components/TaskManager/TaskTabsSection.vue";
 
   const createEmptyTimeData = () => ({
@@ -438,51 +510,37 @@
         showEfficiencyModal: false,
         showSummaryModal: false,
         showCheckInModal: false,
+        efficiencyLoading: false,
+        efficiencyError: "",
+        efficiencyLoaded: false,
         // 学习效率分析数据
         efficiencyData: {
-          weeklyStudyTime: 28.5,
-          focusScore: 85,
+          weeklyStudyTime: 0,
+          focusScore: 0,
           taskCompletionRate: 0,
-          studyTrend: [6.2, 4.8, 5.1, 3.9, 4.5, 2.8, 1.2], // 每日学习时长
-          focusTrend: [88, 82, 90, 78, 85, 92, 80], // 每日专注度
-          suggestions: [
-            { type: "positive", message: "本周学习时长超过目标，继续保持！" },
-            { type: "warning", message: "周末学习时间较少，建议合理安排" },
-            { type: "tip", message: "下午2-4点是您的高效学习时段" },
-          ],
+          studyTrend: [],
+          focusTrend: [],
+          trendLabels: [],
+          suggestions: [],
+          insights: [],
+          detailStats: {
+            streakDays: 0,
+            totalStudyMinutes: 0,
+            completedTasks: 0,
+            inProgressTasks: 0,
+            completionRate: 0,
+          },
         },
         // 智能总结数据
         summaryData: {
-          reviewItems: [
-            {
-              subject: "JavaScript ES6",
-              priority: "high",
-              dueDate: "今天",
-              progress: 60,
-            },
-            {
-              subject: "Vue组件通信",
-              priority: "medium",
-              dueDate: "明天",
-              progress: 75,
-            },
-            {
-              subject: "CSS Grid布局",
-              priority: "low",
-              dueDate: "后天",
-              progress: 40,
-            },
-          ],
-          reminders: [
-            { content: "复习Promise和async/await语法", time: "今天 14:00" },
-            { content: "完成Vue项目实战练习", time: "明天 10:00" },
-            { content: "整理CSS学习笔记", time: "后天 16:00" },
-          ],
+          reviewItems: [],
+          reminders: [],
           knowledgeMap: {
-            mastered: 78,
-            learning: 15,
-            toLearn: 7,
+            mastered: 0,
+            learning: 0,
+            toLearn: 0,
           },
+          summary: "",
         },
         // 打卡分析数据
         checkInData: {
@@ -504,6 +562,7 @@
         dailyOverview: createEmptyTimeData(),
         statsLoading: false,
         statsError: "",
+        analysisPrompt: "",
         // 不同时间段的数据
         timeFilterData: {
           week: createEmptyTimeData(),
@@ -515,6 +574,14 @@
       // 当前时间筛选器对应的数据
       currentTimeData() {
         return this.timeFilterData[this.activeTimeFilter] || EMPTY_TIME_DATA;
+      },
+      // 卡片摘要展示
+      efficiencySummary() {
+        return {
+          weeklyStudyHours: this.efficiencyData.weeklyStudyTime,
+          focusScore: this.efficiencyData.focusScore,
+          taskCompletionRate: this.efficiencyData.taskCompletionRate,
+        };
       },
     },
     mounted() {
@@ -531,6 +598,64 @@
           this.fetchDailyStats(),
           this.fetchTaskStats(this.activeTimeFilter),
         ]);
+      },
+      async loadEfficiencyAnalysis() {
+        const user = getUserInfo();
+        const userId = user?.id || 1;
+        this.efficiencyLoading = true;
+        this.efficiencyError = "";
+        try {
+          const res = await fetchEfficiencyAnalysis({
+            user_id: userId,
+            days: 14,
+            model: "qwen-plus",
+          });
+          console.log("[AI] raw efficiency response:", res);
+          const analysis = parseEfficiencyPayload(res);
+          if (!analysis) {
+            throw new Error("AI 返回数据为空");
+          }
+          const normalized = transformEfficiencyData(analysis);
+          console.log("[AI] parsed analysis:", normalized);
+          if (normalized.reviewPlan) {
+            console.log("[AI] review plan:", normalized.reviewPlan);
+          }
+          this.efficiencyData = {
+            ...this.efficiencyData,
+            ...normalized,
+          };
+          this.analysisPrompt = normalized.prompt || analysis.prompt || "";
+          if (normalized.reviewPlan) {
+            this.applyReviewPlan(normalized.reviewPlan);
+          }
+          this.efficiencyLoaded = true;
+          this.$nextTick(() => {
+            this.initEfficiencyCharts();
+          });
+        } catch (error) {
+          this.efficiencyError = error?.message || "加载学习效率失败";
+          console.error("加载学习效率失败", error);
+          ElMessage.error(this.efficiencyError);
+        } finally {
+          this.efficiencyLoading = false;
+        }
+      },
+      applyReviewPlan(plan = {}) {
+        const knowledgeMap = plan.knowledgeMap || this.summaryData.knowledgeMap;
+        const reviewItems =
+          Array.isArray(plan.reviewItems) && plan.reviewItems.length
+            ? plan.reviewItems
+            : this.summaryData.reviewItems;
+        const reminders =
+          Array.isArray(plan.reminders) && plan.reminders.length
+            ? plan.reminders
+            : this.summaryData.reminders;
+        this.summaryData = {
+          knowledgeMap: knowledgeMap || { mastered: 0, learning: 0, toLearn: 0 },
+          reviewItems,
+          reminders,
+          summary: plan.summary || this.summaryData.summary || "",
+        };
       },
       async fetchDailyStats() {
         this.statsLoading = true;
@@ -606,17 +731,24 @@
         console.log("显示任务详情");
       },
       // 显示学习效率分析
-      showEfficiencyAnalysis() {
+      async showEfficiencyAnalysis() {
         this.showEfficiencyModal = true;
-        this.$nextTick(() => {
-          this.initEfficiencyCharts();
-        });
+        if (!this.efficiencyLoaded && !this.efficiencyLoading) {
+          await this.loadEfficiencyAnalysis();
+        } else {
+          this.$nextTick(() => {
+            this.initEfficiencyCharts();
+          });
+        }
       },
       closeEfficiencyModal() {
         this.showEfficiencyModal = false;
       },
       // 智能总结与复习方法
-      showSmartSummary() {
+      async showSmartSummary() {
+        if (!this.efficiencyLoaded && !this.efficiencyLoading) {
+          await this.loadEfficiencyAnalysis();
+        }
         this.showSummaryModal = true;
       },
       closeSummaryModal() {
@@ -629,10 +761,8 @@
       closeCheckInModal() {
         this.showCheckInModal = false;
       },
-      // 生成学习报告
-      generateReport() {
-        console.log("生成学习效率报告");
-        // 这里可以添加生成PDF报告的逻辑
+      async regenerateEfficiency() {
+        await this.loadEfficiencyAnalysis();
       },
       // 开始复习
       startReview(item) {
@@ -650,6 +780,10 @@
           // 学习时长趋势图
           if (this.$refs.studyTrendChart) {
             const studyChart = echarts.init(this.$refs.studyTrendChart);
+            const labels =
+              this.efficiencyData.trendLabels?.length > 0
+                ? this.efficiencyData.trendLabels
+                : ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
             studyChart.setOption({
               tooltip: {
                 trigger: "axis",
@@ -663,7 +797,7 @@
               },
               xAxis: {
                 type: "category",
-                data: ["周一", "周二", "周三", "周四", "周五", "周六", "周日"],
+                data: labels,
                 axisLine: { lineStyle: { color: "#E5E7EB" } },
                 axisTick: { show: false },
                 axisLabel: { fontSize: 10 },
@@ -702,6 +836,10 @@
           // 专注度趋势图
           if (this.$refs.focusTrendChart) {
             const focusChart = echarts.init(this.$refs.focusTrendChart);
+            const labels =
+              this.efficiencyData.trendLabels?.length > 0
+                ? this.efficiencyData.trendLabels
+                : ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
             focusChart.setOption({
               tooltip: {
                 trigger: "axis",
@@ -715,7 +853,7 @@
               },
               xAxis: {
                 type: "category",
-                data: ["周一", "周二", "周三", "周四", "周五", "周六", "周日"],
+                data: labels,
                 axisLine: { lineStyle: { color: "#E5E7EB" } },
                 axisTick: { show: false },
                 axisLabel: { fontSize: 10 },

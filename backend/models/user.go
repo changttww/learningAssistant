@@ -112,6 +112,9 @@ type UserAchievementProgress struct {
 	StudyRoomLikesGiven    int `json:"study_room_likes_given"`
 	StudyRoomLikesReceived int `json:"study_room_likes_received"`
 	TeamTasksCompleted     int `json:"team_tasks_completed"`
+	NightStudyMins         int `json:"night_study_mins"`
+	MorningStudyMins       int `json:"morning_study_mins"`
+	FocusModeMins          int `json:"focus_mode_mins"`
 }
 
 // UserSkill 用户技能

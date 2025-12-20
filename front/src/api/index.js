@@ -26,3 +26,6 @@ export * from "./modules/statistics";
 
 // 通知相关API
 export * from "./modules/notification";
+
+// 学习效率分析相关API
+export * from "./modules/analysis";

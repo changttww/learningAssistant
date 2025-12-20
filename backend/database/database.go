@@ -3,6 +3,8 @@ package database
 import (
 	"fmt"
 	"log"
+	"os"
+	"strings"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -51,6 +53,11 @@ func InitDatabase() {
 	if err := seeder.SeedAchievements(DB); err != nil {
 		log.Fatal("Failed to seed achievements:", err)
 	}
+	if shouldSeedDemoData() {
+		if err := seeder.SeedDemoData(DB); err != nil {
+			log.Fatal("Failed to seed demo data:", err)
+		}
+	}
 }
 
 // AutoMigrate 自动迁移数据库表，从model中获取数据结构，并创建对应的表结构
@@ -70,4 +77,9 @@ func AutoMigrate() error {
 // GetDB 获取数据库实例
 func GetDB() *gorm.DB {
 	return DB
+}
+
+func shouldSeedDemoData() bool {
+	value := strings.TrimSpace(strings.ToLower(os.Getenv("SEED_DEMO_DATA")))
+	return value == "true" || value == "1" || value == "yes"
 }
