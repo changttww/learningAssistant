@@ -107,7 +107,12 @@
           </div>
           <div class="member-list">
             <div class="member-row" v-for="member in filteredMembers" :key="member.id">
-              <div class="avatar" :class="`avatar-${member.avatarType}`"></div>
+              <button
+                class="avatar"
+                :class="`avatar-${member.avatarType}`"
+                :title="`和${member.name}私聊`"
+                @click.stop="openPrivateChat(member)"
+              ></button>
               <div class="member-meta">
                 <div class="member-name">{{ member.name }}</div>
                 <div class="member-time">
@@ -159,6 +164,49 @@
         </div>
       </aside>
     </main>
+
+    <div v-if="directChatVisible" class="direct-chat-overlay" @click.self="closePrivateChat">
+      <div class="direct-chat-panel">
+        <div class="direct-chat-header">
+          <div>
+            <div class="direct-chat-title">与 {{ activeDirectChatName }} 私聊</div>
+            <div class="direct-chat-sub">快速私聊 · 单人聊天室</div>
+          </div>
+          <button class="ghost-btn small" @click="closePrivateChat">
+            <iconify-icon icon="mdi:close" width="16"></iconify-icon>
+            关闭
+          </button>
+        </div>
+        <div class="direct-chat-body" ref="directMessagesContainer">
+          <div v-if="!activeDirectMessages.length" class="direct-chat-empty">
+            现在可以和对方私聊啦～
+          </div>
+          <div
+            v-for="message in activeDirectMessages"
+            :key="message.id"
+            class="direct-chat-message"
+            :class="{ self: message.isSelf }"
+          >
+            <div class="direct-chat-bubble">
+              <div class="direct-chat-meta">
+                <span class="direct-chat-name">{{ message.senderName }}</span>
+                <span class="direct-chat-time">{{ message.time }}</span>
+              </div>
+              <div class="direct-chat-text">{{ message.content }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="direct-chat-input">
+          <input
+            v-model="directChatInput"
+            type="text"
+            placeholder="输入私聊消息..."
+            @keydown.enter="sendDirectMessage"
+          />
+          <button :disabled="!directChatInput.trim()" @click="sendDirectMessage">发送</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -216,6 +264,12 @@ export default {
       ws: null,
       wsConnected: false,
       completedTasks: "4/7",
+      directChatVisible: false,
+      directChatInput: "",
+      directChats: {},
+      activeDirectChatId: null,
+      activeDirectChatName: "",
+      pendingDirectChat: null,
     };
   },
   computed: {
@@ -274,13 +328,24 @@ export default {
     defaultMemberTime() {
       return "00:00:00";
     },
+    activeDirectMessages() {
+      if (!this.activeDirectChatId) return [];
+      const chat = this.directChats[this.activeDirectChatId];
+      return chat?.messages || [];
+    },
   },
   mounted() {
     const roomId = this.$route.params.roomId;
     if (roomId) {
       this.loadRoomInfo(roomId);
       this.loadChatHistory();
+      try {
+        localStorage.setItem("study:lastRoomId", roomId);
+      } catch (error) {
+        console.warn("无法保存最近房间ID", error);
+      }
     }
+    this.pendingDirectChat = this.readChatQuery();
     this.connectWebSocket();
   },
   beforeUnmount() {
@@ -415,6 +480,9 @@ export default {
         case "chat":
           this.handleIncomingChat(data);
           break;
+        case "direct_chat":
+          this.handleIncomingDirectChat(data);
+          break;
         default:
           break;
       }
@@ -441,6 +509,7 @@ export default {
         isResting: !!m.is_resting,
         focusTime: m.focus_time || m.study_time || "",
       }));
+      this.tryOpenPendingChat();
     },
     applyMemberJoined(data) {
       if (!data) return;
@@ -457,6 +526,7 @@ export default {
           focusTime: data.focus_time || "",
         });
       }
+      this.tryOpenPendingChat();
     },
     async sendMessage() {
       const content = this.newMessage.trim();
@@ -511,6 +581,33 @@ export default {
         if (container) container.scrollTop = container.scrollHeight;
       });
     },
+    handleIncomingDirectChat(data) {
+      const content = data?.content || "";
+      if (!content) return;
+      const fromId = Number(data?.from_id || 0);
+      const toId = Number(data?.to_id || 0);
+      if (!fromId || !toId) return;
+      const isSelf = fromId === this.currentUserId;
+      const peerId = isSelf ? toId : fromId;
+      const senderName = isSelf ? this.currentUserName : data?.display_name || "同学";
+      const peerName = this.resolveMemberName(peerId);
+      const sentAt = data?.sent_at ? new Date(data.sent_at) : new Date();
+      const timeStr = sentAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      this.ensureDirectChat(peerId, peerName);
+      this.directChats[peerId].messages.push({
+        id: `${fromId}-${toId}-${sentAt.getTime()}`,
+        senderName,
+        content,
+        time: timeStr,
+        isSelf,
+      });
+      if (this.activeDirectChatId === peerId && this.directChatVisible) {
+        this.$nextTick(() => {
+          const container = this.$refs.directMessagesContainer;
+          if (container) container.scrollTop = container.scrollHeight;
+        });
+      }
+    },
     normalizeMessage(item) {
       const sentAt = item.sent_at ? new Date(item.sent_at) : new Date();
       const timeStr = sentAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -525,6 +622,83 @@ export default {
         avatarType: (item.user_id % 6) + 1,
         isSelf: item.user_id === this.currentUserId,
       };
+    },
+    openPrivateChat(member) {
+      if (!member) return;
+      if (member.user_id === this.currentUserId) {
+        ElMessage.warning("不能和自己私聊");
+        return;
+      }
+      const peerId = member.user_id;
+      const peerName = member.name || "同学";
+      this.ensureDirectChat(peerId, peerName);
+      this.activeDirectChatId = peerId;
+      this.activeDirectChatName = peerName;
+      this.directChatVisible = true;
+      this.$nextTick(() => {
+        const input = this.$el.querySelector(".direct-chat-input input");
+        if (input) input.focus();
+      });
+      this.$nextTick(() => {
+        const container = this.$refs.directMessagesContainer;
+        if (container) container.scrollTop = container.scrollHeight;
+      });
+    },
+    closePrivateChat() {
+      this.directChatVisible = false;
+      this.directChatInput = "";
+    },
+    sendDirectMessage() {
+      const content = this.directChatInput.trim();
+      if (!content || !this.activeDirectChatId) return;
+      if (!this.wsConnected) {
+        ElMessage.warning("聊天连接未建立，请稍后重试");
+        return;
+      }
+      this.sendWs("direct_chat", { target_id: this.activeDirectChatId, content });
+      this.directChatInput = "";
+    },
+    ensureDirectChat(peerId, peerName) {
+      if (!peerId) return;
+      if (!this.directChats[peerId]) {
+        this.directChats[peerId] = {
+          name: peerName || "同学",
+          messages: [],
+        };
+      } else if (peerName && !this.directChats[peerId].name) {
+        this.directChats[peerId].name = peerName;
+      }
+      if (this.activeDirectChatId === peerId || !this.activeDirectChatId) {
+        this.activeDirectChatName = this.directChats[peerId].name || peerName || "同学";
+      }
+    },
+    resolveMemberName(userId) {
+      const match = this.members.find((m) => m.user_id === userId);
+      return match?.name || this.directChats[userId]?.name || "同学";
+    },
+    readChatQuery() {
+      const { chatUserId, chatUserName } = this.$route.query || {};
+      if (chatUserId || chatUserName) {
+        return {
+          id: chatUserId ? Number(chatUserId) : 0,
+          name: chatUserName || "",
+        };
+      }
+      return null;
+    },
+    tryOpenPendingChat() {
+      if (!this.pendingDirectChat) return;
+      const { id, name } = this.pendingDirectChat;
+      let member = null;
+      if (id) {
+        member = this.members.find((m) => m.user_id === id);
+      }
+      if (!member && name) {
+        member = this.members.find((m) => m.name === name);
+      }
+      if (!member) return;
+      this.pendingDirectChat = null;
+      this.openPrivateChat(member);
     },
   },
 };
@@ -614,6 +788,11 @@ export default {
 .ghost-btn:hover {
   border-color: #93c5fd;
   color: #2563eb;
+}
+
+.ghost-btn.small {
+  padding: 6px 10px;
+  font-size: 12px;
 }
 
 .room-main {
@@ -850,6 +1029,9 @@ export default {
   height: 42px;
   border-radius: 50%;
   flex-shrink: 0;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
 .avatar-1 {
@@ -1038,6 +1220,147 @@ export default {
 }
 
 .chat-input button:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.direct-chat-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+.direct-chat-panel {
+  width: min(520px, 92vw);
+  max-height: 80vh;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 18px 16px;
+  border: 1px solid #e5e7eb;
+}
+
+.direct-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.direct-chat-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.direct-chat-sub {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.direct-chat-body {
+  flex: 1;
+  overflow-y: auto;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.direct-chat-empty {
+  text-align: center;
+  color: #9ca3af;
+  font-size: 13px;
+  padding: 16px 0;
+}
+
+.direct-chat-message {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.direct-chat-message.self {
+  justify-content: flex-end;
+}
+
+.direct-chat-bubble {
+  background: #fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06);
+  max-width: 80%;
+}
+
+.direct-chat-message.self .direct-chat-bubble {
+  background: #e0f2fe;
+}
+
+.direct-chat-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 6px;
+  color: #6b7280;
+}
+
+.direct-chat-name {
+  font-weight: 700;
+  color: #111827;
+}
+
+.direct-chat-text {
+  color: #111827;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.direct-chat-input {
+  display: flex;
+  gap: 10px;
+}
+
+.direct-chat-input input {
+  flex: 1;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  outline: none;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.direct-chat-input input:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 4px rgba(147, 197, 253, 0.3);
+}
+
+.direct-chat-input button {
+  width: 72px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.direct-chat-input button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
+}
+
+.direct-chat-input button:disabled {
   background: #cbd5e1;
   cursor: not-allowed;
   box-shadow: none;
