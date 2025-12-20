@@ -2095,7 +2095,18 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
-import { createTask, getPersonalTasks, getTeamTasks, completeTask, completeTaskWithNote, uncompleteTask, deleteTask } from "@/api/modules/task";
+import {
+  createTask,
+  getPersonalTasks,
+  getTeamTasks,
+  completeTask,
+  completeTaskWithNote,
+  uncompleteTask,
+  deleteTask,
+  parseTaskWithAI,
+  getTaskGuidance,
+  generateQuiz,
+} from "@/api/modules/task";
 import { getStudyNotes, updateStudyNote, createStudyNote } from "@/api/modules/study";
 import { ElMessage } from "element-plus";
 // Name
