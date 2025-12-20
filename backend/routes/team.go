@@ -2,6 +2,7 @@ package routes
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -141,13 +142,20 @@ func joinTeamByName(c *gin.Context) {
 		return
 	}
 
-	// Notify Owner
+	// Notify Owner with detailed info
+	var applicant models.User
+	database.GetDB().First(&applicant, uid)
+
+	// Create related data JSON
+	relatedData := fmt.Sprintf(`{"applicant_name":"%s","team_name":"%s","team_id":%d,"application_type":"direct"}`, applicant.DisplayName, team.Name, team.ID)
+
 	notification := models.Notification{
-		UserID:    team.OwnerUserID,
-		Title:     "新的入队申请",
-		Content:   "用户申请加入团队: " + team.Name,
-		Type:      "TEAM_APPLICATION",
-		RelatedID: request.ID,
+		UserID:      team.OwnerUserID,
+		Title:       "新的入队申请",
+		Content:     applicant.DisplayName + " 申请加入团队: " + team.Name,
+		Type:        "TEAM_APPLICATION",
+		RelatedID:   request.ID,
+		RelatedData: relatedData,
 	}
 	database.GetDB().Create(&notification)
 
@@ -211,15 +219,24 @@ func inviteMember(c *gin.Context) {
 		return
 	}
 
-	// Notify Target User
+	// Notify Target User with detailed info
 	var team models.Team
 	database.GetDB().First(&team, teamID)
+
+	// Get inviter's display name
+	var inviter models.User
+	database.GetDB().First(&inviter, uid)
+
+	// Create related data JSON
+	relatedData := fmt.Sprintf(`{"inviter_name":"%s","team_name":"%s","team_id":%d}`, inviter.DisplayName, team.Name, team.ID)
+
 	notification := models.Notification{
-		UserID:    targetUser.ID,
-		Title:     "团队邀请",
-		Content:   "您收到加入团队的邀请: " + team.Name,
-		Type:      "TEAM_INVITE",
-		RelatedID: request.ID,
+		UserID:      targetUser.ID,
+		Title:       "团队邀请",
+		Content:     inviter.DisplayName + " 邀请您加入团队: " + team.Name,
+		Type:        "TEAM_INVITE",
+		RelatedID:   request.ID,
+		RelatedData: relatedData,
 	}
 	database.GetDB().Create(&notification)
 
@@ -319,17 +336,27 @@ func handleTeamRequest(c *gin.Context) {
 			// Needs owner approval
 			request.Status = "PENDING_OWNER"
 			database.GetDB().Save(&request)
-			// Notify Owner
+			// Notify Owner with detailed info
+			var invitee models.User
+			database.GetDB().First(&invitee, request.UserID)
+
+			var inviter models.User
+			database.GetDB().First(&inviter, request.InviterID)
+
+			// Create related data JSON
+			relatedData := fmt.Sprintf(`{"invitee_name":"%s","inviter_name":"%s","team_name":"%s","team_id":%d,"application_type":"invitation"}`, invitee.DisplayName, inviter.DisplayName, team.Name, team.ID)
+
 			notification := models.Notification{
-				UserID:    team.OwnerUserID,
-				Title:     "新的入队申请",
-				Content:   "用户接受了成员邀请，等待您的批准: " + team.Name,
-				Type:      "TEAM_APPLICATION",
-				RelatedID: request.ID,
+				UserID:      team.OwnerUserID,
+				Title:       "新的入队申请",
+				Content:     invitee.DisplayName + " 接受了 " + inviter.DisplayName + " 的邀请，等待您的批准: " + team.Name,
+				Type:        "TEAM_APPLICATION",
+				RelatedID:   request.ID,
+				RelatedData: relatedData,
 			}
 			database.GetDB().Create(&notification)
 			database.GetDB().Model(&models.Notification{}).Where("user_id = ? AND related_id = ? AND type IN ?", uid, request.ID, []string{"TEAM_INVITE", "TEAM_APPLICATION"}).Updates(map[string]interface{}{"action_status": "ACCEPTED", "is_read": true})
-			c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "已接受邀请，等待群主审核"})
+			c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "已接受邀请，等待团队队长审核"})
 		}
 	} else if request.Status == "PENDING_OWNER" {
 		// Owner handling application
@@ -341,13 +368,20 @@ func handleTeamRequest(c *gin.Context) {
 		if req.Action == "REJECT" {
 			request.Status = "REJECTED"
 			database.GetDB().Save(&request)
-			// Notify User
+			// Notify User with detailed info
+			var rejecter models.User
+			database.GetDB().First(&rejecter, uid)
+
+			// Create related data JSON
+			relatedData := fmt.Sprintf(`{"rejecter_name":"%s","team_name":"%s","team_id":%d}`, rejecter.DisplayName, team.Name, team.ID)
+
 			notification := models.Notification{
-				UserID:    request.UserID,
-				Title:     "申请被拒绝",
-				Content:   "您加入团队 " + team.Name + " 的申请被拒绝",
-				Type:      "SYSTEM",
-				RelatedID: request.ID,
+				UserID:      request.UserID,
+				Title:       "申请被拒绝",
+				Content:     "您的入队申请被 " + rejecter.DisplayName + " 拒绝，您加入团队 " + team.Name + " 的申请未通过",
+				Type:        "SYSTEM",
+				RelatedID:   request.ID,
+				RelatedData: relatedData,
 			}
 			database.GetDB().Create(&notification)
 			database.GetDB().Model(&models.Notification{}).Where("user_id = ? AND related_id = ? AND type IN ?", uid, request.ID, []string{"TEAM_INVITE", "TEAM_APPLICATION"}).Updates(map[string]interface{}{"action_status": "REJECTED", "is_read": true})
@@ -361,13 +395,20 @@ func handleTeamRequest(c *gin.Context) {
 		request.Status = "APPROVED"
 		database.GetDB().Save(&request)
 
-		// Notify User
+		// Notify User with detailed info
+		var approver models.User
+		database.GetDB().First(&approver, uid)
+
+		// Create related data JSON
+		relatedData := fmt.Sprintf(`{"approver_name":"%s","team_name":"%s","team_id":%d}`, approver.DisplayName, team.Name, team.ID)
+
 		notification := models.Notification{
-			UserID:    request.UserID,
-			Title:     "申请通过",
-			Content:   "您已成功加入团队: " + team.Name,
-			Type:      "SYSTEM",
-			RelatedID: request.ID,
+			UserID:      request.UserID,
+			Title:       "申请通过",
+			Content:     "您的入队申请已被 " + approver.DisplayName + " 批准，您已成功加入团队: " + team.Name,
+			Type:        "SYSTEM",
+			RelatedID:   request.ID,
+			RelatedData: relatedData,
 		}
 		database.GetDB().Create(&notification)
 		database.GetDB().Model(&models.Notification{}).Where("user_id = ? AND related_id = ? AND type IN ?", uid, request.ID, []string{"TEAM_INVITE", "TEAM_APPLICATION"}).Updates(map[string]interface{}{"action_status": "APPROVED", "is_read": true})

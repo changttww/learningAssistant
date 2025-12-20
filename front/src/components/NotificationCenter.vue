@@ -127,6 +127,15 @@
                 >
                   {{ note.content }}
                 </p>
+                <!-- Additional details for team notifications -->
+                <div 
+                  v-if="note.type === 'TEAM_INVITE' || note.type === 'TEAM_APPLICATION'"
+                  class="text-xs text-gray-400 mt-1"
+                >
+                  <span v-if="note.type === 'TEAM_INVITE'">团队邀请</span>
+                  <span v-if="note.type === 'TEAM_APPLICATION'">入队申请</span>
+                  <span v-if="parseRelatedData(note)?.team_name"> • {{ parseRelatedData(note)?.team_name }}</span>
+                </div>
 
                 <!-- Quick Actions -->
                 <div
@@ -218,6 +227,44 @@
           >
             {{ selectedNote?.content }}
           </div>
+          
+          <!-- Additional details for team notifications -->
+          <div 
+            v-if="selectedNote?.type === 'TEAM_INVITE' || selectedNote?.type === 'TEAM_APPLICATION'"
+            class="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-100"
+          >
+            <h4 class="font-medium text-blue-800 mb-2">通知详情</h4>
+            <div class="text-sm text-blue-700 space-y-1">
+              <p v-if="selectedNote?.type === 'TEAM_INVITE'">
+                <span class="font-medium">类型：</span>团队邀请
+              </p>
+              <p v-if="selectedNote?.type === 'TEAM_APPLICATION'">
+                <span class="font-medium">类型：</span>入队申请
+              </p>
+              <p>
+                <span class="font-medium">时间：</span>{{ formatFullTime(selectedNote?.created_at) }}
+              </p>
+              <div v-if="parseRelatedData(selectedNote)">
+                <p v-if="selectedNote?.type === 'TEAM_INVITE' && parseRelatedData(selectedNote)?.inviter_name">
+                  <span class="font-medium">邀请人：</span>{{ parseRelatedData(selectedNote)?.inviter_name }}
+                </p>
+                <p v-if="selectedNote?.type === 'TEAM_APPLICATION' && parseRelatedData(selectedNote)?.applicant_name">
+                  <span class="font-medium">申请人：</span>{{ parseRelatedData(selectedNote)?.applicant_name }}
+                </p>
+                <p v-if="selectedNote?.type === 'TEAM_APPLICATION' && parseRelatedData(selectedNote)?.inviter_name">
+                  <span class="font-medium">邀请人：</span>{{ parseRelatedData(selectedNote)?.inviter_name }}
+                </p>
+                <p v-if="parseRelatedData(selectedNote)?.team_name">
+                  <span class="font-medium">团队：</span>{{ parseRelatedData(selectedNote)?.team_name }}
+                </p>
+                <p v-if="selectedNote?.type === 'TEAM_APPLICATION' && parseRelatedData(selectedNote)?.application_type">
+                  <span class="font-medium">申请类型：</span>
+                  <span v-if="parseRelatedData(selectedNote)?.application_type === 'direct'">直接申请</span>
+                  <span v-if="parseRelatedData(selectedNote)?.application_type === 'invitation'">成员邀请</span>
+                </p>
+              </div>
+            </div>
+          </div>
 
           <div
             v-if="canQuickAction(selectedNote)"
@@ -255,6 +302,18 @@ import { ElMessage } from 'element-plus';
 import { getNotificationList, getUnreadNotificationCount, markAllNotificationsAsRead, markNotificationAsRead } from '@/api/modules/notification';
 import { handleTeamRequest } from '@/api/modules/team';
 import { useCurrentUser } from "@/composables/useCurrentUser";
+
+// 解析通知中的相关数据
+const parseRelatedData = (note) => {
+  if (note.related_data) {
+    try {
+      return JSON.parse(note.related_data);
+    } catch (e) {
+      console.warn('Failed to parse related data:', e);
+    }
+  }
+  return null;
+};
 
 const router = useRouter();
 const { profile } = useCurrentUser();
@@ -410,15 +469,21 @@ const getTypeStyle = (type) => {
 const handleAction = async (note, action) => {
   try {
     // Use 0 as dummy teamId since backend finds request by ID (RelatedID)
-    await handleTeamRequest(0, note.related_id, { action });
+    const res = await handleTeamRequest(0, note.related_id, { action });
 
     // Show success message (could use a toast library if available)
-    const msg =
-      action === "ACCEPT"
-        ? note.type === "TEAM_APPLICATION"
-          ? "已批准申请"
-          : "已加入团队"
-        : "已拒绝";
+    let msg = "";
+    if (action === "ACCEPT") {
+      if (note.type === "TEAM_APPLICATION") {
+        msg = "已批准申请";
+      } else {
+        // For TEAM_INVITE, use the message from backend response
+        msg = res.msg || "已加入团队";
+      }
+    } else {
+      msg = "已拒绝";
+    }
+    
     ElMessage.success(msg);
 
     // Update list

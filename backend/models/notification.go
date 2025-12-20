@@ -8,6 +8,7 @@ type Notification struct {
 	Content      string `json:"content" gorm:"type:text"`
 	Type         string `json:"type" gorm:"type:varchar(32)"` // TEAM_INVITE, TEAM_APPLICATION, SYSTEM
 	RelatedID    uint64 `json:"related_id"`                   // 关联ID (通常是 TeamRequestID)
+	RelatedData  string `json:"related_data" gorm:"type:text"` // 相关数据(JSON格式)
 	IsRead       bool   `json:"is_read" gorm:"default:false"`
 	ActionStatus string `json:"action_status" gorm:"type:varchar(32);default:'PENDING'"` // PENDING, PROCESSED, NONE
 }
