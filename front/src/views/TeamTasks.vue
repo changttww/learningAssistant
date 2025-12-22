@@ -1126,6 +1126,15 @@ export default {
         const res = await getTeamList({ owned_only: false });
         const list = res?.data?.data || res?.data || res;
         this.allTeams = Array.isArray(list) ? list : [];
+        const routeTeamId = this.$route?.query?.teamId;
+        if (routeTeamId && !this.selectedTeam && Array.isArray(this.allTeams)) {
+          const matchedTeam = this.allTeams.find(
+            (team) => String(team.id) === String(routeTeamId)
+          );
+          if (matchedTeam) {
+            this.selectTeam(matchedTeam);
+          }
+        }
       } catch (error) {
         console.error("加载团队列表失败", error);
       } finally {

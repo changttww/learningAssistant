@@ -67,7 +67,7 @@
       </div>
       <button
         class="hud-btn"
-        @click="detailViewActive ? closeDetail() : router.go(-1)"
+        @click="handleBackClick"
       >
         {{ detailViewActive ? '返回星图' : '返回团队任务' }}
       </button>
@@ -376,6 +376,22 @@ const closeDetail = () => {
   selectedStar.value = null;
   detailData.value = { subtasks: [], attachments: [] };
   zoomTransform.value = { x: 0, y: 0, scale: 1 };
+};
+
+const handleBackClick = () => {
+  if (detailViewActive.value) {
+    closeDetail();
+    return;
+  }
+  const teamId = route.query.teamId;
+  if (teamId) {
+    router.push({
+      name: 'TeamTasks',
+      query: { teamId },
+    });
+  } else {
+    router.push({ name: 'TeamTasks' });
+  }
 };
 
 const handlePointerMove = (event) => {
