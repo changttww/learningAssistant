@@ -5,6 +5,19 @@
 import { request } from "@/utils/request";
 
 /**
+ * 触发全局任务更新事件
+ */
+function emitTaskUpdateEvent(eventType = "taskUpdated") {
+  if (typeof window !== "undefined") {
+    const event = new CustomEvent(eventType, {
+      detail: { timestamp: Date.now() },
+    });
+    window.dispatchEvent(event);
+    console.log(`[任务事件] 已触发: ${eventType}`);
+  }
+}
+
+/**
  * 获取任务列表
  */
 export function getTaskList(params = {}) {
@@ -36,14 +49,20 @@ export function getTaskDetail(taskId) {
  * 创建任务
  */
 export function createTask(data) {
-  return request.post("/tasks", data);
+  return request.post("/tasks", data).then((res) => {
+    emitTaskUpdateEvent("taskCreated");
+    return res;
+  });
 }
 
 /**
  * 更新任务
  */
 export function updateTask(taskId, data) {
-  return request.put(`/tasks/${taskId}`, data);
+  return request.put(`/tasks/${taskId}`, data).then((res) => {
+    emitTaskUpdateEvent("taskUpdated");
+    return res;
+  });
 }
 
 /**
@@ -57,28 +76,40 @@ export function addTaskComment(taskId, content) {
  * 删除任务
  */
 export function deleteTask(taskId) {
-  return request.delete(`/tasks/${taskId}`);
+  return request.delete(`/tasks/${taskId}`).then((res) => {
+    emitTaskUpdateEvent("taskUpdated");
+    return res;
+  });
 }
 
 /**
  * 完成任务
  */
 export function completeTask(taskId) {
-  return request.post(`/tasks/${taskId}/complete`);
+  return request.post(`/tasks/${taskId}/complete`).then((res) => {
+    emitTaskUpdateEvent("taskCompleted");
+    return res;
+  });
 }
 
 /**
  * 完成任务并创建关联笔记
  */
 export function completeTaskWithNote(taskId) {
-  return request.post(`/tasks/${taskId}/complete-with-note`);
+  return request.post(`/tasks/${taskId}/complete-with-note`).then((res) => {
+    emitTaskUpdateEvent("taskCompleted");
+    return res;
+  });
 }
 
 /**
  * 取消完成任务
  */
 export function uncompleteTask(taskId) {
-  return request.post(`/tasks/${taskId}/uncomplete`);
+  return request.post(`/tasks/${taskId}/uncomplete`).then((res) => {
+    emitTaskUpdateEvent("taskUpdated");
+    return res;
+  });
 }
 
 /**
@@ -92,7 +123,10 @@ export function getTaskProgress(taskId) {
  * 更新任务进度
  */
 export function updateTaskProgress(taskId, progress) {
-  return request.put(`/tasks/${taskId}`, { progress });
+  return request.put(`/tasks/${taskId}`, { progress }).then((res) => {
+    emitTaskUpdateEvent("taskUpdated");
+    return res;
+  });
 }
 
 /**
@@ -123,6 +157,9 @@ export function batchOperateTasks(operation, taskIds) {
   return request.post("/tasks/batch", {
     operation,
     taskIds,
+  }).then((res) => {
+    emitTaskUpdateEvent("taskUpdated");
+    return res;
   });
 }
 
@@ -176,4 +213,11 @@ export function getTaskBarStats(range = "week") {
  */
 export function getMonthlyCompletionStats() {
   return request.get("/tasks/stats/monthly-completion");
+}
+
+/**
+ * 获取任务热力图数据
+ */
+export function getTaskHeatmapStats() {
+  return request.get("/tasks/stats/heatmap");
 }

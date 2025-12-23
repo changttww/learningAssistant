@@ -16,6 +16,7 @@ import (
 func registerTaskStatRoutes(router *gin.RouterGroup) {
 	router.GET("/stats/bar", handleGetBarStats)
 	router.GET("/users/:userId/today", handleGetUserTodayTasks)
+	router.GET("/stats/heatmap", handleGetHeatmapStats)
 }
 
 func handleGetBarStats(c *gin.Context) {
@@ -380,4 +381,155 @@ func deriveTaskProgress(status int8, assignees []models.TaskAssignee) int {
 	default:
 		return 0
 	}
+}
+
+// HeatmapDay 热力图每日数据
+type HeatmapDay struct {
+	Date      string `json:"date"`
+	Count     int    `json:"count"`     // 该天任务总数
+	Completed int    `json:"completed"` // 该天完成任务数
+	Level     int    `json:"level"`     // 热力级别：0-4，用于显示颜色深度
+}
+
+// HeatmapStats 热力图统计数据
+type HeatmapStats struct {
+	Days          []HeatmapDay `json:"days"`           // 过去365天的数据
+	TotalTasks    int          `json:"total_tasks"`    // 总任务数
+	CompletedNum  int          `json:"completed_num"`  // 完成任务数
+	CurrentStreak int          `json:"current_streak"` // 当前连续工作日数
+}
+
+func handleGetHeatmapStats(c *gin.Context) {
+	userID, ok := currentUserIDFromHeader(c)
+	if !ok {
+		return
+	}
+
+	stats, err := getHeatmapData(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "获取热力图数据失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "success",
+		"data":    stats,
+	})
+}
+
+func getHeatmapData(userID uint64) (*HeatmapStats, error) {
+	days := 365
+	endDate := time.Now().In(time.Local)
+	startDate := endDate.AddDate(0, 0, -days)
+
+	db := database.GetDB()
+
+	// 构建日期范围内的所有日期
+	dateMap := buildDateMap(startDate, endDate)
+
+	// 查询创建的任务并统计
+	var tasks []models.Task
+	if err := db.Where(
+		"(owner_user_id = ? OR created_by = ?) AND deleted_at IS NULL AND created_at >= ? AND created_at <= ?",
+		userID, userID, startDate, endDate,
+	).Find(&tasks).Error; err != nil {
+		return nil, err
+	}
+
+	for _, task := range tasks {
+		dateStr := task.CreatedAt.Format("2006-01-02")
+		if heatmapDay, exists := dateMap[dateStr]; exists {
+			heatmapDay.Count++
+		}
+	}
+
+	// 查询完成的任务并统计
+	var completedTasks []models.Task
+	if err := db.Where(
+		"(owner_user_id = ? OR created_by = ?) AND deleted_at IS NULL AND status = ? AND completed_at IS NOT NULL AND completed_at >= ? AND completed_at <= ?",
+		userID, userID, int8(2), startDate, endDate,
+	).Find(&completedTasks).Error; err != nil {
+		return nil, err
+	}
+
+	for _, task := range completedTasks {
+		if task.CompletedAt != nil {
+			dateStr := task.CompletedAt.Format("2006-01-02")
+			if heatmapDay, exists := dateMap[dateStr]; exists {
+				heatmapDay.Completed++
+			}
+		}
+	}
+
+	// 计算热力级别和转换为数组
+	heatmapDays := buildHeatmapDaysArray(startDate, endDate, dateMap)
+	currentStreak := calculateCurrentStreak(heatmapDays)
+
+	return &HeatmapStats{
+		Days:          heatmapDays,
+		TotalTasks:    len(tasks),
+		CompletedNum:  len(completedTasks),
+		CurrentStreak: currentStreak,
+	}, nil
+}
+
+func buildDateMap(startDate, endDate time.Time) map[string]*HeatmapDay {
+	dateMap := make(map[string]*HeatmapDay)
+	for d := startDate; d.Before(endDate) || d.Equal(endDate); d = d.AddDate(0, 0, 1) {
+		dateStr := d.Format("2006-01-02")
+		dateMap[dateStr] = &HeatmapDay{
+			Date:      dateStr,
+			Count:     0,
+			Completed: 0,
+			Level:     0,
+		}
+	}
+	return dateMap
+}
+
+func buildHeatmapDaysArray(startDate, endDate time.Time, dateMap map[string]*HeatmapDay) []HeatmapDay {
+	var heatmapDays []HeatmapDay
+	var maxCount int
+
+	for _, heatmapDay := range dateMap {
+		if heatmapDay.Count > maxCount {
+			maxCount = heatmapDay.Count
+		}
+	}
+
+	for d := startDate; d.Before(endDate) || d.Equal(endDate); d = d.AddDate(0, 0, 1) {
+		dateStr := d.Format("2006-01-02")
+		day := dateMap[dateStr]
+		if maxCount == 0 {
+			day.Level = 0
+		} else {
+			day.Level = (day.Count * 4) / maxCount
+			if day.Count > 0 && day.Level == 0 {
+				day.Level = 1
+			}
+		}
+		heatmapDays = append(heatmapDays, *day)
+	}
+
+	return heatmapDays
+}
+
+// calculateCurrentStreak 计算当前连续工作日数
+func calculateCurrentStreak(days []HeatmapDay) int {
+	if len(days) == 0 {
+		return 0
+	}
+
+	// 从最后一天开始往前遍历
+	streak := 0
+	for i := len(days) - 1; i >= 0; i-- {
+		if days[i].Count > 0 {
+			streak++
+		} else {
+			break
+		}
+	}
+
+	return streak
 }
