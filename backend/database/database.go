@@ -58,6 +58,16 @@ func InitDatabase() {
 			log.Fatal("Failed to seed demo data:", err)
 		}
 	}
+
+	// 初始化知识库分类
+	if err := seeder.SeedKnowledgeCategories(DB); err != nil {
+		log.Println("Warning: Failed to seed knowledge categories:", err)
+	}
+
+	// 初始化知识库演示数据
+	if err := seeder.SeedKnowledgeEntries(DB); err != nil {
+		log.Println("Warning: Failed to seed knowledge entries:", err)
+	}
 }
 
 // AutoMigrate 自动迁移数据库表，从model中获取数据结构，并创建对应的表结构

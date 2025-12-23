@@ -36,8 +36,22 @@ export function generateQuiz(data) {
   return request.post("/ai/generate-quiz", data);
 }
 
+/**
+ * 提交测验答案并加入知识库
+ * @param {Object} data - 测验结果
+ * @param {number} data.task_id - 任务ID
+ * @param {string} data.topic - 测验主题
+ * @param {Array} data.questions - 题目列表
+ * @param {Object} data.answers - 用户答案
+ * @param {number} data.score - 得分
+ */
+export function submitQuizToKnowledge(data) {
+  return request.post("/ai/submit-quiz", data);
+}
+
 export default {
   parseTaskWithAI,
   getTaskGuidance,
   generateQuiz,
+  submitQuizToKnowledge,
 };

@@ -8,6 +8,9 @@ import (
 
 // SetupRoutes 设置路由
 func SetupRoutes(r *gin.Engine) {
+	// 初始化RAG服务（确保在任务路由使用前初始化）
+	initRAGServices()
+
 	// 健康检查
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -54,6 +57,15 @@ func SetupRoutes(r *gin.Engine) {
 
 		analysis := v1.Group("/analysis")
 		registerAnalysisRoutes(analysis)
+
+		// AI相关路由
+		ai := v1.Group("/ai")
+		registerAIRoutes(ai)
+
+		// 知识库相关路由
+		knowledge := v1.Group("")
+		registerKnowledgeBaseRoutes(knowledge)
+		registerKnowledgeSyncRoutes(knowledge)
 	}
 
 	// 兼容旧版未带版本号的前缀 /api/**
@@ -88,5 +100,14 @@ func SetupRoutes(r *gin.Engine) {
 
 		analysisLegacy := legacy.Group("/analysis")
 		registerAnalysisRoutes(analysisLegacy)
+
+		// AI相关路由
+		aiLegacy := legacy.Group("/ai")
+		registerAIRoutes(aiLegacy)
+
+		// 知识库相关路由
+		knowledgeLegacy := legacy.Group("")
+		registerKnowledgeBaseRoutes(knowledgeLegacy)
+		registerKnowledgeSyncRoutes(knowledgeLegacy)
 	}
 }

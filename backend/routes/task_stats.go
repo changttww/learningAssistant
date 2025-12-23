@@ -3,6 +3,7 @@ package routes
 import (
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -266,45 +267,120 @@ func enrichTodayTasks(db *gorm.DB, tasks []models.Task) ([]todayTaskDetail, erro
 		}
 	}
 
-	assigneeMap := make(map[uint64][]models.TaskAssignee, len(taskIDs))
-	var assignees []models.TaskAssignee
-	if err := db.Where("task_id IN ?", taskIDs).Order("is_owner DESC, id ASC").Find(&assignees).Error; err != nil {
-		return nil, err
+	// 使用 goroutine 并行查询关联数据
+	type queryResult struct {
+		assignees  []models.TaskAssignee
+		histories  []models.TaskStatusHistory
+		records    []models.LearningRecord
+		categories []models.TaskCategory
+		err        error
 	}
-	for _, a := range assignees {
+
+	resultChan := make(chan queryResult, 1)
+
+	go func() {
+		var result queryResult
+		var wg sync.WaitGroup
+		var mu sync.Mutex
+		errChan := make(chan error, 4)
+
+		// 并行查询 assignees
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var assignees []models.TaskAssignee
+			if err := db.Where("task_id IN ?", taskIDs).Order("is_owner DESC, id ASC").Find(&assignees).Error; err != nil {
+				errChan <- err
+				return
+			}
+			mu.Lock()
+			result.assignees = assignees
+			mu.Unlock()
+		}()
+
+		// 并行查询 status_history
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var histories []models.TaskStatusHistory
+			if err := db.Where("task_id IN ?", taskIDs).Order("created_at ASC, id ASC").Find(&histories).Error; err != nil {
+				errChan <- err
+				return
+			}
+			mu.Lock()
+			result.histories = histories
+			mu.Unlock()
+		}()
+
+		// 并行查询 learning_records
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var records []models.LearningRecord
+			if err := db.Where("task_id IN ?", taskIDs).Order("session_start ASC, id ASC").Find(&records).Error; err != nil {
+				errChan <- err
+				return
+			}
+			mu.Lock()
+			result.records = records
+			mu.Unlock()
+		}()
+
+		// 并行查询 categories
+		if len(categoryIDs) > 0 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				var categories []models.TaskCategory
+				if err := db.Where("id IN ?", categoryIDs).Find(&categories).Error; err != nil {
+					errChan <- err
+					return
+				}
+				mu.Lock()
+				result.categories = categories
+				mu.Unlock()
+			}()
+		}
+
+		wg.Wait()
+		close(errChan)
+
+		for err := range errChan {
+			if err != nil {
+				result.err = err
+				break
+			}
+		}
+		resultChan <- result
+	}()
+
+	qr := <-resultChan
+	if qr.err != nil {
+		return nil, qr.err
+	}
+
+	// 构建映射
+	assigneeMap := make(map[uint64][]models.TaskAssignee, len(taskIDs))
+	for _, a := range qr.assignees {
 		assigneeMap[a.TaskID] = append(assigneeMap[a.TaskID], a)
 	}
 
 	statusHistoryMap := make(map[uint64][]models.TaskStatusHistory, len(taskIDs))
-	var histories []models.TaskStatusHistory
-	if err := db.Where("task_id IN ?", taskIDs).Order("created_at ASC, id ASC").Find(&histories).Error; err != nil {
-		return nil, err
-	}
-	for _, h := range histories {
+	for _, h := range qr.histories {
 		statusHistoryMap[h.TaskID] = append(statusHistoryMap[h.TaskID], h)
 	}
 
 	learningRecordMap := make(map[uint64][]models.LearningRecord, len(taskIDs))
-	var records []models.LearningRecord
-	if err := db.Where("task_id IN ?", taskIDs).Order("session_start ASC, id ASC").Find(&records).Error; err != nil {
-		return nil, err
-	}
-	for _, r := range records {
+	for _, r := range qr.records {
 		learningRecordMap[r.TaskID] = append(learningRecordMap[r.TaskID], r)
 	}
 
 	categoryMap := make(map[uint64]taskCategoryBrief, len(categoryIDs))
-	if len(categoryIDs) > 0 {
-		var categories []models.TaskCategory
-		if err := db.Where("id IN ?", categoryIDs).Find(&categories).Error; err != nil {
-			return nil, err
-		}
-		for _, cat := range categories {
-			categoryMap[cat.ID] = taskCategoryBrief{
-				ID:    cat.ID,
-				Name:  cat.Name,
-				Color: cat.Color,
-			}
+	for _, cat := range qr.categories {
+		categoryMap[cat.ID] = taskCategoryBrief{
+			ID:    cat.ID,
+			Name:  cat.Name,
+			Color: cat.Color,
 		}
 	}
 
