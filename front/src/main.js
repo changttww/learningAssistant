@@ -14,6 +14,7 @@ import VideoRoom from "./views/VideoRoom.vue";
 import Profile from "./views/Profile.vue";
 import TaskManager from "./views/TaskManager.vue";
 import NotificationHistory from "./views/NotificationHistory.vue";
+import KnowledgeBase from "./views/KnowledgeBase.vue";
 
 // 导入路由守卫
 import { beforeEach, afterEach, onError } from "./router/guards.js";
@@ -88,6 +89,15 @@ const routes = [
     component: NotificationHistory,
     meta: {
       title: "通知中心",
+      requiresAuth: true,
+    },
+  },
+  {
+    path: "/knowledge-base",
+    name: "KnowledgeBase",
+    component: KnowledgeBase,
+    meta: {
+      title: "我的知识库",
       requiresAuth: true,
     },
   },

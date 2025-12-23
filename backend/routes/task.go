@@ -551,6 +551,13 @@ func completeTask(c *gin.Context) {
 		return
 	}
 
+	// 自动将任务添加到知识库
+	if ragService != nil {
+		go func() {
+			_, _ = ragService.AddDocument(userID.(uint64), 1, taskID, task.Title, task.Description)
+		}()
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"msg":  "任务已完成",
@@ -622,6 +629,13 @@ func completeTaskWithNote(c *gin.Context) {
 	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "完成任务并创建笔记失败"})
 		return
+	}
+
+	// 自动将任务添加到知识库
+	if ragService != nil {
+		go func() {
+			_, _ = ragService.AddDocument(userID.(uint64), 1, taskID, task.Title, task.Description)
+		}()
 	}
 
 	c.JSON(http.StatusOK, gin.H{
