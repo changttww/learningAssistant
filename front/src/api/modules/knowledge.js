@@ -64,9 +64,17 @@ export function getUserKnowledgeStats() {
 
 /**
  * 列表用户知识库
+ * @param {number} page
+ * @param {number} pageSize
+ * @param {string} category
+ * @param {number|string} level
  */
-export function listUserKnowledge(page = 1, pageSize = 20, category, level) {
-  const params = { page, page_size: pageSize };
+export function listUserKnowledge(page, pageSize, category, level) {
+  // 兼容旧调用：若未传 page/pageSize，使用默认值
+  const safePage = page ?? 1;
+  const safePageSize = pageSize ?? 20;
+
+  const params = { page: safePage, page_size: safePageSize };
   // 只有当 category 和 level 有值时才添加到参数中
   if (category && category !== '') {
     params.category = category;
@@ -102,9 +110,10 @@ export function getSkillRadarData() {
 
 /**
  * 获取学习趋势
+ * @param {"30"|"90"|"year"} range
  */
-export function getLearningTrends() {
-  return request.get("/knowledge-base/trends");
+export function getLearningTrends(range = "30") {
+  return request.get("/knowledge-base/trends", { range });
 }
 
 /**

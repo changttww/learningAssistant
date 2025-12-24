@@ -2315,11 +2315,12 @@ const fetchTaskGuidance = async () => {
   
   isLoadingGuidance.value = true;
   try {
-    const response = await getTaskGuidance(
-      guidanceTask.value.title,
-      guidanceTask.value.description || '',
-      guidanceTask.value.category || 'other'
-    );
+    // 调用API获取任务指导，传入对象格式参数
+    const response = await getTaskGuidance({
+      title: guidanceTask.value.title,
+      description: guidanceTask.value.description || '',
+      category: guidanceTask.value.category || 'other'
+    });
     console.log('任务指导响应:', response);
     
     // response 已经是拦截器处理后的 data 对象

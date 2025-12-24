@@ -56,12 +56,13 @@ type SkillRadarData struct {
 }
 
 // LearningTrend 学习趋势
+// 说明：学习时长口径容易产生歧义（如跨天、挂机等）。
+// 这里改为使用“当日完成任务数 / 当日创建笔记数 / 当日新增知识点数”作为趋势指标。
 type LearningTrend struct {
-	Date          string  `json:"date"`
-	NewKnowledge  int     `json:"new_knowledge"`
-	ReviewCount   int     `json:"review_count"`
-	MasteredCount int     `json:"mastered_count"`
-	StudyHours    float32 `json:"study_hours"`
+	Date         string `json:"date"`
+	NewKnowledge int    `json:"new_knowledge"`
+	NewNotes     int    `json:"new_notes"`
+	DoneTasks    int    `json:"done_tasks"`
 }
 
 // AnalysisReport AI分析报告
@@ -133,6 +134,8 @@ func (a *AIAnalysisService) AnalyzeUserKnowledge(userID uint64) (*AnalysisReport
 	return report, nil
 }
 
+const dateLayoutYMD = "2006-01-02"
+
 // analyzeKnowledgeDistribution 分析知识点分布
 func (a *AIAnalysisService) analyzeKnowledgeDistribution(entries []models.KnowledgeBaseEntry) []KnowledgeDistribution {
 	categoryMap := make(map[string]*KnowledgeDistribution)
@@ -186,103 +189,322 @@ func (a *AIAnalysisService) analyzeKnowledgeDistribution(entries []models.Knowle
 	return distribution
 }
 
-// generateSkillRadar 生成技能雷达数据
+// generateSkillRadar 生成技能雷达数据 - 基于分类统计
 func (a *AIAnalysisService) generateSkillRadar(entries []models.KnowledgeBaseEntry) []SkillRadarData {
-	skillMap := make(map[string]*SkillRadarData)
+	dims := a.getSkillRadarDims()
+	bucket := a.buildSkillRadarBucket(dims, entries)
+	return a.buildSkillRadarResult(dims, bucket)
+}
 
-	// 从知识库条目中提取技能
+type skillRadarDim struct {
+	Key        string
+	Label      string
+	Categories []string
+}
+
+type skillRadarStat struct {
+	totalLevel int
+	count      int
+	mastered   int
+	learning   int
+}
+
+func (a *AIAnalysisService) getSkillRadarDims() []skillRadarDim {
+	return []skillRadarDim{
+		{Key: "chinese", Label: "语文能力", Categories: []string{"语文", "文学", "阅读", "写作"}},
+		{Key: "math", Label: "数学能力", Categories: []string{"数学", "高等数学", "线性代数", "概率论"}},
+		{Key: "physics", Label: "物理能力", Categories: []string{"物理"}},
+		{Key: "programming", Label: "编程能力", Categories: []string{"编程语言", "前端开发", "后端开发", "算法", "数据库", "DevOps", "人工智能", "数据科学"}},
+		{Key: "exam", Label: "考试技巧能力", Categories: []string{"考试", "应试", "刷题", "面试"}},
+		{Key: "other", Label: "其他能力", Categories: []string{"其他", "通用", "软技能"}},
+	}
+}
+
+func (a *AIAnalysisService) buildSkillRadarBucket(dims []skillRadarDim, entries []models.KnowledgeBaseEntry) map[string]*skillRadarStat {
+	bucket := make(map[string]*skillRadarStat, len(dims))
+	for _, d := range dims {
+		bucket[d.Key] = &skillRadarStat{}
+	}
+
+	categoryToDim := a.buildSkillRadarCategoryToDimMap(dims)
+
 	for _, entry := range entries {
-		skills := a.extractSkills(entry)
-		for _, skill := range skills {
-			if _, exists := skillMap[skill]; !exists {
-				skillMap[skill] = &SkillRadarData{
-					Skill:    skill,
-					Value:    0,
-					MaxValue: 100,
-					Category: entry.Category,
-				}
-			}
-
-			skillMap[skill].Value += int(entry.Level) * 20
+		dimKey := a.resolveSkillRadarDimKey(categoryToDim, &entry)
+		st := bucket[dimKey]
+		st.totalLevel += int(entry.Level)
+		st.count++
+		if entry.Level == 4 {
+			st.mastered++
+		} else if entry.Level > 0 {
+			st.learning++
 		}
 	}
 
-	// 转换为切片
-	radar := make([]SkillRadarData, 0, len(skillMap))
-	for _, skill := range skillMap {
-		if skill.Value > 100 {
-			skill.Value = 100
+	return bucket
+}
+
+func (a *AIAnalysisService) buildSkillRadarCategoryToDimMap(dims []skillRadarDim) map[string]string {
+	categoryToDim := make(map[string]string)
+	for _, d := range dims {
+		for _, c := range d.Categories {
+			categoryToDim[a.normalizeSkillCategoryKey(c)] = d.Key
 		}
-		skill.Progress = skill.Value
-		skill.Level = a.getLevelLabel(skill.Value)
-		radar = append(radar, *skill)
+	}
+	return categoryToDim
+}
+
+func (a *AIAnalysisService) resolveSkillRadarDimKey(categoryToDim map[string]string, entry *models.KnowledgeBaseEntry) string {
+	if entry == nil {
+		return "other"
 	}
 
-	// 按技能值排序并取前10个
-	sort.Slice(radar, func(i, j int) bool {
-		return radar[i].Value > radar[j].Value
-	})
-
-	if len(radar) > 10 {
-		radar = radar[:10]
+	category := strings.TrimSpace(entry.Category)
+	if category == "" {
+		category = "其他"
 	}
 
+	normalizedCategory := a.normalizeSkillCategoryKey(category)
+	if dimKey, ok := categoryToDim[normalizedCategory]; ok {
+		return dimKey
+	}
+	if aliasKey, aliasOk := a.skillRadarAliasDimKey(normalizedCategory); aliasOk {
+		return aliasKey
+	}
+	if guessed := a.guessSkillRadarDimKeyByContent(entry); guessed != "" {
+		return guessed
+	}
+	return "other"
+}
+
+func (a *AIAnalysisService) normalizeSkillCategoryKey(s string) string {
+	return strings.ToLower(strings.TrimSpace(s))
+}
+
+func (a *AIAnalysisService) skillRadarAliasDimKey(categoryLower string) (string, bool) {
+	// 这里用“完全等值”的别名，避免误伤（模糊匹配交给 guessSkillRadarDimKeyByContent）
+	alias := map[string]string{
+		// programming
+		"编程":      "programming",
+		"程序设计":    "programming",
+		"软件开发":    "programming",
+		"前端":      "programming",
+		"后端":      "programming",
+		"算法与数据结构": "programming",
+		"数据结构":    "programming",
+		"计算机":     "programming",
+		"计算机科学":   "programming",
+		"计算机系统":   "programming",
+		"操作系统":    "programming",
+		"网络":      "programming",
+		"计算机网络":   "programming",
+		"数据库":     "programming",
+		"人工智能":    "programming",
+		"机器学习":    "programming",
+		"深度学习":    "programming",
+		"数据科学":    "programming",
+
+		// exam
+		"考试技巧": "exam",
+		"应试技巧": "exam",
+		"刷题":   "exam",
+		"面试":   "exam",
+		"测验":   "exam",
+	}
+	v, ok := alias[categoryLower]
+	return v, ok
+}
+
+func (a *AIAnalysisService) guessSkillRadarDimKeyByContent(entry *models.KnowledgeBaseEntry) string {
+	if entry == nil {
+		return "other"
+	}
+
+	// 1) category 子串关键词
+	cat := strings.ToLower(strings.TrimSpace(entry.Category))
+	title := strings.ToLower(strings.TrimSpace(entry.Title))
+
+	// 2) tags/keywords（JSON）
+	joined := cat + " " + title + " " + a.joinJSONStrings(entry.Tags) + " " + a.joinJSONStrings(entry.Keywords)
+
+	// programming keywords
+	programmingKeywords := []string{
+		"编程", "程序", "代码", "开发", "前端", "后端", "vue", "react", "node", "go", "golang", "java", "python", "c++", "c#",
+		"算法", "数据结构", "数据库", "mysql", "redis", "http", "rest", "api", "socket", "操作系统", "计算机网络", "linux",
+		"机器学习", "深度学习", "ai", "llm",
+	}
+	for _, kw := range programmingKeywords {
+		if strings.Contains(joined, strings.ToLower(kw)) {
+			return "programming"
+		}
+	}
+
+	// exam keywords
+	examKeywords := []string{"考试", "应试", "刷题", "面试", "题", "真题", "技巧", "解题"}
+	for _, kw := range examKeywords {
+		if strings.Contains(joined, strings.ToLower(kw)) {
+			return "exam"
+		}
+	}
+
+	return "other"
+}
+
+func (a *AIAnalysisService) joinJSONStrings(raw interface{}) string {
+	if raw == nil {
+		return ""
+	}
+	bytes, err := json.Marshal(raw)
+	if err != nil {
+		return ""
+	}
+	var arr []string
+	if err := json.Unmarshal(bytes, &arr); err != nil {
+		return ""
+	}
+	return strings.Join(arr, " ")
+}
+
+func (a *AIAnalysisService) scoreSkillRadar(st *skillRadarStat) int {
+	if st == nil || st.count == 0 {
+		return 0
+	}
+
+	avgLevel := float64(st.totalLevel) / float64(st.count)
+	value := int(avgLevel * 25)
+
+	masteredRatio := float64(st.mastered) / float64(st.count)
+	value += int(masteredRatio * 20)
+
+	if st.count >= 3 {
+		value += 5
+	}
+	if st.count >= 6 {
+		value += 5
+	}
+	if st.count >= 10 {
+		value += 5
+	}
+
+	if value < 0 {
+		return 0
+	}
+	if value > 100 {
+		return 100
+	}
+	return value
+}
+
+func (a *AIAnalysisService) buildSkillRadarResult(dims []skillRadarDim, bucket map[string]*skillRadarStat) []SkillRadarData {
+	radar := make([]SkillRadarData, 0, len(dims))
+	for _, d := range dims {
+		value := a.scoreSkillRadar(bucket[d.Key])
+		radar = append(radar, SkillRadarData{
+			Skill:    d.Label,
+			Value:    value,
+			MaxValue: 100,
+			Category: d.Label,
+			Progress: value,
+			Level:    a.getLevelLabel(value),
+		})
+	}
 	return radar
 }
 
-// analyzeLearningTrends 分析学习趋势（最近30天）
-func (a *AIAnalysisService) analyzeLearningTrends(userID uint64, entries []models.KnowledgeBaseEntry) []LearningTrend {
-	db := database.GetDB()
+// TrendGranularity 趋势聚合粒度
+// - day: 按天聚合（适合 30 天）
+// - week: 按周聚合（适合 90 天，避免点太密）
+// - month: 按月聚合（适合 本年度 12 个月）
+type TrendGranularity string
 
-	// 构建日期到条目的映射
-	trendMap := make(map[string]*LearningTrend)
-	now := time.Now()
+const (
+	TrendGranularityDay   TrendGranularity = "day"
+	TrendGranularityWeek  TrendGranularity = "week"
+	TrendGranularityMonth TrendGranularity = "month"
+)
 
-	for i := 29; i >= 0; i-- {
-		date := now.AddDate(0, 0, -i)
-		dateStr := date.Format("2006-01-02")
-		trendMap[dateStr] = &LearningTrend{
-			Date:          dateStr,
-			NewKnowledge:  0,
-			ReviewCount:   0,
-			MasteredCount: 0,
-			StudyHours:    0,
+// AnalyzeUserLearningTrendsRange 对外暴露：按范围与粒度生成学习趋势
+func (a *AIAnalysisService) AnalyzeUserLearningTrendsRange(userID uint64, entries []models.KnowledgeBaseEntry, from, to time.Time, granularity TrendGranularity) []LearningTrend {
+	return a.analyzeLearningTrendsRange(userID, entries, from, to, granularity)
+}
+
+// analyzeLearningTrendsRange 分析学习趋势（可配置范围与粒度）
+// label 规则：
+// - day:  YYYY-MM-DD
+// - week: YYYY-Www（ISO 周，周一为起始）
+// - month: YYYY-MM
+func (a *AIAnalysisService) analyzeLearningTrendsRange(userID uint64, entries []models.KnowledgeBaseEntry, from, to time.Time, granularity TrendGranularity) []LearningTrend {
+	bucket := make(map[string]*LearningTrend)
+
+	add := func(label string, apply func(t *LearningTrend)) {
+		tr, ok := bucket[label]
+		if !ok {
+			tr = &LearningTrend{Date: label}
+			bucket[label] = tr
+		}
+		apply(tr)
+	}
+
+	a.applyNewKnowledgeToBucket(add, entries, from, to, granularity)
+	a.applyDoneTasksToBucket(add, userID, from, to, granularity)
+	a.applyNewNotesToBucket(add, userID, from, to, granularity)
+
+	// 生成完整桶（补零），保证 90 天/年度不会缺点
+	labels := a.trendBucketLabels(from, to, granularity)
+	trends := make([]LearningTrend, 0, len(labels))
+	for _, label := range labels {
+		if t, ok := bucket[label]; ok {
+			trends = append(trends, *t)
+		} else {
+			trends = append(trends, LearningTrend{Date: label})
 		}
 	}
-
-	// 统计每日创建的条目
-	for _, entry := range entries {
-		dateStr := entry.CreatedAt.Format("2006-01-02")
-		if trend, exists := trendMap[dateStr]; exists {
-			trend.NewKnowledge++
-		}
-	}
-
-	// 统计学习时长
-	var stats []models.DailyStudyStat
-	fromDate := now.AddDate(0, 0, -30)
-	db.Where("user_id = ? AND date >= ?", userID, fromDate).
-		Find(&stats)
-
-	for _, stat := range stats {
-		dateStr := stat.Date.Format("2006-01-02")
-		if trend, exists := trendMap[dateStr]; exists {
-			trend.StudyHours = float32(stat.Minutes) / 60.0
-		}
-	}
-
-	// 转换为切片
-	trends := make([]LearningTrend, 0, len(trendMap))
-	for _, trend := range trendMap {
-		trends = append(trends, *trend)
-	}
-
-	// 按日期排序
-	sort.Slice(trends, func(i, j int) bool {
-		return trends[i].Date < trends[j].Date
-	})
-
 	return trends
+}
+
+func (a *AIAnalysisService) applyNewKnowledgeToBucket(add func(string, func(*LearningTrend)), entries []models.KnowledgeBaseEntry, from, to time.Time, granularity TrendGranularity) {
+	for _, entry := range entries {
+		if entry.CreatedAt.Before(from) || entry.CreatedAt.After(to) {
+			continue
+		}
+		label := a.trendBucketLabel(entry.CreatedAt, granularity)
+		add(label, func(t *LearningTrend) { t.NewKnowledge++ })
+	}
+}
+
+func (a *AIAnalysisService) applyDoneTasksToBucket(add func(string, func(*LearningTrend)), userID uint64, from, to time.Time, granularity TrendGranularity) {
+	db := database.GetDB()
+	var tasks []models.Task
+	if err := db.Where("(owner_user_id = ? OR created_by = ?) AND deleted_at IS NULL AND status = ? AND completed_at IS NOT NULL AND completed_at >= ? AND completed_at <= ?", userID, userID, int8(2), from, to).
+		Select("id, completed_at").Find(&tasks).Error; err != nil {
+		return
+	}
+	for _, task := range tasks {
+		if task.CompletedAt == nil {
+			continue
+		}
+		label := a.trendBucketLabel(*task.CompletedAt, granularity)
+		add(label, func(t *LearningTrend) { t.DoneTasks++ })
+	}
+}
+
+func (a *AIAnalysisService) applyNewNotesToBucket(add func(string, func(*LearningTrend)), userID uint64, from, to time.Time, granularity TrendGranularity) {
+	db := database.GetDB()
+	var notes []models.StudyNote
+	if err := db.Where("user_id = ? AND deleted_at IS NULL AND created_at >= ? AND created_at <= ?", userID, from, to).
+		Select("id, created_at").Find(&notes).Error; err != nil {
+		return
+	}
+	for _, note := range notes {
+		label := a.trendBucketLabel(note.CreatedAt, granularity)
+		add(label, func(t *LearningTrend) { t.NewNotes++ })
+	}
+}
+
+// analyzeLearningTrends 分析学习趋势（兼容旧调用：默认最近30天按天）
+func (a *AIAnalysisService) analyzeLearningTrends(userID uint64, entries []models.KnowledgeBaseEntry) []LearningTrend {
+	now := time.Now()
+	from := now.AddDate(0, 0, -29)
+	return a.analyzeLearningTrendsRange(userID, entries, from, now, TrendGranularityDay)
 }
 
 // generateInsights 生成学习洞察
@@ -647,4 +869,76 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func (a *AIAnalysisService) trendBucketLabel(t time.Time, granularity TrendGranularity) string {
+	loc := t.Location()
+	lt := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc)
+	switch granularity {
+	case TrendGranularityMonth:
+		return fmt.Sprintf("%04d-%02d", lt.Year(), int(lt.Month()))
+	case TrendGranularityWeek:
+		y, w := lt.ISOWeek()
+		return fmt.Sprintf("%04d-W%02d", y, w)
+	case TrendGranularityDay:
+		fallthrough
+	default:
+		return lt.Format(dateLayoutYMD)
+	}
+}
+
+func (a *AIAnalysisService) trendBucketLabels(from, to time.Time, granularity TrendGranularity) []string {
+	loc := to.Location()
+	// 统一到当天零点，避免边界问题
+	start := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, loc)
+	end := time.Date(to.Year(), to.Month(), to.Day(), 0, 0, 0, 0, loc)
+
+	switch granularity {
+	case TrendGranularityMonth:
+		// 从 start 月到 end 月
+		cur := time.Date(start.Year(), start.Month(), 1, 0, 0, 0, 0, loc)
+		endM := time.Date(end.Year(), end.Month(), 1, 0, 0, 0, 0, loc)
+		labels := make([]string, 0, 12)
+		for !cur.After(endM) {
+			labels = append(labels, fmt.Sprintf("%04d-%02d", cur.Year(), int(cur.Month())))
+			cur = cur.AddDate(0, 1, 0)
+		}
+		return labels
+
+	case TrendGranularityWeek:
+		// ISO 周 label 序列：按周一递增
+		cur := start
+		// 对齐到周一
+		wd := int(cur.Weekday())
+		if wd == 0 {
+			wd = 7 // Sunday -> 7
+		}
+		cur = cur.AddDate(0, 0, -(wd - 1))
+		labels := make([]string, 0, 16)
+		for !cur.After(end) {
+			y, w := cur.ISOWeek()
+			labels = append(labels, fmt.Sprintf("%04d-W%02d", y, w))
+			cur = cur.AddDate(0, 0, 7)
+		}
+		// 去重（跨年边界可能重复）
+		seen := make(map[string]struct{}, len(labels))
+		out := make([]string, 0, len(labels))
+		for _, l := range labels {
+			if _, ok := seen[l]; ok {
+				continue
+			}
+			seen[l] = struct{}{}
+			out = append(out, l)
+		}
+		return out
+
+	case TrendGranularityDay:
+		fallthrough
+	default:
+		labels := make([]string, 0, 90)
+		for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
+			labels = append(labels, d.Format(dateLayoutYMD))
+		}
+		return labels
+	}
 }
