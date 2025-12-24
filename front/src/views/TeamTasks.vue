@@ -509,10 +509,22 @@
 
           <!-- 任务列表 -->
           <div class="space-y-4">
-            <h3 class="section-title">当前任务</h3>
+            <div class="flex justify-between items-center">
+              <h3 class="section-title">当前任务</h3>
+              <select
+                v-model="taskStatusFilter"
+                class="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white text-gray-600"
+              >
+                <option value="all">全部状态</option>
+                <option value="in-progress">进行中</option>
+                <option value="due-soon">即将逾期</option>
+                <option value="overdue">已逾期</option>
+                <option value="completed">已完成</option>
+              </select>
+            </div>
 
             <div
-              v-for="task in tasks"
+              v-for="task in filteredTasks"
               :key="task.id"
               :data-task-id="task.id"
               :class="taskCardClass(task)"
@@ -1071,6 +1083,7 @@ export default {
         name: "",
         description: "",
       },
+      taskStatusFilter: 'all',
       particles: [],
       animationFrameId: null,
     };
@@ -1118,6 +1131,34 @@ export default {
         return this.teamActivities;
       }
       return this.teamActivities.slice(0, 5);
+    },
+    filteredTasks() {
+      if (this.taskStatusFilter === 'all') {
+        return this.tasks;
+      }
+      return this.tasks.filter(task => {
+        const status = this.normalizeStatus(task.status);
+        const health = this.taskHealth(task);
+        
+        if (this.taskStatusFilter === 'completed') {
+          return status === 'completed';
+        }
+        
+        if (this.taskStatusFilter === 'overdue') {
+          return health?.type === 'overdue' && status !== 'completed';
+        }
+        
+        if (this.taskStatusFilter === 'due-soon') {
+          return health?.type === 'warning' && status !== 'completed';
+        }
+        
+        if (this.taskStatusFilter === 'in-progress') {
+          // 排除已完成、逾期和即将逾期的任务
+          return status !== 'completed' && health?.type !== 'overdue' && health?.type !== 'warning';
+        }
+        
+        return true;
+      });
     },
   },
   mounted() {
