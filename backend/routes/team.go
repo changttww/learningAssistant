@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -24,6 +25,7 @@ func registerTeamRoutes(r *gin.RouterGroup) {
 	r.POST("/join_by_name", joinTeamByName)
 	r.POST("/:id/invite", inviteMember)
 	r.GET("/:id/members", listTeamMembers)
+	r.GET("/:id/activities", listTeamActivities)
 	r.GET("/:id/requests", listTeamRequests)
 	r.POST("/:id/requests/:requestId/handle", handleTeamRequest)
 }
@@ -465,17 +467,19 @@ func listTeamMembers(c *gin.Context) {
 	}
 
 	var members []struct {
-		UserID   uint64 `json:"user_id"`
-		Account  string `json:"account"`
-		Nickname string `json:"nickname"`
-		Avatar   string `json:"avatar"`
-		Role     int8   `json:"role"`
+		UserID      uint64 `json:"user_id"`
+		Account     string `json:"account"`
+		Nickname    string `json:"nickname"`
+		Avatar      string `json:"avatar"`
+		Role        int8   `json:"role"`
+		TotalPoints int    `json:"total_points"`
 	}
 
 	db := database.GetDB()
 	err := db.Table("team_members").
-		Select("team_members.user_id, users.account, users.display_name as nickname, users.avatar_url as avatar, team_members.role").
+		Select("team_members.user_id, users.account, users.display_name as nickname, users.avatar_url as avatar, team_members.role, COALESCE(user_profiles.total_points, 0) as total_points").
 		Joins("JOIN users ON users.id = team_members.user_id").
+		Joins("LEFT JOIN user_profiles ON user_profiles.user_id = users.id").
 		Where("team_members.team_id = ?", teamID).
 		Scan(&members).Error
 
@@ -485,4 +489,55 @@ func listTeamMembers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": members})
+}
+
+func listTeamActivities(c *gin.Context) {
+	teamID := c.Param("id")
+	if teamID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Team ID is required"})
+		return
+	}
+
+	type Activity struct {
+		UserName   string    `json:"user_name"`
+		UserAvatar string    `json:"user_avatar"`
+		Action     string    `json:"action"`
+		TaskTitle  string    `json:"task_title"`
+		Time       time.Time `json:"time"`
+	}
+
+	var activities []Activity
+	var tasks []models.Task
+
+	// Fetch recent tasks for the team
+	db := database.GetDB()
+	if err := db.Where("owner_team_id = ?", teamID).Order("updated_at desc").Limit(10).Find(&tasks).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch team activities"})
+		return
+	}
+
+	for _, task := range tasks {
+		var user models.User
+		// Use CreatedBy for now.
+		userId := task.CreatedBy
+
+		db.Select("display_name, avatar_url").First(&user, userId)
+
+		action := "更新了任务"
+		if task.Status == 2 {
+			action = "完成了任务"
+		} else if task.UpdatedAt.Sub(task.CreatedAt) < 5*time.Second {
+			action = "创建了任务"
+		}
+
+		activities = append(activities, Activity{
+			UserName:   user.DisplayName,
+			UserAvatar: user.AvatarURL,
+			Action:     action,
+			TaskTitle:  task.Title,
+			Time:       task.UpdatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": activities})
 }

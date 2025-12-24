@@ -783,48 +783,22 @@
           </div>
 
           <div class="mt-4 space-y-3">
-            <div class="flex items-start">
-              <div class="relative">
-                <div class="w-10 h-10 rounded-full bg-gray-300"></div>
-                <div class="online-indicator"></div>
-              </div>
-              <div class="ml-3 flex-1">
-                <div>
-                  <span class="font-medium">王同学</span>
-                  <span class="text-sm text-gray-500">完成了 登录功能开发</span>
-                </div>
-                <div class="text-xs text-gray-500 mt-1">20分钟前</div>
-                <div class="flex items-center mt-1">
-                  <iconify-icon
-                    icon="mdi:heart-outline"
-                    width="16"
-                    height="16"
-                    class="interaction-btn text-gray-500"
-                  ></iconify-icon>
-                  <span class="text-xs text-gray-500 ml-1 mr-3">8</span>
-                  <iconify-icon
-                    icon="mdi:comment-outline"
-                    width="16"
-                    height="16"
-                    class="interaction-btn text-gray-500"
-                  ></iconify-icon>
-                  <span class="text-xs text-gray-500 ml-1">2</span>
-                </div>
-              </div>
+            <div v-if="teamActivities.length === 0" class="text-center text-gray-500 py-4">
+              暂无动态
             </div>
-
-            <div class="flex items-start">
+            <div v-for="(activity, index) in teamActivities" :key="index" class="flex items-start">
               <div class="relative">
-                <div class="w-10 h-10 rounded-full bg-gray-300"></div>
+                <img v-if="activity.user_avatar" :src="activity.user_avatar" class="w-10 h-10 rounded-full object-cover" />
+                <div v-else class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-blue-600 font-bold">
+                  {{ activity.user_name ? activity.user_name.charAt(0) : '?' }}
+                </div>
               </div>
               <div class="ml-3 flex-1">
                 <div>
-                  <span class="font-medium">钱同学</span>
-                  <span class="text-sm text-gray-500"
-                    >创建了新任务: 支付模块设计</span
-                  >
+                  <span class="font-medium">{{ activity.user_name }}</span>
+                  <span class="text-sm text-gray-500 ml-1">{{ activity.action }} {{ activity.task_title }}</span>
                 </div>
-                <div class="text-xs text-gray-500 mt-1">1小时前</div>
+                <div class="text-xs text-gray-500 mt-1">{{ formatTimeAgo(activity.time) }}</div>
               </div>
             </div>
           </div>
@@ -836,38 +810,28 @@
             <span class="text-xs text-blue-600">详情</span>
           </div>
           <div class="mt-4 space-y-3">
-            <div
-              class="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-colors"
-            >
-              <div class="w-6 text-center font-bold text-[#FF6B35]">1</div>
-              <div class="w-8 h-8 rounded-full bg-gray-300 ml-2"></div>
-              <div class="ml-3 flex-1">
-                <div class="font-medium">王同学</div>
-                <div class="text-xs text-gray-500">前端开发</div>
-              </div>
-              <div class="text-[#FF6B35] font-semibold">1,580</div>
+            <div v-if="teamMembers.length === 0" class="text-center text-gray-500 py-4">
+              暂无成员
             </div>
             <div
+              v-for="(member, index) in teamMembers.slice(0, 5)"
+              :key="member.user_id"
               class="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-colors"
             >
-              <div class="w-6 text-center font-bold text-[#FF9500]">2</div>
-              <div class="w-8 h-8 rounded-full bg-gray-300 ml-2"></div>
-              <div class="ml-3 flex-1">
-                <div class="font-medium">李同学</div>
-                <div class="text-xs text-gray-500">后端开发</div>
+              <div class="w-6 text-center font-bold" :class="{'text-[#FF6B35]': index === 0, 'text-[#FF9500]': index === 1, 'text-[#FFC107]': index === 2, 'text-gray-500': index > 2}">{{ index + 1 }}</div>
+              
+              <div class="ml-2">
+                 <img v-if="member.avatar" :src="member.avatar" class="w-8 h-8 rounded-full object-cover" />
+                 <div v-else class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-blue-600 font-bold text-xs">
+                   {{ member.nickname ? member.nickname.charAt(0) : '?' }}
+                 </div>
               </div>
-              <div class="text-[#FF9500] font-semibold">1,420</div>
-            </div>
-            <div
-              class="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-colors"
-            >
-              <div class="w-6 text-center font-bold text-[#FFC107]">3</div>
-              <div class="w-8 h-8 rounded-full bg-gray-300 ml-2"></div>
+
               <div class="ml-3 flex-1">
-                <div class="font-medium">陈同学</div>
-                <div class="text-xs text-gray-500">UI设计</div>
+                <div class="font-medium">{{ member.nickname }}</div>
+                <div class="text-xs text-gray-500">{{ member.role === 1 ? '创建者' : '成员' }}</div>
               </div>
-              <div class="text-[#FFC107] font-semibold">1,350</div>
+              <div class="font-semibold" :class="{'text-[#FF6B35]': index === 0, 'text-[#FF9500]': index === 1, 'text-[#FFC107]': index === 2, 'text-gray-600': index > 2}">{{ member.total_points || 0 }}</div>
             </div>
           </div>
         </div>
@@ -1036,6 +1000,7 @@ import {
   createTeam,
   inviteMember,
   getTeamMembers,
+  getTeamActivities,
 } from "@/api/modules/team";
 import { useCurrentUser } from "@/composables/useCurrentUser";
 
@@ -1075,6 +1040,7 @@ export default {
       inviteAccount: "",
       showMembersModal: false,
       teamMembers: [],
+      teamActivities: [],
       loadingMembers: false,
       detailLoadingMap: {},
       ownedTeams: [],
@@ -1286,7 +1252,42 @@ export default {
         this.initChart();
         this.loadTasks();
         this.loadOwnedTeams();
+        this.fetchTeamMembers();
+        this.fetchTeamActivities();
       });
+    },
+    async fetchTeamMembers() {
+      if (!this.selectedTeam) return;
+      try {
+        const res = await getTeamMembers(this.selectedTeam.id);
+        this.teamMembers = res.data || [];
+        // Sort by points for ranking
+        this.teamMembers.sort((a, b) => (b.total_points || 0) - (a.total_points || 0));
+      } catch (error) {
+        console.error("Failed to fetch team members:", error);
+      }
+    },
+    async fetchTeamActivities() {
+      if (!this.selectedTeam) return;
+      try {
+        const res = await getTeamActivities(this.selectedTeam.id);
+        this.teamActivities = res.data || [];
+      } catch (error) {
+        console.error("Failed to fetch team activities:", error);
+      }
+    },
+    formatTimeAgo(dateString) {
+      if (!dateString) return "";
+      const date = new Date(dateString);
+      const now = new Date();
+      const diff = now - date;
+      const minutes = Math.floor(diff / 60000);
+      if (minutes < 1) return "刚刚";
+      if (minutes < 60) return `${minutes}分钟前`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}小时前`;
+      const days = Math.floor(hours / 24);
+      return `${days}天前`;
     },
     isCreatedByCurrentUser(task) {
       if (!task || !this.currentUserId) return false;
