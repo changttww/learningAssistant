@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -459,15 +460,35 @@ func getLearningTrends(c *gin.Context) {
 		return
 	}
 
-	report, err := aiAnalysisService.AnalyzeUserKnowledge(userID.(uint64))
-	if err != nil {
+	// range: 30 | 90 | year
+	rangeKey := strings.TrimSpace(c.DefaultQuery("range", "30"))
+	now := time.Now()
+	from := now.AddDate(0, 0, -29)
+	granularity := rag.TrendGranularityDay
+	if rangeKey == "90" {
+		from = now.AddDate(0, 0, -89)
+		granularity = rag.TrendGranularityWeek
+	} else if rangeKey == "year" {
+		y := now.Year()
+		from = time.Date(y, 1, 1, 0, 0, 0, 0, now.Location())
+		// 到本月月底不需要，直接到今天；展示时仍是 12 个月桶（后端会补零到当前月）
+		granularity = rag.TrendGranularityMonth
+	}
+
+	// 这里不走 AnalyzeUserKnowledge，避免为趋势多做一次全量分析
+	db := database.GetDB()
+	var entries []models.KnowledgeBaseEntry
+	if err := db.Where("user_id = ? AND status = 1 AND created_at >= ? AND created_at <= ?", userID.(uint64), from, now).
+		Find(&entries).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
+	trends := aiAnalysisService.AnalyzeUserLearningTrendsRange(userID.(uint64), entries, from, now, granularity)
+
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
-		"data": report.LearningTrends,
+		"data": trends,
 	})
 }
 
