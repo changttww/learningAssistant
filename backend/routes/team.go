@@ -511,7 +511,7 @@ func listTeamActivities(c *gin.Context) {
 
 	// Fetch recent tasks for the team
 	db := database.GetDB()
-	if err := db.Where("owner_team_id = ?", teamID).Order("updated_at desc").Limit(10).Find(&tasks).Error; err != nil {
+	if err := db.Where("owner_team_id = ?", teamID).Order("updated_at desc").Limit(20).Find(&tasks).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch team activities"})
 		return
 	}

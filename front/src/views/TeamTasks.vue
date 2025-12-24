@@ -779,14 +779,20 @@
         <div class="card surface-card">
           <div class="flex justify-between items-center">
             <h3 class="section-title">团队动态</h3>
-            <span class="text-xs text-blue-600">更多</span>
+            <span 
+              v-if="teamActivities.length > 5" 
+              class="text-xs text-blue-600 cursor-pointer hover:text-blue-800 select-none" 
+              @click="showAllActivities = !showAllActivities"
+            >
+              {{ showAllActivities ? '收起' : '更多' }}
+            </span>
           </div>
 
           <div class="mt-4 space-y-3">
             <div v-if="teamActivities.length === 0" class="text-center text-gray-500 py-4">
               暂无动态
             </div>
-            <div v-for="(activity, index) in teamActivities" :key="index" class="flex items-start">
+            <div v-for="(activity, index) in displayedActivities" :key="index" class="flex items-start">
               <div class="relative">
                 <img v-if="activity.user_avatar" :src="activity.user_avatar" class="w-10 h-10 rounded-full object-cover" />
                 <div v-else class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-blue-600 font-bold">
@@ -1041,6 +1047,7 @@ export default {
       showMembersModal: false,
       teamMembers: [],
       teamActivities: [],
+      showAllActivities: false,
       loadingMembers: false,
       detailLoadingMap: {},
       ownedTeams: [],
@@ -1105,6 +1112,12 @@ export default {
         profile?.basic_info?.user_id ||
         null
       );
+    },
+    displayedActivities() {
+      if (this.showAllActivities) {
+        return this.teamActivities;
+      }
+      return this.teamActivities.slice(0, 5);
     },
   },
   mounted() {
