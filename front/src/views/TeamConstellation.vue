@@ -175,10 +175,6 @@ const mainStars = computed(() => {
     return dateA - dateB;
   });
 
-  // 确保布局更新后再映射，避免越界（虽然 updateLayout 是同步的）
-  if (currentLayout.value.length !== sortedSource.length) {
-    updateLayout();
-  }
   return currentLayout.value.map((layout, index) => ({
     ...layout,
     task: sortedSource[index] || null,
@@ -383,7 +379,11 @@ const handleBackClick = () => {
     closeDetail();
     return;
   }
-  const teamId = route.query.teamId;
+  let teamId = route.query.teamId;
+  if (!teamId) {
+    teamId = sessionStorage.getItem('constellation_team_id');
+  }
+  
   if (teamId) {
     router.push({
       name: 'TeamTasks',
@@ -391,6 +391,12 @@ const handleBackClick = () => {
     });
   } else {
     router.push({ name: 'TeamTasks' });
+  }
+};
+
+const handleKeydown = (e) => {
+  if (e.key === 'Escape') {
+    handleBackClick();
   }
 };
 
@@ -528,6 +534,10 @@ const initParticles = () => {
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 onMounted(() => {
+  if (route.query.teamId) {
+    sessionStorage.setItem('constellation_team_id', route.query.teamId);
+  }
+  window.addEventListener('keydown', handleKeydown);
   updateLayout();
   loadTasks();
   initParticles();
@@ -538,6 +548,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeydown);
   if (particleAnimationId) cancelFrame(particleAnimationId);
   if (resizeHandler && runtimeWindow) runtimeWindow.removeEventListener('resize', resizeHandler);
   if (pointerIdleTimer) clearTimeout(pointerIdleTimer);

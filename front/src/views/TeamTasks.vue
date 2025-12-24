@@ -454,11 +454,24 @@
                       class="flex items-center gap-2"
                     >
                       <input
-                        v-model="newTaskForm.subtasks[index]"
+                        v-model="subtask.title"
                         type="text"
                         class="flex-1 p-2 border rounded"
                         placeholder="子任务标题"
                       />
+                      <select
+                        v-model="subtask.owner_user_id"
+                        class="w-32 p-2 border rounded text-sm"
+                      >
+                        <option value="">未分配</option>
+                        <option
+                          v-for="member in createTaskTeamMembers"
+                          :key="member.user_id"
+                          :value="member.user_id"
+                        >
+                          {{ member.nickname || member.account }}
+                        </option>
+                      </select>
                       <button
                         type="button"
                         class="text-xs text-gray-500 hover:text-red-500"
@@ -600,12 +613,40 @@
                     <li
                       v-for="sub in getTaskDetail(task).subtasks"
                       :key="sub.id"
-                      class="flex items-center justify-between text-sm"
+                      class="flex items-center justify-between text-sm p-1 hover:bg-gray-50 rounded"
                     >
-                      <span>{{ sub.title }}</span>
-                      <span class="text-xs text-gray-500">{{
-                        sub.status
-                      }}</span>
+                      <div class="flex items-center gap-2">
+                        <iconify-icon
+                          :icon="
+                            sub.status === 'completed'
+                              ? 'mdi:checkbox-marked-circle'
+                              : 'mdi:checkbox-blank-circle-outline'
+                          "
+                          :class="
+                            sub.status === 'completed'
+                              ? 'text-green-500'
+                              : 'text-gray-400'
+                          "
+                        ></iconify-icon>
+                        <span
+                          :class="{
+                            'line-through text-gray-400':
+                              sub.status === 'completed',
+                          }"
+                          >{{ sub.title }}</span
+                        >
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span
+                          class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full"
+                          v-if="sub.owner_name"
+                        >
+                          {{ sub.owner_name }}
+                        </span>
+                        <span class="text-xs text-gray-500">{{
+                          sub.status
+                        }}</span>
+                      </div>
                     </li>
                   </ul>
                   <p v-else class="text-xs text-gray-400">暂无子任务</p>
@@ -627,7 +668,7 @@
                       class="bg-gray-50 p-2 rounded"
                     >
                       <div class="flex items-center justify-between mb-1">
-                        <span class="font-medium text-xs text-blue-600">{{ comment.user_id === currentUserId ? '我' : `用户 ${comment.user_id}` }}</span>
+                        <span class="font-medium text-xs text-blue-600">{{ comment.user_id === currentUserId ? '我' : (comment.display_name || `用户 ${comment.user_id}`) }}</span>
                         <span class="text-xs text-gray-400">{{
                           formatDate(comment.created_at)
                         }}</span>
@@ -1038,13 +1079,14 @@ export default {
       detailLoadingMap: {},
       ownedTeams: [],
       ownedTeamsLoading: false,
+      createTaskTeamMembers: [],
       newTaskForm: {
         title: "",
         description: "",
         due_date: "",
         effort_points: 0,
         owner_team_id: "",
-        subtasks: [""],
+        subtasks: [{ title: "", owner_user_id: "" }],
       },
       allTeams: [],
       selectedTeam: null,
@@ -1071,6 +1113,15 @@ export default {
           cancelAnimationFrame(this.animationFrameId);
         }
       }
+    },
+    "newTaskForm.owner_team_id": {
+      handler(newVal) {
+        if (newVal) {
+          this.loadCreateTaskTeamMembers(newVal);
+        } else {
+          this.createTaskTeamMembers = [];
+        }
+      },
     },
   },
   computed: {
@@ -1119,6 +1170,15 @@ export default {
         month: "long",
         day: "numeric",
       });
+    },
+    async loadCreateTaskTeamMembers(teamId) {
+      try {
+        const res = await getTeamMembers(teamId);
+        this.createTaskTeamMembers = res.data || [];
+      } catch (error) {
+        console.error("获取团队成员失败", error);
+        this.createTaskTeamMembers = [];
+      }
     },
     async loadAllTeams() {
       this.loadingTeams = true;
@@ -1263,22 +1323,27 @@ export default {
       this.newTaskForm.due_date = "";
       this.newTaskForm.effort_points = 0;
       this.newTaskForm.owner_team_id = "";
-      this.newTaskForm.subtasks = [""];
+      this.newTaskForm.subtasks = [{ title: "", owner_user_id: "" }];
     },
     addSubtaskField() {
-      this.newTaskForm.subtasks.push("");
+      this.newTaskForm.subtasks.push({ title: "", owner_user_id: "" });
     },
     removeSubtaskField(index) {
       if (this.newTaskForm.subtasks.length === 1) {
-        this.newTaskForm.subtasks.splice(0, 1, "");
+        this.newTaskForm.subtasks.splice(0, 1, { title: "", owner_user_id: "" });
         return;
       }
       this.newTaskForm.subtasks.splice(index, 1);
     },
     normalizeNewTaskSubtasks() {
       return this.newTaskForm.subtasks
-        .map((item) => (item || "").trim())
-        .filter((item) => item.length > 0);
+        .filter((item) => item.title && item.title.trim().length > 0)
+        .map((item) => ({
+          title: item.title.trim(),
+          owner_user_id: item.owner_user_id
+            ? Number(item.owner_user_id)
+            : null,
+        }));
     },
     goToConstellation() {
       if (this.selectedTeam) {
@@ -1426,10 +1491,17 @@ export default {
         status,
         status_label: raw?.status_label || "",
         progress,
-        subtasks: this.parseSubtaskPayload(
-          raw?.subtasks,
-          raw?.id ?? Date.now()
-        ),
+        subtasks:
+          raw?.children && Array.isArray(raw.children) && raw.children.length > 0
+            ? raw.children.map((child) => ({
+                id: child.id,
+                title: child.title,
+                status: this.normalizeStatus(child.status),
+                owner_name:
+                  child.owner_name ||
+                  (child.owner_user_id ? `用户 ${child.owner_user_id}` : "未分配"),
+              }))
+            : this.parseSubtaskPayload(raw?.subtasks, raw?.id ?? Date.now()),
       };
     },
     normalizeStatus(status) {
@@ -1487,7 +1559,26 @@ export default {
     normalizeTaskDetail(raw, fallbackTask) {
       const base = raw || {};
       const taskId = fallbackTask?.id || base?.id || Date.now();
-      const subtasksSource = base.subtasks ?? fallbackTask?.subtasks;
+
+      let subtasks = [];
+      if (
+        base.children &&
+        Array.isArray(base.children) &&
+        base.children.length > 0
+      ) {
+        subtasks = base.children.map((child) => ({
+          id: child.id,
+          title: child.title,
+          status: this.normalizeStatus(child.status),
+          owner_name:
+            child.owner_name ||
+            (child.owner_user_id ? `用户 ${child.owner_user_id}` : "未分配"),
+        }));
+      } else {
+        const subtasksSource = base.subtasks ?? fallbackTask?.subtasks;
+        subtasks = this.parseSubtaskPayload(subtasksSource, taskId);
+      }
+
       let attachments = [];
       if (Array.isArray(base.attachments)) attachments = base.attachments;
       else if (Array.isArray(fallbackTask?.attachments))
@@ -1497,7 +1588,7 @@ export default {
       else if (Array.isArray(fallbackTask?.comments))
         comments = fallbackTask.comments;
       return {
-        subtasks: this.parseSubtaskPayload(subtasksSource, taskId),
+        subtasks,
         attachments,
         comments,
       };

@@ -24,6 +24,7 @@ type Task struct {
 	CreatedBy       uint64         `json:"created_by"`
 	OwnerUserID     *uint64        `json:"owner_user_id"`
 	OwnerTeamID     *uint64        `json:"owner_team_id"`
+	OwnerTeam       *Team          `gorm:"foreignKey:OwnerTeamID" json:"owner_team,omitempty"`
 	Status          int8           `gorm:"type:tinyint;default:0" json:"status"`
 	Priority        int8           `gorm:"type:tinyint;default:0" json:"priority"`
 	StartAt         *time.Time     `gorm:"precision:3" json:"start_at"`
@@ -32,6 +33,9 @@ type Task struct {
 	EstimateMinutes *int           `json:"estimate_minutes"`
 	EffortPoints    int            `gorm:"default:0" json:"effort_points"`
 	Progress        int8           `gorm:"default:0" json:"progress"`
+	SortOrder       int            `gorm:"default:0" json:"sort_order"`
+	ParentID        *uint64        `json:"parent_id"`
+	Children        []Task         `gorm:"foreignKey:ParentID" json:"children,omitempty"`
 	Subtasks        datatypes.JSON `gorm:"type:json" json:"subtasks"`
 	Comments        datatypes.JSON `gorm:"type:json" json:"comments"`
 }
