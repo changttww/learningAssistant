@@ -93,7 +93,7 @@
               <div class="flex items-start justify-between gap-3">
                 <div>
                   <p class="font-semibold text-gray-800">{{ task.title }}</p>
-                  <p class="text-xs text-gray-500 mt-1">所属团队ID：{{ task.teamId || '未关联团队' }}</p>
+                  <p class="text-xs text-gray-500 mt-1">所属团队：{{ task.teamName || task.teamId || '未关联团队' }}</p>
                 </div>
                 <span :class="['px-2 py-0.5 rounded-full text-xs font-semibold', getTeamTaskBadgeClass(task.status)]">
                   {{ getTeamTaskStatusLabel(task.status) }}
@@ -1950,6 +1950,9 @@ const newTask = ref({
   category: "",
 });
 const teamTasks = ref([]);
+const allTasks = computed(() => {
+  return [...tasks.value, ...teamTasks.value];
+});
 const teamTasksLoading = ref(false);
 const teamTasksError = ref("");
 const TEAM_TASK_PREVIEW_LIMIT = 4;
@@ -2084,7 +2087,7 @@ const loadTeamTasks = async () => {
   teamTasksLoading.value = true;
   teamTasksError.value = "";
   try {
-    const response = await getTeamTasks();
+    const response = await getTeamTasks({ assigned_to_me: true });
     let rawList = [];
     if (Array.isArray(response?.data)) {
       rawList = response.data;
@@ -2100,9 +2103,17 @@ const loadTeamTasks = async () => {
         title: task.title,
         description: task.description,
         teamId: task.owner_team_id,
+        teamName: task.owner_team_name,
         dueDate: formatISODate(task.due_at || task.due_date),
         status: normalizeTeamTaskStatus(task.status),
         progress: calcTeamTaskProgress(task),
+        // Calendar fields
+        date: formatISODate(task.start_at || task.created_at),
+        startDate: formatISODate(task.start_at || task.created_at),
+        endDate: formatISODate(task.due_at || task.due_date),
+        time: task.start_at ? new Date(task.start_at).toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'}) : "全天",
+        category: "团队任务",
+        isTeamTask: true,
       }));
   } catch (error) {
     console.error("加载团队任务失败:", error);
@@ -2149,7 +2160,7 @@ const calendarDates = computed(() => {
 
     const dateString = formatLocalDate(date);
     // 修改：任务在其持续周期内的所有日期都显示
-    const dateTasks = tasks.value.filter((t) => {
+    const dateTasks = allTasks.value.filter((t) => {
       const taskStart = t.startDate || t.date;
       const taskEnd = t.endDate || t.date;
       return dateString >= taskStart && dateString <= taskEnd;
@@ -2175,7 +2186,7 @@ const selectedDateTasks = computed(() => {
   if (!selectedDate.value) return [];
   const dateStr = formatLocalDate(selectedDate.value);
   // 修改：显示在任务持续周期内的所有任务
-  return tasks.value.filter((task) => {
+  return allTasks.value.filter((task) => {
     const taskStart = task.startDate || task.date;
     const taskEnd = task.endDate || task.date;
     return dateStr >= taskStart && dateStr <= taskEnd;
@@ -2189,7 +2200,7 @@ const filteredTasksByStatus = computed(() => {
   today.setHours(0, 0, 0, 0);
   const todayStr = formatLocalDate(today);
   
-  return tasks.value.filter((task) => {
+  return allTasks.value.filter((task) => {
     const taskStartDate = task.startDate || task.date;
     const taskEndDate = task.endDate || task.date;
     
@@ -2212,7 +2223,7 @@ const stats = computed(() => {
   today.setHours(0, 0, 0, 0);
   const todayStr = formatLocalDate(today);
   
-  const total = tasks.value.length;
+  const total = allTasks.value.length;
   
   // 使用动态计算的实际状态进行统计
   let completed = 0;
@@ -2220,7 +2231,7 @@ const stats = computed(() => {
   let pending = 0;
   let overdue = 0;
   
-  tasks.value.forEach((task) => {
+  allTasks.value.forEach((task) => {
     const taskStartDate = task.startDate || task.date;
     const taskEndDate = task.endDate || task.date;
     

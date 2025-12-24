@@ -16,20 +16,26 @@ import (
 	"learningAssistant-backend/models"
 )
 
+// CreateSubtaskRequest 创建子任务请求结构
+type CreateSubtaskRequest struct {
+	Title       string  `json:"title"`
+	OwnerUserID *uint64 `json:"owner_user_id"`
+}
+
 // CreateTaskRequest 创建任务请求结构
 type CreateTaskRequest struct {
-	Title           string     `json:"title" binding:"required"`
-	Description     string     `json:"description"`
-	TaskType        int8       `json:"task_type" binding:"required"`
-	CategoryID      *uint64    `json:"category_id"`
-	Priority        int8       `json:"priority"`
-	StartAt         *time.Time `json:"start_at"`
-	DueAt           *time.Time `json:"due_at"`
-	EstimateMinutes *int       `json:"estimate_minutes"`
-	EffortPoints    int        `json:"effort_points"`
-	Progress        int8       `json:"progress"`
-	OwnerTeamID     *uint64    `json:"owner_team_id"`
-	Subtasks        []string   `json:"subtasks"`
+	Title           string                 `json:"title" binding:"required"`
+	Description     string                 `json:"description"`
+	TaskType        int8                   `json:"task_type" binding:"required"`
+	CategoryID      *uint64                `json:"category_id"`
+	Priority        int8                   `json:"priority"`
+	StartAt         *time.Time             `json:"start_at"`
+	DueAt           *time.Time             `json:"due_at"`
+	EstimateMinutes *int                   `json:"estimate_minutes"`
+	EffortPoints    int                    `json:"effort_points"`
+	Progress        int8                   `json:"progress"`
+	OwnerTeamID     *uint64                `json:"owner_team_id"`
+	Subtasks        []CreateSubtaskRequest `json:"subtasks"`
 }
 
 // UpdateTaskRequest 更新任务请求结构
@@ -59,6 +65,7 @@ type TaskResponse struct {
 	CreatedBy       uint64                `json:"created_by"`
 	OwnerUserID     *uint64               `json:"owner_user_id"`
 	OwnerTeamID     *uint64               `json:"owner_team_id"`
+	OwnerTeamName   string                `json:"owner_team_name,omitempty"`
 	Status          int8                  `json:"status"`
 	Priority        int8                  `json:"priority"`
 	StartAt         *time.Time            `json:"start_at"`
@@ -70,14 +77,16 @@ type TaskResponse struct {
 	CreatedAt       time.Time             `json:"created_at"`
 	UpdatedAt       time.Time             `json:"updated_at"`
 	Subtasks        []string              `json:"subtasks"`
+	Children        []TaskResponse        `json:"children,omitempty"`
 	Comments        []TaskComment         `json:"comments"`
 }
 
 // TaskComment 任务评论结构
 type TaskComment struct {
-	Content   string    `json:"content"`
-	UserID    uint64    `json:"user_id"`
-	CreatedAt time.Time `json:"created_at"`
+	Content     string    `json:"content"`
+	UserID      uint64    `json:"user_id"`
+	DisplayName string    `json:"display_name,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // AddTaskCommentRequest 添加任务评论请求结构
@@ -151,12 +160,19 @@ func createTask(c *gin.Context) {
 	}
 
 	task.OwnerTeamID = req.OwnerTeamID
-	if encoded := encodeSubtasksPayload(req.Subtasks); encoded != nil {
-		task.Subtasks = encoded
-	}
+	// Subtasks are now handled as child tasks, but we can keep the JSON field for backward compatibility or simple items if needed.
+	// For now, we won't populate the JSON Subtasks field from the new object structure to avoid confusion.
+	// if encoded := encodeSubtasksPayload(req.Subtasks); encoded != nil {
+	// 	task.Subtasks = encoded
+	// }
 
-	// 如果是个人任务或团队任务，设置所有者为当前用户
-	if req.TaskType == 1 || req.TaskType == 2 {
+	// 如果是个人任务，设置所有者为当前用户
+	if req.TaskType == 1 {
+		userIDValue := userID.(uint64)
+		task.OwnerUserID = &userIDValue
+	}
+	// 如果是团队任务，OwnerUserID 默认为创建者，除非另有指定（这里暂不处理）
+	if req.TaskType == 2 {
 		userIDValue := userID.(uint64)
 		task.OwnerUserID = &userIDValue
 	}
@@ -166,9 +182,69 @@ func createTask(c *gin.Context) {
 		return
 	}
 
-	// 加载分类信息
+	// 创建子任务
+	if len(req.Subtasks) > 0 {
+		for i, sub := range req.Subtasks {
+			if sub.Title == "" {
+				continue
+			}
+			subTask := models.Task{
+				Title:        sub.Title,
+				TaskType:     2, // 子任务也是团队任务类型
+				CreatedBy:    userID.(uint64),
+				OwnerTeamID:  task.OwnerTeamID,
+				OwnerUserID:  sub.OwnerUserID,
+				ParentID:     &task.ID,
+				Status:       0,
+				EffortPoints: 0, // 默认
+				SortOrder:    i + 1,
+			}
+			database.GetDB().Create(&subTask)
+		}
+	}
+
+	// 加载分类信息和子任务
 	var taskWithCategory models.Task
-	database.GetDB().Preload("Category").First(&taskWithCategory, task.ID)
+	database.GetDB().Preload("Category").Preload("Children", func(db *gorm.DB) *gorm.DB {
+		return db.Order("sort_order asc")
+	}).First(&taskWithCategory, task.ID)
+
+	// 如果是团队任务，通知团队成员
+	if task.TaskType == 2 && task.OwnerTeamID != nil {
+		var members []models.TeamMember
+		// 获取团队成员，排除创建者自己
+		if err := database.GetDB().Where("team_id = ? AND user_id != ?", *task.OwnerTeamID, task.CreatedBy).Find(&members).Error; err == nil {
+			var notifications []models.Notification
+			// 简单的 JSON 构造，注意转义
+			// 为了安全起见，这里只包含基本信息。如果 Title 包含特殊字符可能会破坏 JSON 结构，
+			// 但为了保持简单且不引入额外结构体，这里假设 Title 是安全的或者使用 fmt.Sprintf 简单处理。
+			// 更严谨的做法是定义一个结构体然后 json.Marshal，但这里为了最小化改动直接拼接字符串。
+			// 考虑到 Title 可能包含双引号，最好还是用 json.Marshal，但我不想引入额外的临时结构体定义。
+			// 让我们用 map[string]interface{} 然后 marshal。
+			relatedDataMap := map[string]interface{}{
+				"team_id":    *task.OwnerTeamID,
+				"task_title": task.Title,
+			}
+			relatedDataBytes, _ := json.Marshal(relatedDataMap)
+			relatedData := string(relatedDataBytes)
+
+			for _, member := range members {
+				notifications = append(notifications, models.Notification{
+					UserID:      member.UserID,
+					Title:       "新团队任务: " + task.Title,
+					Content:     "您的团队发布了新的任务，请查看详情。",
+					Type:        "TEAM_TASK",
+					RelatedID:   task.ID,
+					RelatedData: relatedData,
+					IsRead:      false,
+				})
+			}
+
+			if len(notifications) > 0 {
+				database.GetDB().Create(&notifications)
+			}
+		}
+	}
 
 	response := convertTaskToResponse(taskWithCategory)
 	c.JSON(http.StatusCreated, gin.H{
@@ -220,8 +296,9 @@ func getPersonalTasks(c *gin.Context) {
 	var tasks []models.Task
 	db := database.GetDB().Preload("Category")
 
-	// 只获取个人任务 (task_type = 1)
-	db = db.Where("task_type = ? AND (created_by = ? OR owner_user_id = ?)", 1, userID.(uint64), userID.(uint64))
+	// 获取个人任务 (task_type = 1) 或 分配给该用户的团队任务 (task_type = 2 且 owner_user_id = userID)
+	db = db.Where("(task_type = ? AND (created_by = ? OR owner_user_id = ?)) OR (task_type = ? AND owner_user_id = ?)",
+		1, userID.(uint64), userID.(uint64), 2, userID.(uint64))
 
 	// 支持状态过滤
 	if status := c.Query("status"); status != "" {
@@ -275,7 +352,7 @@ func getTeamTasks(c *gin.Context) {
 	}
 
 	var tasks []models.Task
-	db := database.GetDB().Preload("Category")
+	db := database.GetDB().Preload("Category").Preload("Children").Preload("OwnerTeam")
 
 	// 获取团队任务 (task_type = 2) - 这里需要根据用户的团队关系进行查询
 	// 暂时简单实现为创建者或所有者是当前用户的团队任务
@@ -289,14 +366,43 @@ func getTeamTasks(c *gin.Context) {
 		}
 	}
 
+	// 支持只查询指派给我的任务
+	if c.Query("assigned_to_me") == "true" {
+		db = db.Where("owner_user_id = ?", userID.(uint64))
+	}
+
 	if err := db.Find(&tasks).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取团队任务失败"})
 		return
 	}
 
+	// 获取相关的团队名称
+	teamIDs := make([]uint64, 0)
+	for _, task := range tasks {
+		if task.OwnerTeamID != nil {
+			teamIDs = append(teamIDs, *task.OwnerTeamID)
+		}
+	}
+
+	teamNameMap := make(map[uint64]string)
+	if len(teamIDs) > 0 {
+		var teams []models.Team
+		if err := database.GetDB().Where("id IN ?", teamIDs).Find(&teams).Error; err == nil {
+			for _, team := range teams {
+				teamNameMap[team.ID] = team.Name
+			}
+		}
+	}
+
 	var responses []TaskResponse
 	for _, task := range tasks {
-		responses = append(responses, convertTaskToResponse(task))
+		resp := convertTaskToResponse(task)
+		if task.OwnerTeamID != nil {
+			if name, ok := teamNameMap[*task.OwnerTeamID]; ok {
+				resp.OwnerTeamName = name
+			}
+		}
+		responses = append(responses, resp)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -321,7 +427,9 @@ func getTaskDetail(c *gin.Context) {
 	}
 
 	var task models.Task
-	db := database.GetDB().Preload("Category")
+	db := database.GetDB().Preload("Category").Preload("OwnerTeam").Preload("Children", func(db *gorm.DB) *gorm.DB {
+		return db.Order("sort_order asc")
+	})
 
 	// 确保用户只能访问自己相关的任务（个人任务或团队任务）
 	// 权限逻辑：
@@ -811,6 +919,13 @@ func addComment(c *gin.Context) {
 		UserID:    userID.(uint64),
 		CreatedAt: time.Now(),
 	}
+
+	// 获取当前用户昵称
+	var currentUser models.User
+	if err := database.GetDB().First(&currentUser, userID.(uint64)).Error; err == nil {
+		newComment.DisplayName = currentUser.DisplayName
+	}
+
 	comments = append(comments, newComment)
 
 	// 保存回数据库
@@ -855,8 +970,34 @@ func convertTaskToResponse(task models.Task) TaskResponse {
 		UpdatedAt:       task.UpdatedAt,
 	}
 
+	if task.OwnerTeam != nil {
+		response.OwnerTeamName = task.OwnerTeam.Name
+	}
+
 	response.Subtasks = decodeSubtasksPayload(task.Subtasks)
 	response.Comments = decodeCommentsPayload(task.Comments)
+
+	// 填充评论者昵称
+	if len(response.Comments) > 0 {
+		userIDs := make([]uint64, 0, len(response.Comments))
+		for _, comment := range response.Comments {
+			userIDs = append(userIDs, comment.UserID)
+		}
+
+		var users []models.User
+		if err := database.GetDB().Where("id IN ?", userIDs).Find(&users).Error; err == nil {
+			userMap := make(map[uint64]string)
+			for _, u := range users {
+				userMap[u.ID] = u.DisplayName
+			}
+
+			for i := range response.Comments {
+				if name, ok := userMap[response.Comments[i].UserID]; ok {
+					response.Comments[i].DisplayName = name
+				}
+			}
+		}
+	}
 
 	// 如果有分类信息，添加到响应中
 	if task.Category != nil {
@@ -865,6 +1006,15 @@ func convertTaskToResponse(task models.Task) TaskResponse {
 			Name:  task.Category.Name,
 			Color: task.Category.Color,
 		}
+	}
+
+	// 处理子任务
+	if len(task.Children) > 0 {
+		children := make([]TaskResponse, 0, len(task.Children))
+		for _, child := range task.Children {
+			children = append(children, convertTaskToResponse(child))
+		}
+		response.Children = children
 	}
 
 	return response
