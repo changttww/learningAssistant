@@ -1521,9 +1521,18 @@ export default {
         const res = await getTeamTasks(params);
         const items = res?.data?.items || res?.data || res;
         if (Array.isArray(items) && items.length) {
-          // 过滤掉子任务，只保留主任务（parent_id 为 null 或 0 的任务）
-          const mainTasks = items.filter(item => !item.parent_id);
-          this.tasks = mainTasks.map((item) => this.normalizeFetchedTask(item));
+          // 过滤逻辑：
+          // 1. 主任务（parent_id 为空）：对所有成员展示
+          // 2. 子任务（parent_id 不为空）：仅对 owner_user_id 为当前用户的展示
+          const visibleTasks = items.filter(item => {
+            const isMainTask = !item.parent_id;
+            if (isMainTask) return true;
+            
+            // 子任务：检查是否为当前用户所有
+            return String(item.owner_user_id) === String(this.currentUserId);
+          });
+
+          this.tasks = visibleTasks.map((item) => this.normalizeFetchedTask(item));
         } else {
           this.tasks = [];
         }
