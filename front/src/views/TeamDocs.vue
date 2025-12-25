@@ -134,6 +134,7 @@
           <input
             v-model="currentDoc.title"
             @input="autoSave"
+            @keydown.enter.prevent="focusEditor"
             type="text"
             placeholder="请输入文档标题"
             class="w-full text-3xl font-bold text-gray-800 placeholder-gray-300 border-none outline-none bg-transparent"
@@ -185,8 +186,8 @@
         </div>
 
         <!-- 编辑区域 -->
-        <div class="flex-1 overflow-y-auto px-8 py-6">
-          <editor-content :editor="editor" class="prose prose-blue max-w-none focus:outline-none min-h-[500px]" />
+        <div class="flex-1 overflow-y-auto">
+          <editor-content :editor="editor" />
         </div>
       </div>
 
@@ -255,11 +256,15 @@ export default {
     this.editor = useEditor({
       content: '',
       extensions: [
-        StarterKit,
+        StarterKit.configure({
+          heading: {
+            levels: [1, 2, 3],
+          },
+        }),
       ],
       editorProps: {
         attributes: {
-          class: 'focus:outline-none',
+          class: 'prose prose-blue max-w-none focus:outline-none min-h-[500px] px-8 py-6',
         },
       },
       onUpdate: ({ editor }) => {
@@ -281,6 +286,11 @@ export default {
     }
   },
   methods: {
+    focusEditor() {
+      if (this.editor) {
+        this.editor.chain().focus().run();
+      }
+    },
     updateOutline() {
       if (!this.editor) return;
       const headings = [];
@@ -408,6 +418,9 @@ export default {
 /* Prose Mirror 样式覆盖 */
 :deep(.ProseMirror) {
   min-height: 300px;
+}
+:deep(.ProseMirror p) {
+  margin-bottom: 1em;
 }
 :deep(.ProseMirror p.is-editor-empty:first-child::before) {
   color: #adb5bd;
