@@ -895,6 +895,7 @@
             </button>
             <button
               class="py-3 bg-purple-50 hover:bg-purple-100 rounded-lg flex flex-col items-center justify-center transition-colors"
+              @click="openTeamReports"
             >
               <iconify-icon
                 icon="mdi:chart-pie"
@@ -1298,6 +1299,21 @@ export default {
       }
       this.$router.push({
         name: "TeamCalendar",
+        params: { teamId: this.selectedTeam.id },
+      });
+    },
+    openTeamReports() {
+      if (!this.selectedTeam?.id) {
+        alert("请先选择一个团队");
+        return;
+      }
+      try {
+        sessionStorage.setItem("currentTeamId", String(this.selectedTeam.id));
+      } catch (e) {
+        // ignore
+      }
+      this.$router.push({
+        name: "TeamReports",
         params: { teamId: this.selectedTeam.id },
       });
     },

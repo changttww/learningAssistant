@@ -13,6 +13,7 @@ import TeamConstellation from "./views/TeamConstellation.vue";
 import TeamMeetingRoom from "./views/TeamMeetingRoom.vue";
 import TeamCalendar from "./views/TeamCalendar.vue";
 import TeamDocs from "./views/TeamDocs.vue";
+import TeamReports from "./views/TeamReports.vue";
 import StudyRoom from "./views/StudyRoom.vue";
 import VideoRoom from "./views/VideoRoom.vue";
 import Profile from "./views/Profile.vue";
@@ -69,6 +70,12 @@ const routes = [
     name: "TeamDocs",
     component: TeamDocs,
     meta: { title: "协作文档", requiresAuth: true, permissions: ["team:view"] },
+  },
+  {
+    path: "/team-tasks/reports/:teamId",
+    name: "TeamReports",
+    component: TeamReports,
+    meta: { title: "数据报告", requiresAuth: true, permissions: ["team:view"] },
   },
   {
     path: "/study-room",
