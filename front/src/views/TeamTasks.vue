@@ -1317,6 +1317,29 @@ export default {
         this.teamMembers = res.data || [];
         // Sort by points for ranking
         this.teamMembers.sort((a, b) => (b.total_points || 0) - (a.total_points || 0));
+
+        // Update task owner names if they are just IDs
+        if (this.tasks && this.tasks.length > 0) {
+          this.tasks.forEach(task => {
+            if (task.owner_user_id) {
+              const member = this.teamMembers.find(m => String(m.user_id) === String(task.owner_user_id));
+              if (member && member.nickname) {
+                task.owner_name = member.nickname;
+              }
+            }
+            // Update subtasks
+            if (task.subtasks && task.subtasks.length) {
+              task.subtasks.forEach(sub => {
+                if (sub.owner_user_id) {
+                  const member = this.teamMembers.find(m => String(m.user_id) === String(sub.owner_user_id));
+                  if (member && member.nickname) {
+                    sub.owner_name = member.nickname;
+                  }
+                }
+              });
+            }
+          });
+        }
       } catch (error) {
         console.error("Failed to fetch team members:", error);
       }
@@ -1527,8 +1550,14 @@ export default {
             const p = this.currentUserProfile;
             ownerName = p?.name || p?.username || p?.basic_info?.name || "我";
           } else {
-            // 如果没有名字，显示用户ID
-            ownerName = `用户 ${userId}`;
+            // 尝试从团队成员列表中查找
+            const member = this.teamMembers.find(m => String(m.user_id) === String(userId));
+            if (member && member.nickname) {
+              ownerName = member.nickname;
+            } else {
+              // 如果没有名字，显示用户ID
+              ownerName = `用户 ${userId}`;
+            }
           }
         }
       }
@@ -1544,6 +1573,7 @@ export default {
         title: raw?.title || raw?.name || "未命名任务",
         description: raw?.description || "",
         owner_name: ownerName || "未知",
+        owner_user_id: raw?.owner_user_id || raw?.created_by,
         owner_team_id: raw?.owner_team_id ?? null,
         created_by: raw?.created_by ?? null,
         due_date:
@@ -1556,14 +1586,20 @@ export default {
         progress,
         subtasks:
           effectiveSubtasks && Array.isArray(effectiveSubtasks) && effectiveSubtasks.length > 0
-            ? effectiveSubtasks.map((child) => ({
-                id: child.id,
-                title: child.title,
-                status: this.normalizeStatus(child.status),
-                owner_name:
-                  child.owner_name ||
-                  (child.owner_user_id ? `用户 ${child.owner_user_id}` : "未分配"),
-              }))
+            ? effectiveSubtasks.map((child) => {
+                let childOwnerName = child.owner_name;
+                if (!childOwnerName && child.owner_user_id) {
+                   const member = this.teamMembers.find(m => String(m.user_id) === String(child.owner_user_id));
+                   childOwnerName = member ? member.nickname : `用户 ${child.owner_user_id}`;
+                }
+                return {
+                  id: child.id,
+                  title: child.title,
+                  status: this.normalizeStatus(child.status),
+                  owner_name: childOwnerName || "未分配",
+                  owner_user_id: child.owner_user_id,
+                };
+              })
             : this.parseSubtaskPayload(effectiveSubtasks, raw?.id ?? Date.now()),
       };
     },
@@ -1638,14 +1674,20 @@ export default {
         typeof effectiveSubtasks[0] === 'object' &&
         effectiveSubtasks[0].id // 简单的判断是否为实体对象
       ) {
-        subtasks = effectiveSubtasks.map((child) => ({
-          id: child.id,
-          title: child.title,
-          status: this.normalizeStatus(child.status),
-          owner_name:
-            child.owner_name ||
-            (child.owner_user_id ? `用户 ${child.owner_user_id}` : "未分配"),
-        }));
+        subtasks = effectiveSubtasks.map((child) => {
+          let childOwnerName = child.owner_name;
+          if (!childOwnerName && child.owner_user_id) {
+             const member = this.teamMembers.find(m => String(m.user_id) === String(child.owner_user_id));
+             childOwnerName = member ? member.nickname : `用户 ${child.owner_user_id}`;
+          }
+          return {
+            id: child.id,
+            title: child.title,
+            status: this.normalizeStatus(child.status),
+            owner_name: childOwnerName || "未分配",
+            owner_user_id: child.owner_user_id,
+          };
+        });
       } else {
         subtasks = this.parseSubtaskPayload(effectiveSubtasks, taskId);
       }
