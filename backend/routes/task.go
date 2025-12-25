@@ -353,7 +353,11 @@ func getTeamTasks(c *gin.Context) {
 	}
 
 	var tasks []models.Task
-	db := database.GetDB().Preload("Category").Preload("Children").Preload("OwnerTeam")
+	db := database.GetDB().Preload("Category").Preload("Children", func(db *gorm.DB) *gorm.DB {
+		// 子任务可见性：分配给当前用户 OR 由当前用户创建 OR 当前用户是团队队长
+		return db.Where("owner_user_id = ? OR created_by = ? OR owner_team_id IN (SELECT id FROM teams WHERE owner_user_id = ?)",
+			userID.(uint64), userID.(uint64), userID.(uint64)).Order("sort_order asc")
+	}).Preload("OwnerTeam")
 
 	// 获取团队任务 (task_type = 2) - 这里需要根据用户的团队关系进行查询
 	// 暂时简单实现为创建者或所有者是当前用户的团队任务
@@ -429,7 +433,9 @@ func getTaskDetail(c *gin.Context) {
 
 	var task models.Task
 	db := database.GetDB().Preload("Category").Preload("OwnerTeam").Preload("Children", func(db *gorm.DB) *gorm.DB {
-		return db.Order("sort_order asc")
+		// 子任务可见性：分配给当前用户 OR 由当前用户创建 OR 当前用户是团队队长
+		return db.Where("owner_user_id = ? OR created_by = ? OR owner_team_id IN (SELECT id FROM teams WHERE owner_user_id = ?)",
+			userID.(uint64), userID.(uint64), userID.(uint64)).Order("sort_order asc")
 	})
 
 	// 确保用户只能访问自己相关的任务（个人任务或团队任务）
@@ -575,7 +581,11 @@ func updateTask(c *gin.Context) {
 	}
 
 	// 重新查询更新后的任务
-	database.GetDB().Preload("Category").First(&task, taskID)
+	database.GetDB().Preload("Category").Preload("Children", func(db *gorm.DB) *gorm.DB {
+		// 子任务可见性：分配给当前用户 OR 由当前用户创建 OR 当前用户是团队队长
+		return db.Where("owner_user_id = ? OR created_by = ? OR owner_team_id IN (SELECT id FROM teams WHERE owner_user_id = ?)",
+			userID.(uint64), userID.(uint64), userID.(uint64)).Order("sort_order asc")
+	}).First(&task, taskID)
 	response := convertTaskToResponse(task)
 
 	c.JSON(http.StatusOK, gin.H{
