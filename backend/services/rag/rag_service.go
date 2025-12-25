@@ -12,6 +12,28 @@ import (
 	"learningAssistant-backend/models"
 )
 
+// SearchResult 带相似度的搜索结果
+type SearchResult struct {
+	Entry      models.KnowledgeBaseEntry `json:"entry"`
+	Similarity float32                   `json:"similarity"`
+}
+
+// Citation 引用信息
+type Citation struct {
+	ID         uint64  `json:"id"`
+	Title      string  `json:"title"`
+	Category   string  `json:"category"`
+	Summary    string  `json:"summary"`
+	Similarity float32 `json:"similarity"`
+}
+
+// RAGQueryResult RAG问答结果（带引用溯源）
+type RAGQueryResult struct {
+	Answer    string     `json:"answer"`
+	Citations []Citation `json:"citations"`
+	Query     string     `json:"query"`
+}
+
 // RAGService RAG服务接口
 type RAGService interface {
 	// 添加文档到知识库
@@ -20,12 +42,41 @@ type RAGService interface {
 	RemoveDocument(entryID uint64) error
 	// 搜索知识库
 	SearchKnowledge(userID uint64, query string, limit int) ([]models.KnowledgeBaseEntry, error)
+	// 搜索知识库（带相似度）
+	SearchKnowledgeWithScore(userID uint64, query string, limit int) ([]SearchResult, error)
 	// 获取用户知识库统计
 	GetUserKnowledgeStats(userID uint64) (map[string]interface{}, error)
 	// 更新知识点掌握等级
 	UpdateKnowledgeLevel(entryID uint64, level int8) error
 	// 获取知识点关系
 	GetKnowledgeRelations(entryID uint64) ([]models.KnowledgeRelation, error)
+	// 获取用户知识图谱数据
+	GetKnowledgeGraph(userID uint64) (*KnowledgeGraphData, error)
+}
+
+// KnowledgeGraphNode 知识图谱节点
+type KnowledgeGraphNode struct {
+	ID       uint64 `json:"id"`
+	Name     string `json:"name"`
+	Category string `json:"category"`
+	Level    int8   `json:"level"`
+	Value    int    `json:"value"` // 节点大小，基于ViewCount
+	Color    string `json:"color"`
+}
+
+// KnowledgeGraphLink 知识图谱边
+type KnowledgeGraphLink struct {
+	Source       uint64  `json:"source"`
+	Target       uint64  `json:"target"`
+	RelationType int8    `json:"relation_type"` // 1=prerequisite, 2=related, 3=extends, 4=conflict, 5=same_category, 6=same_tag
+	Strength     float32 `json:"strength"`
+	Label        string  `json:"label"`
+}
+
+// KnowledgeGraphData 知识图谱数据
+type KnowledgeGraphData struct {
+	Nodes []KnowledgeGraphNode `json:"nodes"`
+	Links []KnowledgeGraphLink `json:"links"`
 }
 
 // DefaultRAGService 默认RAG服务实现
@@ -120,7 +171,8 @@ func (r *DefaultRAGService) AddDocument(userID uint64, sourceType int8, sourceID
 		// 更新向量缓存
 		if vector, err := r.embeddingService.GenerateEmbedding(cleanTitle + " " + summary); err == nil {
 			contentHash := md5Hash(cleanContent)
-			db.Where("entry_id = ?", existingEntry.ID).Delete(&models.KnowledgeVectorCache{})
+			// 使用 Unscoped 硬删除旧的向量缓存，避免唯一索引冲突
+			db.Unscoped().Where("entry_id = ?", existingEntry.ID).Delete(&models.KnowledgeVectorCache{})
 			cache := &models.KnowledgeVectorCache{
 				EntryID:     existingEntry.ID,
 				ContentHash: contentHash,
@@ -252,7 +304,8 @@ func (r *DefaultRAGService) vectorSearch(userID uint64, queryVector models.Vecto
 	var scored []scoredEntry
 	for _, cache := range caches {
 		similarity := r.embeddingService.CosineSimilarity(queryVector, cache.Vector)
-		if similarity > 0.3 { // 阈值
+		// 提高阈值到 0.35，避免返回不相关内容
+		if similarity >= 0.35 {
 			scored = append(scored, scoredEntry{
 				score:   similarity,
 				cacheID: cache.ID,
@@ -480,4 +533,236 @@ func (r *DefaultRAGService) updateUserStats(userID uint64) error {
 		"to_learn_count": toLearnCount,
 		"last_update_at": now,
 	}).Error
+}
+
+// SearchKnowledgeWithScore 搜索知识库并返回相似度分数
+func (r *DefaultRAGService) SearchKnowledgeWithScore(userID uint64, query string, limit int) ([]SearchResult, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+
+	db := database.GetDB()
+	var results []SearchResult
+
+	// 首先尝试向量相似度搜索
+	queryVector, err := r.embeddingService.GenerateEmbedding(query)
+	if err == nil && len(queryVector) > 0 {
+		vectorResults, vectorErr := r.vectorSearchWithScore(userID, queryVector, limit)
+		if vectorErr == nil && len(vectorResults) > 0 {
+			return vectorResults, nil
+		}
+	}
+
+	// 降级到关键词搜索
+	var entries []models.KnowledgeBaseEntry
+	searchPattern := "%" + query + "%"
+	if err := db.Where("user_id = ? AND status = 1", userID).
+		Where("title LIKE ? OR content LIKE ? OR keywords LIKE ? OR category LIKE ?", searchPattern, searchPattern, searchPattern, searchPattern).
+		Order("level DESC, view_count DESC").
+		Limit(limit).
+		Find(&entries).Error; err != nil {
+		return nil, fmt.Errorf("搜索知识库失败: %w", err)
+	}
+
+	// 关键词匹配给一个默认相似度
+	for _, entry := range entries {
+		results = append(results, SearchResult{
+			Entry:      entry,
+			Similarity: 0.5, // 关键词匹配的默认相似度
+		})
+	}
+
+	return results, nil
+}
+
+// vectorSearchWithScore 向量相似度搜索（带分数）
+func (r *DefaultRAGService) vectorSearchWithScore(userID uint64, queryVector models.Vector, limit int) ([]SearchResult, error) {
+	db := database.GetDB()
+
+	// 获取用户的所有知识条目
+	var entries []models.KnowledgeBaseEntry
+	if err := db.Where("user_id = ? AND status = 1", userID).Find(&entries).Error; err != nil {
+		return nil, err
+	}
+
+	// 获取这些条目的向量缓存
+	entryIDs := make([]uint64, len(entries))
+	entryMap := make(map[uint64]models.KnowledgeBaseEntry)
+	for i, entry := range entries {
+		entryIDs[i] = entry.ID
+		entryMap[entry.ID] = entry
+	}
+
+	var caches []models.KnowledgeVectorCache
+	if err := db.Where("entry_id IN ?", entryIDs).Find(&caches).Error; err != nil {
+		return nil, err
+	}
+
+	// 计算相似度
+	type scoredResult struct {
+		entryID    uint64
+		similarity float32
+	}
+	var scored []scoredResult
+	for _, cache := range caches {
+		similarity := r.embeddingService.CosineSimilarity(queryVector, cache.Vector)
+		// 提高阈值到 0.35，避免返回不相关内容
+		if similarity >= 0.35 {
+			scored = append(scored, scoredResult{
+				entryID:    cache.EntryID,
+				similarity: similarity,
+			})
+		}
+	}
+
+	// 按相似度排序（降序）
+	for i := 0; i < len(scored); i++ {
+		for j := i + 1; j < len(scored); j++ {
+			if scored[j].similarity > scored[i].similarity {
+				scored[i], scored[j] = scored[j], scored[i]
+			}
+		}
+	}
+
+	// 获取top-k的条目
+	var results []SearchResult
+	for i := 0; i < len(scored) && i < limit; i++ {
+		if entry, ok := entryMap[scored[i].entryID]; ok {
+			results = append(results, SearchResult{
+				Entry:      entry,
+				Similarity: scored[i].similarity,
+			})
+		}
+	}
+
+	return results, nil
+}
+
+// GetKnowledgeGraph 获取用户知识图谱数据
+func (r *DefaultRAGService) GetKnowledgeGraph(userID uint64) (*KnowledgeGraphData, error) {
+	db := database.GetDB()
+
+	// 获取用户的所有知识条目（不限制 status，显示所有条目）
+	var entries []models.KnowledgeBaseEntry
+	if err := db.Where("user_id = ?", userID).Find(&entries).Error; err != nil {
+		return nil, fmt.Errorf("获取知识条目失败: %w", err)
+	}
+
+	// 构建节点
+	nodes := make([]KnowledgeGraphNode, 0, len(entries))
+	categoryColorMap := getCategoryColorMap()
+	entryMap := make(map[uint64]models.KnowledgeBaseEntry)
+
+	for _, entry := range entries {
+		entryMap[entry.ID] = entry
+		color := categoryColorMap[entry.Category]
+		if color == "" {
+			color = "#9ca3af" // 默认灰色
+		}
+		nodes = append(nodes, KnowledgeGraphNode{
+			ID:       entry.ID,
+			Name:     truncateString(entry.Title, 20),
+			Category: entry.Category,
+			Level:    entry.Level,
+			Value:    entry.ViewCount + 10, // 基础大小 + 浏览次数
+			Color:    color,
+		})
+	}
+
+	// 获取显式关系
+	var relations []models.KnowledgeRelation
+	db.Where("user_id = ?", userID).Find(&relations)
+
+	links := make([]KnowledgeGraphLink, 0)
+	linkSet := make(map[string]bool) // 用于去重
+
+	// 添加显式关系
+	relationLabels := map[int8]string{
+		1: "前置",
+		2: "相关",
+		3: "扩展",
+		4: "冲突",
+	}
+	for _, rel := range relations {
+		key := fmt.Sprintf("%d-%d", rel.SourceEntryID, rel.TargetEntryID)
+		if !linkSet[key] {
+			linkSet[key] = true
+			links = append(links, KnowledgeGraphLink{
+				Source:       rel.SourceEntryID,
+				Target:       rel.TargetEntryID,
+				RelationType: rel.RelationType,
+				Strength:     rel.Strength,
+				Label:        relationLabels[rel.RelationType],
+			})
+		}
+	}
+
+	// 添加隐式关系：同分类
+	categoryEntries := make(map[string][]uint64)
+	for _, entry := range entries {
+		categoryEntries[entry.Category] = append(categoryEntries[entry.Category], entry.ID)
+	}
+
+	for _, entryIDs := range categoryEntries {
+		if len(entryIDs) < 2 {
+			continue
+		}
+		// 为同分类的条目创建关系（限制数量避免太多连线）
+		maxLinks := 3
+		for i := 0; i < len(entryIDs) && i < maxLinks; i++ {
+			for j := i + 1; j < len(entryIDs) && j < maxLinks+1; j++ {
+				key1 := fmt.Sprintf("%d-%d", entryIDs[i], entryIDs[j])
+				key2 := fmt.Sprintf("%d-%d", entryIDs[j], entryIDs[i])
+				if !linkSet[key1] && !linkSet[key2] {
+					linkSet[key1] = true
+					links = append(links, KnowledgeGraphLink{
+						Source:       entryIDs[i],
+						Target:       entryIDs[j],
+						RelationType: 5, // 同分类
+						Strength:     0.3,
+						Label:        "同分类",
+					})
+				}
+			}
+		}
+	}
+
+	return &KnowledgeGraphData{
+		Nodes: nodes,
+		Links: links,
+	}, nil
+}
+
+// getCategoryColorMap 获取分类颜色映射
+func getCategoryColorMap() map[string]string {
+	return map[string]string{
+		"数学":   "#3b82f6",
+		"物理":   "#8b5cf6",
+		"化学":   "#10b981",
+		"生物":   "#22c55e",
+		"语文":   "#f59e0b",
+		"英语":   "#ef4444",
+		"历史":   "#d97706",
+		"地理":   "#14b8a6",
+		"政治":   "#6366f1",
+		"编程":   "#06b6d4",
+		"计算机":  "#0ea5e9",
+		"艺术":   "#ec4899",
+		"音乐":   "#f472b6",
+		"体育":   "#84cc16",
+		"学习方法": "#a855f7",
+		"考试技巧": "#f97316",
+		"阅读":   "#eab308",
+		"思维训练": "#8b5cf6",
+		"其他":   "#9ca3af",
+	}
+}
+
+// truncateString 截断字符串
+func truncateString(s string, maxLen int) string {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	return string(runes[:maxLen]) + "..."
 }

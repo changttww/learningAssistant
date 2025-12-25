@@ -9,6 +9,12 @@
         <p class="page-subtitle">共收录 {{ totalCount }} 条知识点</p>
       </div>
       <div class="header-right">
+        <router-link to="/knowledge-graph" class="btn-feature">
+          🔗 知识图谱
+        </router-link>
+        <router-link to="/knowledge-chat" class="btn-feature chat">
+          💬 智能问答
+        </router-link>
         <button class="btn-sync" @click="handleSyncKnowledgeBase" :disabled="syncing">
           {{ syncing ? '⏳ 同步中...' : '🔄 同步知识库' }}
         </button>
@@ -641,6 +647,34 @@ export default {
 .header-right {
   display: flex;
   gap: 12px;
+}
+
+.btn-feature {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.btn-feature:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-feature.chat {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.btn-feature.chat:hover {
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
 }
 
 .btn-sync {

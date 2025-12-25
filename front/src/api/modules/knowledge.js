@@ -150,3 +150,19 @@ export function syncTasksToKnowledge() {
 export function syncNotesToKnowledge() {
   return request.post("/knowledge-base/sync-notes");
 }
+
+/**
+ * 获取知识图谱数据
+ */
+export function getKnowledgeGraph() {
+  return request.get("/knowledge-base/graph");
+}
+
+/**
+ * RAG问答（带引用溯源）
+ * @param {string} query - 用户问题
+ * @param {number} limit - 最大引用数量
+ */
+export function ragChat(query, limit = 5) {
+  return request.post("/knowledge-base/chat", { query, limit });
+}

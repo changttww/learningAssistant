@@ -204,8 +204,8 @@
         </div>
       </div>
 
-      <!-- 知识点分布、技能雷达二列布局 -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <!-- 知识点分布、AI报告入口、技能雷达三列布局 -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <!-- 知识点分布 - 左列 -->
         <div class="card p-6">
           <div class="flex justify-between items-center mb-4">
@@ -217,6 +217,42 @@
             >
           </div>
           <div class="chart-container h-64" ref="knowledgeDistributionChart"></div>
+        </div>
+
+        <!-- AI 学习报告入口 - 中列 -->
+        <div class="card p-6 bg-gradient-to-br from-blue-50 to-purple-50">
+          <div class="flex items-center gap-2 mb-4">
+            <iconify-icon icon="mdi:robot" width="24" class="text-[#2D5BFF]"></iconify-icon>
+            <h2 class="font-bold text-lg text-gray-900">AI 学习报告</h2>
+          </div>
+          <p class="text-gray-600 text-sm mb-4">
+            让 AI 分析你的学习数据，生成个性化的学习报告和建议
+          </p>
+          <div class="space-y-3">
+            <div class="flex items-center gap-2 text-sm text-gray-700">
+              <iconify-icon icon="mdi:check-circle" class="text-green-500"></iconify-icon>
+              学习效率评分
+            </div>
+            <div class="flex items-center gap-2 text-sm text-gray-700">
+              <iconify-icon icon="mdi:check-circle" class="text-green-500"></iconify-icon>
+              能力雷达分析
+            </div>
+            <div class="flex items-center gap-2 text-sm text-gray-700">
+              <iconify-icon icon="mdi:check-circle" class="text-green-500"></iconify-icon>
+              个性化学习建议
+            </div>
+            <div class="flex items-center gap-2 text-sm text-gray-700">
+              <iconify-icon icon="mdi:check-circle" class="text-green-500"></iconify-icon>
+              薄弱点诊断
+            </div>
+          </div>
+          <router-link
+            to="/ai-report"
+            class="mt-4 w-full bg-[#2D5BFF] text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-opacity-90 transition-colors flex items-center justify-center gap-2"
+          >
+            <iconify-icon icon="mdi:sparkles"></iconify-icon>
+            生成 AI 报告
+          </router-link>
         </div>
 
         <!-- 技能雷达 - 右列 -->

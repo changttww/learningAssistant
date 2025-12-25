@@ -57,10 +57,15 @@ func SetupRoutes(r *gin.Engine) {
 
 		analysis := v1.Group("/analysis")
 		registerAnalysisRoutes(analysis)
+		registerAIAnalysisReportRoutes(analysis)
 
 		// AI相关路由
 		ai := v1.Group("/ai")
 		registerAIRoutes(ai)
+
+		// 智能笔记增强路由
+		notes := v1.Group("/notes")
+		registerNoteEnhanceRoutes(notes)
 
 		// 知识库相关路由
 		knowledge := v1.Group("")
@@ -100,10 +105,15 @@ func SetupRoutes(r *gin.Engine) {
 
 		analysisLegacy := legacy.Group("/analysis")
 		registerAnalysisRoutes(analysisLegacy)
+		registerAIAnalysisReportRoutes(analysisLegacy)
 
 		// AI相关路由
 		aiLegacy := legacy.Group("/ai")
 		registerAIRoutes(aiLegacy)
+
+		// 智能笔记增强路由
+		notesLegacy := legacy.Group("/notes")
+		registerNoteEnhanceRoutes(notesLegacy)
 
 		// 知识库相关路由
 		knowledgeLegacy := legacy.Group("")

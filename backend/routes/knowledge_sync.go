@@ -21,6 +21,8 @@ func registerKnowledgeSyncRoutes(router *gin.RouterGroup) {
 	sync.POST("/sync-notes", syncNotesToKnowledge)
 	// 一键同步所有内容
 	sync.POST("/sync-all", syncAllToKnowledge)
+	// 批量发布所有草稿状态的知识条目
+	sync.POST("/publish-all", publishAllDraftEntries)
 }
 
 // syncTasksToKnowledge 将用户任务同步到知识库
@@ -201,5 +203,41 @@ func syncAllToKnowledge(c *gin.Context) {
 			"total_synced": taskSyncedCount + noteSyncedCount,
 		},
 		"msg": "全部内容同步完成",
+	})
+}
+
+// publishAllDraftEntries 批量发布所有草稿状态的知识条目
+func publishAllDraftEntries(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
+		return
+	}
+
+	db := database.GetDB()
+
+	// 统计草稿数量
+	var draftCount int64
+	db.Model(&models.KnowledgeBaseEntry{}).
+		Where("user_id = ? AND status = 0", userID.(uint64)).
+		Count(&draftCount)
+
+	// 批量更新 status 从 0 改为 1
+	result := db.Model(&models.KnowledgeBaseEntry{}).
+		Where("user_id = ? AND status = 0", userID.(uint64)).
+		Update("status", 1)
+
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "发布失败: " + result.Error.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"data": gin.H{
+			"published_count": result.RowsAffected,
+			"original_drafts": draftCount,
+		},
+		"msg": "批量发布成功",
 	})
 }

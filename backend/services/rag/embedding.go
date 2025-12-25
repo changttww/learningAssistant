@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"time"
 
 	"learningAssistant-backend/models"
 )
@@ -48,13 +49,16 @@ type QwenEmbeddingResponse struct {
 func NewQwenEmbeddingService(apiKey string) *QwenEmbeddingService {
 	if apiKey == "" {
 		apiKey = os.Getenv("QWEN_API_KEY")
+		if apiKey == "" {
+			apiKey = os.Getenv("DASHSCOPE_API_KEY")
+		}
 	}
 
 	return &QwenEmbeddingService{
 		apiKey:     apiKey,
-		apiURL:     "https://dashscope.aliyuncs.com/api/v1/services/embeddings/text-embedding",
+		apiURL:     "https://dashscope.aliyuncs.com/compatible-mode/v1/embeddings",
 		model:      "text-embedding-v3",
-		httpClient: &http.Client{},
+		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 }
 

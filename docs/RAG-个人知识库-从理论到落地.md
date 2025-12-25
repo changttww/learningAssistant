@@ -143,6 +143,8 @@ RAG（Retrieval-Augmented Generation）即“检索增强生成”。它把大�
 - 首页展示：`front/src/views/Home.vue`
   - ECharts 渲染知识分布饼图、技能雷达、学习趋势
   - 总知识点数（由知识分布求和）
+- 知识图谱（新增）：`front/src/views/KnowledgeGraph.vue`
+- RAG 问答机器人（新增）：`front/src/views/KnowledgeChat.vue`
 
 ### 3.3 两条主链路：问答型 RAG vs 分析型 RAG
 
@@ -705,37 +707,52 @@ Output format：
   - `front/src/api/modules/knowledge.js`
 - 首页（可视化与指标展示）：
   - `front/src/views/Home.vue`
+- 知识图谱（新增）：
+  - `front/src/views/KnowledgeGraph.vue`
+- RAG 问答机器人（新增）：
+  - `front/src/views/KnowledgeChat.vue`
 
 常用接口（以实际路由为准）：
 
 - `GET /knowledge-base/analysis`
 - `GET /knowledge-base/skill-radar`
 - `GET /knowledge-base/trends?range=30|90|year`
+- `GET /knowledge-base/graph` - 获取知识图谱数据（新增）
+- `POST /knowledge-base/chat` - RAG 问答（带引用溯源，新增）
 
 ---
 
 ## 10. 可扩展方向（下一阶段可做成加分项）
 
-1) **回答引用溯源（citations）**
-   - 回答返回引用条目 ID，可在前端展示“参考来源”。
+1) **~~回答引用溯源（citations）~~** ✅ 已实现
+   - 回答返回引用条目 ID，可在前端展示"参考来源"。
+   - 代码位置：`backend/routes/knowledge_base.go` → `ragChat()`
+   - 前端展示：`front/src/views/KnowledgeChat.vue`
 
-2) **混合检索（BM25 + 向量）与重排**
-   - 提升召回准确率，降低“答非所问”。
+2) **知识图谱可视化** ✅ 已实现
+   - 展示知识点之间的关联关系（同分类、显式关系）
+   - 代码位置：`backend/services/rag/rag_service.go` → `GetKnowledgeGraph()`
+   - 前端展示：`front/src/views/KnowledgeGraph.vue`（ECharts Graph）
 
-3) **增量 embedding 与队列化**
+3) **混合检索（BM25 + 向量）与重排**
+   - 提升召回准确率，降低"答非所问"。
+
+4) **增量 embedding 与队列化**
    - 用异步任务处理向量化，避免阻塞主流程。
 
-4) **知识库质量指标**
-   - 统计“重复条目率、过期条目率、低质量条目率”，进一步产品化。
+5) **知识库质量指标**
+   - 统计"重复条目率、过期条目率、低质量条目率"，进一步产品化。
 
-5) **个性化学习建议生成**
-   - 将知识分布/趋势作为 prompt 输入，生成“本周复盘 + 下周计划”。
+6) **个性化学习建议生成**
+   - 将知识分布/趋势作为 prompt 输入，生成"本周复盘 + 下周计划"。
 
 ---
 
 ## 附：本项目实训亮点总结（可用于答辩/展示）
 
 - **RAG 双形态落地**：既能做问答型 RAG，也能做分析型 RAG（学习画像）。
+- **RAG 问答带引用溯源**：用户提问后，展示回答的同时显示"参考了哪些知识点"，体现可解释性。
+- **知识图谱可视化**：用 ECharts Graph 展示知识点关联，适合答辩演示。
 - **指标口径可解释**：趋势弃用时长，改为可解释的行为计数；总知识点数来自知识分布求和。
 - **前后端职责清晰**：聚合与补零交给后端，前端专注展示与格式化。
-- **产品闭环**：知识库不是“存完就结束”，而是反哺首页画像与学习趋势，驱动用户持续使用。
+- **产品闭环**：知识库不是"存完就结束"，而是反哺首页画像与学习趋势，驱动用户持续使用。

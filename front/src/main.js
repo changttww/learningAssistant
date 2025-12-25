@@ -15,6 +15,9 @@ import Profile from "./views/Profile.vue";
 import TaskManager from "./views/TaskManager.vue";
 import NotificationHistory from "./views/NotificationHistory.vue";
 import KnowledgeBase from "./views/KnowledgeBase.vue";
+import KnowledgeGraph from "./views/KnowledgeGraph.vue";
+import KnowledgeChat from "./views/KnowledgeChat.vue";
+import AIReport from "./views/AIReport.vue";
 
 // 导入路由守卫
 import { beforeEach, afterEach, onError } from "./router/guards.js";
@@ -98,6 +101,33 @@ const routes = [
     component: KnowledgeBase,
     meta: {
       title: "我的知识库",
+      requiresAuth: true,
+    },
+  },
+  {
+    path: "/knowledge-graph",
+    name: "KnowledgeGraph",
+    component: KnowledgeGraph,
+    meta: {
+      title: "知识图谱",
+      requiresAuth: true,
+    },
+  },
+  {
+    path: "/knowledge-chat",
+    name: "KnowledgeChat",
+    component: KnowledgeChat,
+    meta: {
+      title: "知识问答",
+      requiresAuth: true,
+    },
+  },
+  {
+    path: "/ai-report",
+    name: "AIReport",
+    component: AIReport,
+    meta: {
+      title: "AI学习报告",
       requiresAuth: true,
     },
   },
