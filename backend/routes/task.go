@@ -565,6 +565,25 @@ func updateTask(c *gin.Context) {
 	}
 	if req.Progress != nil {
 		updateData["progress"] = *req.Progress
+		// 如果未显式指定状态，则根据进度自动更新状态
+		if req.Status == nil {
+			var newStatus int8
+			if *req.Progress >= 100 {
+				newStatus = 2 // Completed
+			} else if *req.Progress > 0 {
+				newStatus = 1 // In Progress
+			} else {
+				newStatus = 0 // Pending
+			}
+			updateData["status"] = newStatus
+
+			if newStatus == 2 {
+				now := time.Now()
+				updateData["completed_at"] = now
+			} else {
+				updateData["completed_at"] = nil
+			}
+		}
 	}
 	if req.OwnerTeamID != nil {
 		updateData["owner_team_id"] = *req.OwnerTeamID
