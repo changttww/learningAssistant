@@ -14,6 +14,7 @@ import (
 	"learningAssistant-backend/database"
 	"learningAssistant-backend/middleware"
 	"learningAssistant-backend/models"
+	"learningAssistant-backend/services/points"
 )
 
 // CreateSubtaskRequest 创建子任务请求结构
@@ -76,6 +77,7 @@ type TaskResponse struct {
 	Progress        int8                  `json:"progress"`
 	CreatedAt       time.Time             `json:"created_at"`
 	UpdatedAt       time.Time             `json:"updated_at"`
+	ParentID        *uint64               `json:"parent_id"`
 	Subtasks        []string              `json:"subtasks"`
 	Children        []TaskResponse        `json:"children,omitempty"`
 	Comments        []TaskComment         `json:"comments"`
@@ -352,7 +354,11 @@ func getTeamTasks(c *gin.Context) {
 	}
 
 	var tasks []models.Task
-	db := database.GetDB().Preload("Category").Preload("Children").Preload("OwnerTeam")
+	db := database.GetDB().Preload("Category").Preload("Children", func(db *gorm.DB) *gorm.DB {
+		// 子任务可见性：分配给当前用户 OR 由当前用户创建 OR 当前用户是团队队长
+		return db.Where("owner_user_id = ? OR created_by = ? OR owner_team_id IN (SELECT id FROM teams WHERE owner_user_id = ?)",
+			userID.(uint64), userID.(uint64), userID.(uint64)).Order("sort_order asc")
+	}).Preload("OwnerTeam")
 
 	// 获取团队任务 (task_type = 2) - 这里需要根据用户的团队关系进行查询
 	// 暂时简单实现为创建者或所有者是当前用户的团队任务
@@ -402,6 +408,10 @@ func getTeamTasks(c *gin.Context) {
 				resp.OwnerTeamName = name
 			}
 		}
+		// 安全补丁：对于团队任务，清空 Subtasks 字段，强制使用 Children
+		if task.TaskType == 2 {
+			resp.Subtasks = []string{}
+		}
 		responses = append(responses, resp)
 	}
 
@@ -428,7 +438,9 @@ func getTaskDetail(c *gin.Context) {
 
 	var task models.Task
 	db := database.GetDB().Preload("Category").Preload("OwnerTeam").Preload("Children", func(db *gorm.DB) *gorm.DB {
-		return db.Order("sort_order asc")
+		// 子任务可见性：分配给当前用户 OR 由当前用户创建 OR 当前用户是团队队长
+		return db.Where("owner_user_id = ? OR created_by = ? OR owner_team_id IN (SELECT id FROM teams WHERE owner_user_id = ?)",
+			userID.(uint64), userID.(uint64), userID.(uint64)).Order("sort_order asc")
 	})
 
 	// 确保用户只能访问自己相关的任务（个人任务或团队任务）
@@ -454,6 +466,19 @@ func getTaskDetail(c *gin.Context) {
 	}
 
 	response := convertTaskToResponse(task)
+
+	// 安全补丁：对于团队任务，为了确保子任务可见性规则生效，
+	// 我们必须屏蔽掉无法进行权限过滤的 Subtasks (JSON) 字段，
+	// 强制前端使用 Children 字段。
+	// 只有当 Children 为空且 Subtasks 不为空时（旧数据），才保留 Subtasks。
+	// 但如果系统已全面启用实体子任务，建议直接清空 Subtasks。
+	// 这里采取折中方案：如果检测到有实体子任务（Children），则清空 Subtasks 以避免混淆和权限泄露。
+	// 注意：由于我们在查询时已经对 Children 进行了过滤，所以 len(task.Children) 可能为 0 即使实际上有子任务（只是用户无权查看）。
+	// 因此，更安全的做法是：如果是团队任务，一律清空 Subtasks JSON 响应，强迫使用实体子任务系统。
+	if task.TaskType == 2 {
+		response.Subtasks = []string{}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"data": response,
@@ -500,6 +525,8 @@ func updateTask(c *gin.Context) {
 		return
 	}
 
+	oldStatus := task.Status
+
 	// 更新字段
 	updateData := make(map[string]interface{})
 	if req.Title != nil {
@@ -538,6 +565,25 @@ func updateTask(c *gin.Context) {
 	}
 	if req.Progress != nil {
 		updateData["progress"] = *req.Progress
+		// 如果未显式指定状态，则根据进度自动更新状态
+		if req.Status == nil {
+			var newStatus int8
+			if *req.Progress >= 100 {
+				newStatus = 2 // Completed
+			} else if *req.Progress > 0 {
+				newStatus = 1 // In Progress
+			} else {
+				newStatus = 0 // Pending
+			}
+			updateData["status"] = newStatus
+
+			if newStatus == 2 {
+				now := time.Now()
+				updateData["completed_at"] = now
+			} else {
+				updateData["completed_at"] = nil
+			}
+		}
 	}
 	if req.OwnerTeamID != nil {
 		updateData["owner_team_id"] = *req.OwnerTeamID
@@ -551,8 +597,32 @@ func updateTask(c *gin.Context) {
 		return
 	}
 
+	// 检查是否刚刚完成任务
+	newStatus := oldStatus
+	if req.Status != nil {
+		newStatus = *req.Status
+	}
+	// 如果通过 progress 更新导致完成（通常前端会同时传 status=2，但为了保险）
+	if req.Progress != nil && *req.Progress >= 100 {
+		newStatus = 2
+	}
+
+	if oldStatus != 2 && newStatus == 2 {
+		rewardUserID := task.CreatedBy
+		if task.OwnerUserID != nil && *task.OwnerUserID > 0 {
+			rewardUserID = *task.OwnerUserID
+		}
+		go func(uid, tid uint64) {
+			_, _ = points.AwardTaskCompletion(uid, tid)
+		}(rewardUserID, task.ID)
+	}
+
 	// 重新查询更新后的任务
-	database.GetDB().Preload("Category").First(&task, taskID)
+	database.GetDB().Preload("Category").Preload("Children", func(db *gorm.DB) *gorm.DB {
+		// 子任务可见性：分配给当前用户 OR 由当前用户创建 OR 当前用户是团队队长
+		return db.Where("owner_user_id = ? OR created_by = ? OR owner_team_id IN (SELECT id FROM teams WHERE owner_user_id = ?)",
+			userID.(uint64), userID.(uint64), userID.(uint64)).Order("sort_order asc")
+	}).First(&task, taskID)
 	response := convertTaskToResponse(task)
 
 	c.JSON(http.StatusOK, gin.H{
@@ -648,16 +718,35 @@ func completeTask(c *gin.Context) {
 		return
 	}
 
+	// 检查是否已经是完成状态，避免重复加分
+	if task.Status == 2 {
+		c.JSON(http.StatusOK, gin.H{
+			"code": 0,
+			"msg":  "任务已经是完成状态",
+		})
+		return
+	}
+
 	now := time.Now()
 	updateData := map[string]interface{}{
 		"status":       2, // 已完成
 		"completed_at": now,
+		"progress":     100,
 	}
 
 	if err := database.GetDB().Model(&task).Updates(updateData).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "完成任务失败"})
 		return
 	}
+
+	// 积分奖励
+	rewardUserID := task.CreatedBy
+	if task.OwnerUserID != nil && *task.OwnerUserID > 0 {
+		rewardUserID = *task.OwnerUserID
+	}
+	go func(uid, tid uint64) {
+		_, _ = points.AwardTaskCompletion(uid, tid)
+	}(rewardUserID, task.ID)
 
 	// 自动将任务添加到知识库
 	if ragService != nil {
@@ -709,7 +798,7 @@ func completeTaskWithNote(c *gin.Context) {
 	var createdNote models.StudyNote
 	if err := database.GetDB().Transaction(func(tx *gorm.DB) error {
 		from := task.Status
-		if err := tx.Model(&task).Updates(map[string]interface{}{"status": 2, "completed_at": now}).Error; err != nil {
+		if err := tx.Model(&task).Updates(map[string]interface{}{"status": 2, "completed_at": now, "progress": 100}).Error; err != nil {
 			return err
 		}
 
@@ -737,6 +826,17 @@ func completeTaskWithNote(c *gin.Context) {
 	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "完成任务并创建笔记失败"})
 		return
+	}
+
+	// 积分奖励
+	if task.Status != 2 { // 只有之前不是完成状态才加分
+		rewardUserID := task.CreatedBy
+		if task.OwnerUserID != nil && *task.OwnerUserID > 0 {
+			rewardUserID = *task.OwnerUserID
+		}
+		go func(uid, tid uint64) {
+			_, _ = points.AwardTaskCompletion(uid, tid)
+		}(rewardUserID, task.ID)
 	}
 
 	// 自动将任务添加到知识库
@@ -968,6 +1068,7 @@ func convertTaskToResponse(task models.Task) TaskResponse {
 		Progress:        task.Progress,
 		CreatedAt:       task.CreatedAt,
 		UpdatedAt:       task.UpdatedAt,
+		ParentID:        task.ParentID,
 	}
 
 	if task.OwnerTeam != nil {

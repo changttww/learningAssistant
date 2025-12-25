@@ -31,7 +31,46 @@ type AwardResult struct {
 
 // AwardTaskCompletion 任务完成加分
 func AwardTaskCompletion(userID uint64, taskID uint64) (*AwardResult, error) {
-	return applyPoints(userID, models.PointsSourceTaskCompletion, &taskID, taskCompletionReward, fmt.Sprintf("完成任务 #%d", taskID))
+	// 使用事务确保积分和统计数据的一致性
+	var result *AwardResult
+	err := database.GetDB().Transaction(func(tx *gorm.DB) error {
+		// 1. 发放积分
+		res, err := applyPointsWithTx(tx, userID, models.PointsSourceTaskCompletion, &taskID, taskCompletionReward, fmt.Sprintf("完成任务 #%d", taskID))
+		if err != nil {
+			return err
+		}
+		result = res
+
+		// 2. 更新 UserProfile 统计
+		if err := tx.Model(&models.UserProfile{}).Where("user_id = ?", userID).
+			Updates(map[string]interface{}{
+				"tasks_completed": gorm.Expr("tasks_completed + ?", 1),
+			}).Error; err != nil {
+			return err
+		}
+
+		// 3. 更新 UserAchievementProgress 统计
+		// 先尝试查找，如果不存在则创建
+		var progress models.UserAchievementProgress
+		if err := tx.Where("user_id = ?", userID).First(&progress).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				progress = models.UserAchievementProgress{UserID: userID, TaskCompletedCount: 1}
+				if err := tx.Create(&progress).Error; err != nil {
+					return err
+				}
+			} else {
+				return err
+			}
+		} else {
+			if err := tx.Model(&progress).Update("task_completed_count", gorm.Expr("task_completed_count + ?", 1)).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	return result, err
 }
 
 // AwardStudyRoomDuration 自习室在线时长加分，按 30 分钟一档
@@ -70,50 +109,45 @@ func ListLedger(userID uint64, limit int) ([]models.PointsLedger, error) {
 	return records, nil
 }
 
-func applyPoints(userID uint64, sourceType models.PointsSourceType, sourceID *uint64, delta int, remark string) (*AwardResult, error) {
+// applyPointsWithTx 支持传入事务的积分应用函数
+func applyPointsWithTx(tx *gorm.DB, userID uint64, sourceType models.PointsSourceType, sourceID *uint64, delta int, remark string) (*AwardResult, error) {
 	if delta <= 0 {
 		return nil, fmt.Errorf("%w: 积分变动必须大于 0", ErrInvalidPointsDelta)
 	}
 
-	db := database.GetDB()
 	var ledger models.PointsLedger
 	var profile models.UserProfile
 
-	err := db.Transaction(func(tx *gorm.DB) error {
-		var err error
-		profile, err = loadOrCreateProfile(tx, userID)
-		if err != nil {
-			return err
-		}
-
-		newTotal := profile.TotalPoints + delta
-		level, nextLevel, err := determineLevel(tx, newTotal)
-		if err != nil {
-			return err
-		}
-
-		profile.TotalPoints = newTotal
-		profile.Level = level
-		profile.NextLevelPoints = nextLevel
-
-		if err := tx.Save(&profile).Error; err != nil {
-			return err
-		}
-
-		ledger = models.PointsLedger{
-			UserID:       userID,
-			SourceType:   sourceType,
-			SourceID:     sourceID,
-			Delta:        delta,
-			BalanceAfter: newTotal,
-			Remark:       remark,
-		}
-		if err := tx.Create(&ledger).Error; err != nil {
-			return err
-		}
-		return nil
-	})
+	// 加载或创建 Profile
+	var err error
+	profile, err = loadOrCreateProfile(tx, userID)
 	if err != nil {
+		return nil, err
+	}
+
+	newTotal := profile.TotalPoints + delta
+	level, nextLevel, err := determineLevel(tx, newTotal)
+	if err != nil {
+		return nil, err
+	}
+
+	profile.TotalPoints = newTotal
+	profile.Level = level
+	profile.NextLevelPoints = nextLevel
+
+	if err := tx.Save(&profile).Error; err != nil {
+		return nil, err
+	}
+
+	ledger = models.PointsLedger{
+		UserID:       userID,
+		SourceType:   sourceType,
+		SourceID:     sourceID,
+		Delta:        delta,
+		BalanceAfter: newTotal,
+		Remark:       remark,
+	}
+	if err := tx.Create(&ledger).Error; err != nil {
 		return nil, err
 	}
 
@@ -121,6 +155,19 @@ func applyPoints(userID uint64, sourceType models.PointsSourceType, sourceID *ui
 		Ledger:  &ledger,
 		Profile: &profile,
 	}, nil
+}
+
+func applyPoints(userID uint64, sourceType models.PointsSourceType, sourceID *uint64, delta int, remark string) (*AwardResult, error) {
+	var result *AwardResult
+	err := database.GetDB().Transaction(func(tx *gorm.DB) error {
+		res, err := applyPointsWithTx(tx, userID, sourceType, sourceID, delta, remark)
+		if err != nil {
+			return err
+		}
+		result = res
+		return nil
+	})
+	return result, err
 }
 
 func loadOrCreateProfile(tx *gorm.DB, userID uint64) (models.UserProfile, error) {

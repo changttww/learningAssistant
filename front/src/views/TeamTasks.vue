@@ -1317,6 +1317,29 @@ export default {
         this.teamMembers = res.data || [];
         // Sort by points for ranking
         this.teamMembers.sort((a, b) => (b.total_points || 0) - (a.total_points || 0));
+
+        // Update task owner names if they are just IDs
+        if (this.tasks && this.tasks.length > 0) {
+          this.tasks.forEach(task => {
+            if (task.owner_user_id) {
+              const member = this.teamMembers.find(m => String(m.user_id) === String(task.owner_user_id));
+              if (member && member.nickname) {
+                task.owner_name = member.nickname;
+              }
+            }
+            // Update subtasks
+            if (task.subtasks && task.subtasks.length) {
+              task.subtasks.forEach(sub => {
+                if (sub.owner_user_id) {
+                  const member = this.teamMembers.find(m => String(m.user_id) === String(sub.owner_user_id));
+                  if (member && member.nickname) {
+                    sub.owner_name = member.nickname;
+                  }
+                }
+              });
+            }
+          });
+        }
       } catch (error) {
         console.error("Failed to fetch team members:", error);
       }
@@ -1498,7 +1521,18 @@ export default {
         const res = await getTeamTasks(params);
         const items = res?.data?.items || res?.data || res;
         if (Array.isArray(items) && items.length) {
-          this.tasks = items.map((item) => this.normalizeFetchedTask(item));
+          // 过滤逻辑：
+          // 1. 主任务（parent_id 为空）：对所有成员展示
+          // 2. 子任务（parent_id 不为空）：仅对 owner_user_id 为当前用户的展示
+          const visibleTasks = items.filter(item => {
+            const isMainTask = !item.parent_id;
+            if (isMainTask) return true;
+            
+            // 子任务：检查是否为当前用户所有
+            return String(item.owner_user_id) === String(this.currentUserId);
+          });
+
+          this.tasks = visibleTasks.map((item) => this.normalizeFetchedTask(item));
         } else {
           this.tasks = [];
         }
@@ -1525,17 +1559,30 @@ export default {
             const p = this.currentUserProfile;
             ownerName = p?.name || p?.username || p?.basic_info?.name || "我";
           } else {
-            // 如果没有名字，显示用户ID
-            ownerName = `用户 ${userId}`;
+            // 尝试从团队成员列表中查找
+            const member = this.teamMembers.find(m => String(m.user_id) === String(userId));
+            if (member && member.nickname) {
+              ownerName = member.nickname;
+            } else {
+              // 如果没有名字，显示用户ID
+              ownerName = `用户 ${userId}`;
+            }
           }
         }
       }
+
+      // 优先使用 children (已过滤权限的实体子任务)
+      // 只有当 children 未定义时，才回退到 subtasks (旧版简单子任务)
+      const effectiveSubtasks = (raw?.children !== undefined && raw?.children !== null) 
+        ? raw.children 
+        : (Array.isArray(raw?.subtasks) ? raw.subtasks : []);
 
       return {
         id: raw?.id ?? Date.now(),
         title: raw?.title || raw?.name || "未命名任务",
         description: raw?.description || "",
         owner_name: ownerName || "未知",
+        owner_user_id: raw?.owner_user_id || raw?.created_by,
         owner_team_id: raw?.owner_team_id ?? null,
         created_by: raw?.created_by ?? null,
         due_date:
@@ -1547,16 +1594,22 @@ export default {
         status_label: raw?.status_label || "",
         progress,
         subtasks:
-          raw?.children && Array.isArray(raw.children) && raw.children.length > 0
-            ? raw.children.map((child) => ({
-                id: child.id,
-                title: child.title,
-                status: this.normalizeStatus(child.status),
-                owner_name:
-                  child.owner_name ||
-                  (child.owner_user_id ? `用户 ${child.owner_user_id}` : "未分配"),
-              }))
-            : this.parseSubtaskPayload(raw?.subtasks, raw?.id ?? Date.now()),
+          effectiveSubtasks && Array.isArray(effectiveSubtasks) && effectiveSubtasks.length > 0
+            ? effectiveSubtasks.map((child) => {
+                let childOwnerName = child.owner_name;
+                if (!childOwnerName && child.owner_user_id) {
+                   const member = this.teamMembers.find(m => String(m.user_id) === String(child.owner_user_id));
+                   childOwnerName = member ? member.nickname : `用户 ${child.owner_user_id}`;
+                }
+                return {
+                  id: child.id,
+                  title: child.title,
+                  status: this.normalizeStatus(child.status),
+                  owner_name: childOwnerName || "未分配",
+                  owner_user_id: child.owner_user_id,
+                };
+              })
+            : this.parseSubtaskPayload(effectiveSubtasks, raw?.id ?? Date.now()),
       };
     },
     normalizeStatus(status) {
@@ -1616,22 +1669,36 @@ export default {
       const taskId = fallbackTask?.id || base?.id || Date.now();
 
       let subtasks = [];
+      
+      // 优先使用 children (已过滤权限的实体子任务)
+      // 只有当 children 未定义时，才回退到 subtasks (旧版简单子任务)
+      const effectiveSubtasks = (base.children !== undefined && base.children !== null) 
+        ? base.children 
+        : (Array.isArray(base.subtasks) ? base.subtasks : fallbackTask?.subtasks);
+
       if (
-        base.children &&
-        Array.isArray(base.children) &&
-        base.children.length > 0
+        effectiveSubtasks &&
+        Array.isArray(effectiveSubtasks) &&
+        effectiveSubtasks.length > 0 &&
+        typeof effectiveSubtasks[0] === 'object' &&
+        effectiveSubtasks[0].id // 简单的判断是否为实体对象
       ) {
-        subtasks = base.children.map((child) => ({
-          id: child.id,
-          title: child.title,
-          status: this.normalizeStatus(child.status),
-          owner_name:
-            child.owner_name ||
-            (child.owner_user_id ? `用户 ${child.owner_user_id}` : "未分配"),
-        }));
+        subtasks = effectiveSubtasks.map((child) => {
+          let childOwnerName = child.owner_name;
+          if (!childOwnerName && child.owner_user_id) {
+             const member = this.teamMembers.find(m => String(m.user_id) === String(child.owner_user_id));
+             childOwnerName = member ? member.nickname : `用户 ${child.owner_user_id}`;
+          }
+          return {
+            id: child.id,
+            title: child.title,
+            status: this.normalizeStatus(child.status),
+            owner_name: childOwnerName || "未分配",
+            owner_user_id: child.owner_user_id,
+          };
+        });
       } else {
-        const subtasksSource = base.subtasks ?? fallbackTask?.subtasks;
-        subtasks = this.parseSubtaskPayload(subtasksSource, taskId);
+        subtasks = this.parseSubtaskPayload(effectiveSubtasks, taskId);
       }
 
       let attachments = [];

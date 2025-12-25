@@ -518,17 +518,27 @@ func listTeamActivities(c *gin.Context) {
 
 	for _, task := range tasks {
 		var user models.User
-		// Use CreatedBy for now.
-		userId := task.CreatedBy
-
-		db.Select("display_name, avatar_url").First(&user, userId)
 
 		action := "更新了任务"
-		if task.Status == 2 {
-			action = "完成了任务"
-		} else if task.UpdatedAt.Sub(task.CreatedAt) < 5*time.Second {
+		var userId uint64
+
+		// Check if it's a create action (within 5 seconds of creation)
+		if task.UpdatedAt.Sub(task.CreatedAt) < 5*time.Second {
 			action = "创建了任务"
+			userId = task.CreatedBy
+		} else {
+			if task.Status == 2 {
+				action = "完成了任务"
+			}
+			// For updates and completion, prefer OwnerUserID if available
+			if task.OwnerUserID != nil && *task.OwnerUserID > 0 {
+				userId = *task.OwnerUserID
+			} else {
+				userId = task.CreatedBy
+			}
 		}
+
+		db.Select("display_name, avatar_url").First(&user, userId)
 
 		activities = append(activities, Activity{
 			UserName:   user.DisplayName,

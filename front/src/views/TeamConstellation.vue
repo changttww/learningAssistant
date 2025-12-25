@@ -302,12 +302,16 @@ const loadTasks = async () => {
     const res = await getTeamTasks(params);
     const data = res?.data?.items || res?.data || res;
     if (Array.isArray(data) && data.length) {
-      tasks.value = data.map((item, index) => ({
+      // 过滤掉子任务，只保留主任务（parent_id 为 null 或 0 的任务）
+      const mainTasks = data.filter(item => !item.parent_id);
+      
+      tasks.value = mainTasks.map((item, index) => ({
         id: item.id || runtimeWindow?.crypto?.randomUUID?.() || `${Date.now()}-${index}`,
         title: item.title || item.name || '未命名任务',
         description: item.description || '',
         owner_name: item.owner_name || item.created_by_name || '未知',
         due_date: item.due_at || item.due_date || '',
+        parent_id: item.parent_id,
       }));
     }
   } catch (error) {
@@ -330,8 +334,16 @@ const ensureTaskDetail = async (task) => {
 
 const normalizeDetail = (raw, task) => {
   if (!raw) return { subtasks: [], attachments: [] };
+  
+  // 优先使用 children (已过滤权限的实体子任务)
+  // 如果 children 存在（即使为空数组），说明后端返回了实体结构，应优先使用
+  // 只有当 children 未定义时，才回退到 subtasks (旧版简单子任务)
+  const effectiveSubtasks = (raw.children !== undefined && raw.children !== null) 
+    ? raw.children 
+    : (Array.isArray(raw.subtasks) ? raw.subtasks : []);
+
   return {
-    subtasks: Array.isArray(raw.subtasks) ? raw.subtasks : [],
+    subtasks: effectiveSubtasks,
     attachments: Array.isArray(raw.attachments) ? raw.attachments : [],
   };
 };
