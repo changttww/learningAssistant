@@ -1,5 +1,7 @@
 import { createApp } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
+import ElementPlus from 'element-plus'
+import 'element-plus/dist/index.css'
 import "./style.css";
 import App from "./App.vue";
 
@@ -9,6 +11,9 @@ import PersonalTasks from "./views/PersonalTasks.vue";
 import TeamTasks from "./views/TeamTasks.vue";
 import TeamConstellation from "./views/TeamConstellation.vue";
 import TeamMeetingRoom from "./views/TeamMeetingRoom.vue";
+import TeamCalendar from "./views/TeamCalendar.vue";
+import TeamDocs from "./views/TeamDocs.vue";
+import TeamReports from "./views/TeamReports.vue";
 import StudyRoom from "./views/StudyRoom.vue";
 import VideoRoom from "./views/VideoRoom.vue";
 import Profile from "./views/Profile.vue";
@@ -53,6 +58,24 @@ const routes = [
     name: "TeamMeetingRoom",
     component: TeamMeetingRoom,
     meta: { title: "快速会议室", requiresAuth: true, permissions: ["team:view"] },
+  },
+  {
+    path: "/team-tasks/calendar/:teamId",
+    name: "TeamCalendar",
+    component: TeamCalendar,
+    meta: { title: "团队日历", requiresAuth: true, permissions: ["team:view"] },
+  },
+  {
+    path: "/team-tasks/docs/:teamId",
+    name: "TeamDocs",
+    component: TeamDocs,
+    meta: { title: "协作文档", requiresAuth: true, permissions: ["team:view"] },
+  },
+  {
+    path: "/team-tasks/reports/:teamId",
+    name: "TeamReports",
+    component: TeamReports,
+    meta: { title: "数据报告", requiresAuth: true, permissions: ["team:view"] },
   },
   {
     path: "/study-room",
@@ -176,4 +199,5 @@ router.onError(onError);
 
 const app = createApp(App);
 app.use(router);
+app.use(ElementPlus);
 app.mount("#app");
