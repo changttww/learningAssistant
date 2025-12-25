@@ -14,6 +14,7 @@ import (
 	"learningAssistant-backend/database"
 	"learningAssistant-backend/middleware"
 	"learningAssistant-backend/models"
+	"learningAssistant-backend/services/points"
 )
 
 // CreateSubtaskRequest 创建子任务请求结构
@@ -500,6 +501,8 @@ func updateTask(c *gin.Context) {
 		return
 	}
 
+	oldStatus := task.Status
+
 	// 更新字段
 	updateData := make(map[string]interface{})
 	if req.Title != nil {
@@ -549,6 +552,26 @@ func updateTask(c *gin.Context) {
 	if err := database.GetDB().Model(&task).Updates(updateData).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新任务失败"})
 		return
+	}
+
+	// 检查是否刚刚完成任务
+	newStatus := oldStatus
+	if req.Status != nil {
+		newStatus = *req.Status
+	}
+	// 如果通过 progress 更新导致完成（通常前端会同时传 status=2，但为了保险）
+	if req.Progress != nil && *req.Progress >= 100 {
+		newStatus = 2
+	}
+
+	if oldStatus != 2 && newStatus == 2 {
+		rewardUserID := task.CreatedBy
+		if task.OwnerUserID != nil && *task.OwnerUserID > 0 {
+			rewardUserID = *task.OwnerUserID
+		}
+		go func(uid, tid uint64) {
+			_, _ = points.AwardTaskCompletion(uid, tid)
+		}(rewardUserID, task.ID)
 	}
 
 	// 重新查询更新后的任务
@@ -648,16 +671,35 @@ func completeTask(c *gin.Context) {
 		return
 	}
 
+	// 检查是否已经是完成状态，避免重复加分
+	if task.Status == 2 {
+		c.JSON(http.StatusOK, gin.H{
+			"code": 0,
+			"msg":  "任务已经是完成状态",
+		})
+		return
+	}
+
 	now := time.Now()
 	updateData := map[string]interface{}{
 		"status":       2, // 已完成
 		"completed_at": now,
+		"progress":     100,
 	}
 
 	if err := database.GetDB().Model(&task).Updates(updateData).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "完成任务失败"})
 		return
 	}
+
+	// 积分奖励
+	rewardUserID := task.CreatedBy
+	if task.OwnerUserID != nil && *task.OwnerUserID > 0 {
+		rewardUserID = *task.OwnerUserID
+	}
+	go func(uid, tid uint64) {
+		_, _ = points.AwardTaskCompletion(uid, tid)
+	}(rewardUserID, task.ID)
 
 	// 自动将任务添加到知识库
 	if ragService != nil {
@@ -709,7 +751,7 @@ func completeTaskWithNote(c *gin.Context) {
 	var createdNote models.StudyNote
 	if err := database.GetDB().Transaction(func(tx *gorm.DB) error {
 		from := task.Status
-		if err := tx.Model(&task).Updates(map[string]interface{}{"status": 2, "completed_at": now}).Error; err != nil {
+		if err := tx.Model(&task).Updates(map[string]interface{}{"status": 2, "completed_at": now, "progress": 100}).Error; err != nil {
 			return err
 		}
 
@@ -737,6 +779,17 @@ func completeTaskWithNote(c *gin.Context) {
 	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "完成任务并创建笔记失败"})
 		return
+	}
+
+	// 积分奖励
+	if task.Status != 2 { // 只有之前不是完成状态才加分
+		rewardUserID := task.CreatedBy
+		if task.OwnerUserID != nil && *task.OwnerUserID > 0 {
+			rewardUserID = *task.OwnerUserID
+		}
+		go func(uid, tid uint64) {
+			_, _ = points.AwardTaskCompletion(uid, tid)
+		}(rewardUserID, task.ID)
 	}
 
 	// 自动将任务添加到知识库
