@@ -408,6 +408,10 @@ func getTeamTasks(c *gin.Context) {
 				resp.OwnerTeamName = name
 			}
 		}
+		// 安全补丁：对于团队任务，清空 Subtasks 字段，强制使用 Children
+		if task.TaskType == 2 {
+			resp.Subtasks = []string{}
+		}
 		responses = append(responses, resp)
 	}
 
@@ -462,6 +466,19 @@ func getTaskDetail(c *gin.Context) {
 	}
 
 	response := convertTaskToResponse(task)
+
+	// 安全补丁：对于团队任务，为了确保子任务可见性规则生效，
+	// 我们必须屏蔽掉无法进行权限过滤的 Subtasks (JSON) 字段，
+	// 强制前端使用 Children 字段。
+	// 只有当 Children 为空且 Subtasks 不为空时（旧数据），才保留 Subtasks。
+	// 但如果系统已全面启用实体子任务，建议直接清空 Subtasks。
+	// 这里采取折中方案：如果检测到有实体子任务（Children），则清空 Subtasks 以避免混淆和权限泄露。
+	// 注意：由于我们在查询时已经对 Children 进行了过滤，所以 len(task.Children) 可能为 0 即使实际上有子任务（只是用户无权查看）。
+	// 因此，更安全的做法是：如果是团队任务，一律清空 Subtasks JSON 响应，强迫使用实体子任务系统。
+	if task.TaskType == 2 {
+		response.Subtasks = []string{}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"data": response,

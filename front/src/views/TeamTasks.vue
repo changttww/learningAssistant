@@ -1498,7 +1498,9 @@ export default {
         const res = await getTeamTasks(params);
         const items = res?.data?.items || res?.data || res;
         if (Array.isArray(items) && items.length) {
-          this.tasks = items.map((item) => this.normalizeFetchedTask(item));
+          // 过滤掉子任务，只保留主任务（parent_id 为 null 或 0 的任务）
+          const mainTasks = items.filter(item => !item.parent_id);
+          this.tasks = mainTasks.map((item) => this.normalizeFetchedTask(item));
         } else {
           this.tasks = [];
         }
@@ -1531,6 +1533,12 @@ export default {
         }
       }
 
+      // 优先使用 children (已过滤权限的实体子任务)
+      // 只有当 children 未定义时，才回退到 subtasks (旧版简单子任务)
+      const effectiveSubtasks = (raw?.children !== undefined && raw?.children !== null) 
+        ? raw.children 
+        : (Array.isArray(raw?.subtasks) ? raw.subtasks : []);
+
       return {
         id: raw?.id ?? Date.now(),
         title: raw?.title || raw?.name || "未命名任务",
@@ -1547,8 +1555,8 @@ export default {
         status_label: raw?.status_label || "",
         progress,
         subtasks:
-          raw?.children && Array.isArray(raw.children) && raw.children.length > 0
-            ? raw.children.map((child) => ({
+          effectiveSubtasks && Array.isArray(effectiveSubtasks) && effectiveSubtasks.length > 0
+            ? effectiveSubtasks.map((child) => ({
                 id: child.id,
                 title: child.title,
                 status: this.normalizeStatus(child.status),
@@ -1556,7 +1564,7 @@ export default {
                   child.owner_name ||
                   (child.owner_user_id ? `用户 ${child.owner_user_id}` : "未分配"),
               }))
-            : this.parseSubtaskPayload(raw?.subtasks, raw?.id ?? Date.now()),
+            : this.parseSubtaskPayload(effectiveSubtasks, raw?.id ?? Date.now()),
       };
     },
     normalizeStatus(status) {
@@ -1616,12 +1624,21 @@ export default {
       const taskId = fallbackTask?.id || base?.id || Date.now();
 
       let subtasks = [];
+      
+      // 优先使用 children (已过滤权限的实体子任务)
+      // 只有当 children 未定义时，才回退到 subtasks (旧版简单子任务)
+      const effectiveSubtasks = (base.children !== undefined && base.children !== null) 
+        ? base.children 
+        : (Array.isArray(base.subtasks) ? base.subtasks : fallbackTask?.subtasks);
+
       if (
-        base.children &&
-        Array.isArray(base.children) &&
-        base.children.length > 0
+        effectiveSubtasks &&
+        Array.isArray(effectiveSubtasks) &&
+        effectiveSubtasks.length > 0 &&
+        typeof effectiveSubtasks[0] === 'object' &&
+        effectiveSubtasks[0].id // 简单的判断是否为实体对象
       ) {
-        subtasks = base.children.map((child) => ({
+        subtasks = effectiveSubtasks.map((child) => ({
           id: child.id,
           title: child.title,
           status: this.normalizeStatus(child.status),
@@ -1630,8 +1647,7 @@ export default {
             (child.owner_user_id ? `用户 ${child.owner_user_id}` : "未分配"),
         }));
       } else {
-        const subtasksSource = base.subtasks ?? fallbackTask?.subtasks;
-        subtasks = this.parseSubtaskPayload(subtasksSource, taskId);
+        subtasks = this.parseSubtaskPayload(effectiveSubtasks, taskId);
       }
 
       let attachments = [];
