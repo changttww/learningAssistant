@@ -302,12 +302,16 @@ const loadTasks = async () => {
     const res = await getTeamTasks(params);
     const data = res?.data?.items || res?.data || res;
     if (Array.isArray(data) && data.length) {
-      tasks.value = data.map((item, index) => ({
+      // 过滤掉子任务，只保留主任务（parent_id 为 null 或 0 的任务）
+      const mainTasks = data.filter(item => !item.parent_id);
+      
+      tasks.value = mainTasks.map((item, index) => ({
         id: item.id || runtimeWindow?.crypto?.randomUUID?.() || `${Date.now()}-${index}`,
         title: item.title || item.name || '未命名任务',
         description: item.description || '',
         owner_name: item.owner_name || item.created_by_name || '未知',
         due_date: item.due_at || item.due_date || '',
+        parent_id: item.parent_id,
       }));
     }
   } catch (error) {

@@ -14,7 +14,7 @@
           <span class="text-blue-100 text-sm mt-1.5 font-medium">总任务数</span>
         </div>
 
-        <!-- 已完成务卡片 -->
+        <!-- 已完成任务卡片 -->
         <button
           type="button"
           @click="setStatusFilter('completed')"

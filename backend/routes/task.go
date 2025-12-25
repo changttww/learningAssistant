@@ -77,6 +77,7 @@ type TaskResponse struct {
 	Progress        int8                  `json:"progress"`
 	CreatedAt       time.Time             `json:"created_at"`
 	UpdatedAt       time.Time             `json:"updated_at"`
+	ParentID        *uint64               `json:"parent_id"`
 	Subtasks        []string              `json:"subtasks"`
 	Children        []TaskResponse        `json:"children,omitempty"`
 	Comments        []TaskComment         `json:"comments"`
@@ -1031,6 +1032,7 @@ func convertTaskToResponse(task models.Task) TaskResponse {
 		Progress:        task.Progress,
 		CreatedAt:       task.CreatedAt,
 		UpdatedAt:       task.UpdatedAt,
+		ParentID:        task.ParentID,
 	}
 
 	if task.OwnerTeam != nil {
