@@ -871,6 +871,7 @@
             </button>
             <button
               class="py-3 bg-orange-50 hover:bg-orange-100 rounded-lg flex flex-col items-center justify-center transition-colors"
+              @click="openTeamDocs"
             >
               <iconify-icon
                 icon="mdi:file-document"
@@ -882,6 +883,7 @@
             </button>
             <button
               class="py-3 bg-green-50 hover:bg-green-100 rounded-lg flex flex-col items-center justify-center transition-colors"
+              @click="openTeamCalendar"
             >
               <iconify-icon
                 icon="mdi:calendar"
@@ -1280,6 +1282,37 @@ export default {
       }
       this.$router.push({
         name: "TeamMeetingRoom",
+        params: { teamId: this.selectedTeam.id },
+      });
+    },
+    openTeamCalendar() {
+      if (!this.selectedTeam?.id) {
+        alert("请先选择一个团队");
+        return;
+      }
+      // 保存当前团队ID，防止刷新丢失
+      try {
+        sessionStorage.setItem("currentTeamId", String(this.selectedTeam.id));
+      } catch (e) {
+        // ignore
+      }
+      this.$router.push({
+        name: "TeamCalendar",
+        params: { teamId: this.selectedTeam.id },
+      });
+    },
+    openTeamDocs() {
+      if (!this.selectedTeam?.id) {
+        alert("请先选择一个团队");
+        return;
+      }
+      try {
+        sessionStorage.setItem("currentTeamId", String(this.selectedTeam.id));
+      } catch (e) {
+        // ignore
+      }
+      this.$router.push({
+        name: "TeamDocs",
         params: { teamId: this.selectedTeam.id },
       });
     },
