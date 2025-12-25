@@ -37,47 +37,92 @@
     <div class="flex-1 flex overflow-hidden">
       <!-- 左侧文档列表 -->
       <div class="w-64 bg-white border-r border-gray-200 flex flex-col">
-        <div class="p-4 border-b border-gray-100">
-          <div class="relative">
-            <iconify-icon icon="mdi:magnify" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></iconify-icon>
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="搜索文档..."
-              class="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-            />
+        <div class="flex border-b border-gray-100">
+          <button 
+            @click="sidebarTab = 'docs'"
+            class="flex-1 py-3 text-sm font-medium transition-colors relative"
+            :class="sidebarTab === 'docs' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'"
+          >
+            文档列表
+            <div v-if="sidebarTab === 'docs'" class="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600"></div>
+          </button>
+          <button 
+            @click="sidebarTab = 'outline'"
+            class="flex-1 py-3 text-sm font-medium transition-colors relative"
+            :class="sidebarTab === 'outline' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'"
+          >
+            大纲索引
+            <div v-if="sidebarTab === 'outline'" class="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600"></div>
+          </button>
+        </div>
+
+        <div v-if="sidebarTab === 'docs'" class="flex-1 flex flex-col overflow-hidden">
+          <div class="p-4 border-b border-gray-100">
+            <div class="relative">
+              <iconify-icon icon="mdi:magnify" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></iconify-icon>
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="搜索文档..."
+                class="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+              />
+            </div>
+          </div>
+          <div class="flex-1 overflow-y-auto p-2 space-y-1">
+            <div
+              v-for="doc in filteredDocs"
+              :key="doc.id"
+              @click="selectDoc(doc)"
+              class="group flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all"
+              :class="currentDoc?.id === doc.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'"
+            >
+              <div class="flex items-center gap-3 overflow-hidden">
+                <iconify-icon
+                  :icon="currentDoc?.id === doc.id ? 'mdi:file-document-edit' : 'mdi:file-document-outline'"
+                  class="flex-shrink-0"
+                  :class="currentDoc?.id === doc.id ? 'text-blue-600' : 'text-gray-400'"
+                ></iconify-icon>
+                <div class="flex flex-col overflow-hidden">
+                  <span class="truncate font-medium text-sm">{{ doc.title || '无标题文档' }}</span>
+                  <span class="text-xs text-gray-400 truncate">{{ formatDate(doc.updatedAt) }}</span>
+                </div>
+              </div>
+              <button
+                @click.stop="deleteDoc(doc)"
+                class="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 hover:text-red-600 rounded transition-all"
+                title="删除"
+              >
+                <iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
+              </button>
+            </div>
+            
+            <div v-if="filteredDocs.length === 0" class="text-center py-8 text-gray-400 text-sm">
+              <p>暂无文档</p>
+            </div>
           </div>
         </div>
-        <div class="flex-1 overflow-y-auto p-2 space-y-1">
-          <div
-            v-for="doc in filteredDocs"
-            :key="doc.id"
-            @click="selectDoc(doc)"
-            class="group flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all"
-            :class="currentDoc?.id === doc.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'"
-          >
-            <div class="flex items-center gap-3 overflow-hidden">
-              <iconify-icon
-                :icon="currentDoc?.id === doc.id ? 'mdi:file-document-edit' : 'mdi:file-document-outline'"
-                class="flex-shrink-0"
-                :class="currentDoc?.id === doc.id ? 'text-blue-600' : 'text-gray-400'"
-              ></iconify-icon>
-              <div class="flex flex-col overflow-hidden">
-                <span class="truncate font-medium text-sm">{{ doc.title || '无标题文档' }}</span>
-                <span class="text-xs text-gray-400 truncate">{{ formatDate(doc.updatedAt) }}</span>
-              </div>
-            </div>
-            <button
-              @click.stop="deleteDoc(doc)"
-              class="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 hover:text-red-600 rounded transition-all"
-              title="删除"
-            >
-              <iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
-            </button>
+
+        <div v-else class="flex-1 overflow-y-auto p-4">
+          <div v-if="!currentDoc" class="text-center text-gray-400 text-sm py-8">
+            请先选择文档
           </div>
-          
-          <div v-if="filteredDocs.length === 0" class="text-center py-8 text-gray-400 text-sm">
-            <p>暂无文档</p>
+          <div v-else-if="outline.length === 0" class="text-center text-gray-400 text-sm py-8">
+            暂无标题
+          </div>
+          <div v-else class="space-y-1">
+            <div
+              v-for="(item, index) in outline"
+              :key="index"
+              @click="scrollToHeading(item.pos)"
+              class="cursor-pointer hover:bg-gray-50 hover:text-blue-600 py-1.5 rounded text-sm text-gray-600 transition-colors truncate"
+              :class="{
+                'pl-2 font-medium': item.level === 1,
+                'pl-6': item.level === 2,
+                'pl-10 text-xs': item.level === 3
+              }"
+            >
+              {{ item.text }}
+            </div>
           </div>
         </div>
       </div>
@@ -97,38 +142,45 @@
         
         <!-- 工具栏 -->
         <div class="px-8 py-2 border-y border-gray-100 flex items-center gap-2 flex-wrap bg-gray-50/50" v-if="editor">
-          <button @click="editor.chain().focus().toggleBold().run()" :class="{ 'is-active': editor.isActive('bold') }" class="editor-btn">
-            <iconify-icon icon="mdi:format-bold"></iconify-icon>
-          </button>
-          <button @click="editor.chain().focus().toggleItalic().run()" :class="{ 'is-active': editor.isActive('italic') }" class="editor-btn">
-            <iconify-icon icon="mdi:format-italic"></iconify-icon>
-          </button>
-          <button @click="editor.chain().focus().toggleStrike().run()" :class="{ 'is-active': editor.isActive('strike') }" class="editor-btn">
-            <iconify-icon icon="mdi:format-strikethrough"></iconify-icon>
+          <button @click="editor.chain().focus().setParagraph().run()" :class="{ 'is-active': editor.isActive('paragraph') }" class="editor-btn" title="正文">
+            <iconify-icon icon="mdi:format-paragraph"></iconify-icon>
           </button>
           <div class="w-px h-4 bg-gray-300 mx-1"></div>
-          <button @click="editor.chain().focus().toggleHeading({ level: 1 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 1 }) }" class="editor-btn">
+          <button @click="editor.chain().focus().toggleHeading({ level: 1 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 1 }) }" class="editor-btn" title="一级标题">
             H1
           </button>
-          <button @click="editor.chain().focus().toggleHeading({ level: 2 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }" class="editor-btn">
+          <button @click="editor.chain().focus().toggleHeading({ level: 2 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }" class="editor-btn" title="二级标题">
             H2
           </button>
-          <button @click="editor.chain().focus().toggleHeading({ level: 3 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 3 }) }" class="editor-btn">
+          <button @click="editor.chain().focus().toggleHeading({ level: 3 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 3 }) }" class="editor-btn" title="三级标题">
             H3
           </button>
           <div class="w-px h-4 bg-gray-300 mx-1"></div>
-          <button @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'is-active': editor.isActive('bulletList') }" class="editor-btn">
+          <button @click="editor.chain().focus().toggleBold().run()" :class="{ 'is-active': editor.isActive('bold') }" class="editor-btn" title="加粗">
+            <iconify-icon icon="mdi:format-bold"></iconify-icon>
+          </button>
+          <button @click="editor.chain().focus().toggleItalic().run()" :class="{ 'is-active': editor.isActive('italic') }" class="editor-btn" title="斜体">
+            <iconify-icon icon="mdi:format-italic"></iconify-icon>
+          </button>
+          <button @click="editor.chain().focus().toggleStrike().run()" :class="{ 'is-active': editor.isActive('strike') }" class="editor-btn" title="删除线">
+            <iconify-icon icon="mdi:format-strikethrough"></iconify-icon>
+          </button>
+          <div class="w-px h-4 bg-gray-300 mx-1"></div>
+          <button @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'is-active': editor.isActive('bulletList') }" class="editor-btn" title="无序列表">
             <iconify-icon icon="mdi:format-list-bulleted"></iconify-icon>
           </button>
-          <button @click="editor.chain().focus().toggleOrderedList().run()" :class="{ 'is-active': editor.isActive('orderedList') }" class="editor-btn">
+          <button @click="editor.chain().focus().toggleOrderedList().run()" :class="{ 'is-active': editor.isActive('orderedList') }" class="editor-btn" title="有序列表">
             <iconify-icon icon="mdi:format-list-numbered"></iconify-icon>
           </button>
           <div class="w-px h-4 bg-gray-300 mx-1"></div>
-          <button @click="editor.chain().focus().toggleBlockquote().run()" :class="{ 'is-active': editor.isActive('blockquote') }" class="editor-btn">
+          <button @click="editor.chain().focus().toggleBlockquote().run()" :class="{ 'is-active': editor.isActive('blockquote') }" class="editor-btn" title="引用">
             <iconify-icon icon="mdi:format-quote-close"></iconify-icon>
           </button>
-          <button @click="editor.chain().focus().setHorizontalRule().run()" class="editor-btn">
+          <button @click="editor.chain().focus().setHorizontalRule().run()" class="editor-btn" title="分割线">
             <iconify-icon icon="mdi:minus"></iconify-icon>
+          </button>
+          <button @click="editor.chain().focus().setHardBreak().run()" class="editor-btn" title="换行">
+            <iconify-icon icon="mdi:keyboard-return"></iconify-icon>
           </button>
         </div>
 
@@ -167,6 +219,8 @@ export default {
       saving: false,
       lastSaved: null,
       debouncedSave: null,
+      sidebarTab: 'docs', // 'docs' or 'outline'
+      outline: [],
     }
   },
   computed: {
@@ -213,8 +267,12 @@ export default {
           this.currentDoc.content = editor.getHTML();
           this.currentDoc.updatedAt = Date.now();
           this.autoSave();
+          this.updateOutline();
         }
       },
+      onSelectionUpdate: ({ editor }) => {
+        // 可以在这里高亮当前所在的大纲位置
+      }
     })
   },
   beforeUnmount() {
@@ -223,6 +281,28 @@ export default {
     }
   },
   methods: {
+    updateOutline() {
+      if (!this.editor) return;
+      const headings = [];
+      this.editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'heading') {
+          headings.push({
+            level: node.attrs.level,
+            text: node.textContent,
+            pos
+          });
+        }
+      });
+      this.outline = headings;
+    },
+    scrollToHeading(pos) {
+      if (!this.editor) return;
+      this.editor.chain().focus().setTextSelection(pos).run();
+      const dom = this.editor.view.domAtPos(pos).node;
+      if (dom && dom.scrollIntoView) {
+        dom.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    },
     loadDocs() {
       try {
         const key = `team_docs_${this.teamId}`;
@@ -280,6 +360,7 @@ export default {
       this.currentDoc = doc;
       if (this.editor) {
         this.editor.commands.setContent(doc.content || '');
+        this.updateOutline();
       }
     },
     deleteDoc(doc) {
