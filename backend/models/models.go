@@ -43,5 +43,12 @@ func GetAllModels() []interface{} {
 		&DailyStudyStat{},
 		&Notification{},
 		&TeamRequest{},
+		// 知识库相关模型
+		&KnowledgeCategory{},
+		&KnowledgeBaseEntry{},
+		&KnowledgeVectorCache{},
+		&KnowledgeRelation{},
+		&UserKnowledgeStats{},
+		&TaskQuizRecord{},
 	}
 }

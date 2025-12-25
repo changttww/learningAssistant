@@ -86,6 +86,13 @@ func handleCreateNote(c *gin.Context) {
 		return
 	}
 
+	// 自动将笔记添加到知识库
+	if ragService != nil && req.Content != "" {
+		go func() {
+			_, _ = ragService.AddDocument(userID.(uint64), 2, note.ID, req.Title, req.Content)
+		}()
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"code": 0,
 		"data": note,
@@ -137,6 +144,14 @@ func handleUpdateNote(c *gin.Context) {
 	if err := database.GetDB().First(&note, noteID).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取更新后的笔记失败"})
 		return
+	}
+
+	// 更新知识库中的对应条目（如果内容有变化）
+	if ragService != nil && req.Content != nil && *req.Content != "" {
+		go func() {
+			// 更新或创建知识库条目
+			_, _ = ragService.AddDocument(userID.(uint64), 2, note.ID, note.Title, note.Content)
+		}()
 	}
 
 	c.JSON(http.StatusOK, gin.H{

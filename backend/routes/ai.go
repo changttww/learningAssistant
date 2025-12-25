@@ -22,6 +22,9 @@ func registerAIRoutes(r *gin.RouterGroup) {
 
 	// 测验生成
 	r.POST("/generate-quiz", GenerateQuiz)
+
+	// 提交测验答案并加入知识库
+	r.POST("/submit-quiz", SubmitQuizToKnowledge)
 }
 
 // AI 解析请求结构
@@ -785,4 +788,64 @@ func containsAny(s string, substrs ...string) bool {
 		}
 	}
 	return false
+}
+
+// SubmitQuizRequest 提交测验请求
+type SubmitQuizRequest struct {
+	TaskID         uint64                   `json:"task_id" binding:"required"`
+	Topic          string                   `json:"topic" binding:"required"`
+	Questions      []MultipleChoiceQuestion `json:"questions"`
+	Answers        map[string]string        `json:"answers"`        // 用户答案 {"Q1": "A", "Q2": "B"}
+	Score          int                      `json:"score"`          // 得分
+	AddToKnowledge bool                     `json:"addToKnowledge"` // 是否加入知识库
+}
+
+// SubmitQuizToKnowledge 提交测验答案，用户可选择是否加入知识库
+func SubmitQuizToKnowledge(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
+		return
+	}
+
+	var req SubmitQuizRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误: " + err.Error()})
+		return
+	}
+
+	addedToKnowledge := false
+
+	// 只有当用户明确选择加入知识库时才添加
+	if req.AddToKnowledge {
+		// 构建知识内容
+		var contentBuilder strings.Builder
+		contentBuilder.WriteString(fmt.Sprintf("主题: %s\n\n", req.Topic))
+
+		for i, q := range req.Questions {
+			contentBuilder.WriteString(fmt.Sprintf("问题 %d: %s\n", i+1, q.Question))
+			contentBuilder.WriteString(fmt.Sprintf("正确答案: %s\n", q.CorrectAnswer))
+			contentBuilder.WriteString(fmt.Sprintf("解析: %s\n\n", q.Explanation))
+		}
+
+		// 添加到知识库
+		if ragService != nil {
+			title := fmt.Sprintf("%s - 测验总结", req.Topic)
+			_, err := ragService.AddDocument(userID.(uint64), 3, req.TaskID, title, contentBuilder.String())
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "添加到知识库失败: " + err.Error()})
+				return
+			}
+			addedToKnowledge = true
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"msg":  "测验已提交",
+		"data": gin.H{
+			"score":              req.Score,
+			"added_to_knowledge": addedToKnowledge,
+		},
+	})
 }

@@ -95,9 +95,9 @@
             </div>
             <div class="mt-2 text-center md:text-right">
               <div class="text-lg font-bold text-[#10B981]">
-                {{ totalStudyHoursLabel }}
+                {{ totalKnowledgePointsLabel }}
               </div>
-              <div class="text-xs text-gray-600">学习时长</div>
+              <div class="text-xs text-gray-600">知识点总数</div>
               <div class="text-xs text-gray-500 mt-1">
                 距离下一级还需 {{ pointsToNextLevel }} 积分
               </div>
@@ -113,9 +113,9 @@
       <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
         <div class="stat-card bg-blue-50 p-4">
           <div class="text-2xl font-bold text-blue-600">
-            {{ totalStudyHoursLabel }}
+            {{ totalKnowledgePointsLabel }}
           </div>
-          <div class="text-gray-600 mt-1 text-sm">总学习时长</div>
+          <div class="text-gray-600 mt-1 text-sm">总知识点</div>
         </div>
         <div class="stat-card bg-green-50 p-4">
           <div class="text-2xl font-bold text-green-600">
@@ -204,47 +204,83 @@
         </div>
       </div>
 
-      <!-- 知识点分布、技能雷达二列布局 -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <!-- 知识点分布、AI报告入口、技能雷达三列布局 -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <!-- 知识点分布 - 左列 -->
         <div class="card p-6">
           <div class="flex justify-between items-center mb-4">
             <h2 class="font-bold text-lg text-gray-900">🎯 知识分布</h2>
-            <select
-              class="bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent py-1 px-2 transition-all"
+            <router-link
+              to="/knowledge-base"
+              class="text-blue-600 hover:text-blue-700 text-xs font-medium hover:underline"
+              >查看知识库→</router-link
             >
-              <option selected>全部</option>
-              <option>技术</option>
-              <option>管理</option>
-              <option>设计</option>
-            </select>
           </div>
           <div class="chart-container h-64" ref="knowledgeDistributionChart"></div>
+        </div>
+
+        <!-- AI 学习报告入口 - 中列 -->
+        <div class="card p-6 bg-gradient-to-br from-blue-50 to-purple-50">
+          <div class="flex items-center gap-2 mb-4">
+            <iconify-icon icon="mdi:robot" width="24" class="text-[#2D5BFF]"></iconify-icon>
+            <h2 class="font-bold text-lg text-gray-900">AI 学习报告</h2>
+          </div>
+          <p class="text-gray-600 text-sm mb-4">
+            让 AI 分析你的学习数据，生成个性化的学习报告和建议
+          </p>
+          <div class="space-y-3">
+            <div class="flex items-center gap-2 text-sm text-gray-700">
+              <iconify-icon icon="mdi:check-circle" class="text-green-500"></iconify-icon>
+              学习效率评分
+            </div>
+            <div class="flex items-center gap-2 text-sm text-gray-700">
+              <iconify-icon icon="mdi:check-circle" class="text-green-500"></iconify-icon>
+              能力雷达分析
+            </div>
+            <div class="flex items-center gap-2 text-sm text-gray-700">
+              <iconify-icon icon="mdi:check-circle" class="text-green-500"></iconify-icon>
+              个性化学习建议
+            </div>
+            <div class="flex items-center gap-2 text-sm text-gray-700">
+              <iconify-icon icon="mdi:check-circle" class="text-green-500"></iconify-icon>
+              薄弱点诊断
+            </div>
+          </div>
+          <router-link
+            to="/ai-report"
+            class="mt-4 w-full bg-[#2D5BFF] text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-opacity-90 transition-colors flex items-center justify-center gap-2"
+          >
+            <iconify-icon icon="mdi:sparkles"></iconify-icon>
+            生成 AI 报告
+          </router-link>
         </div>
 
         <!-- 技能雷达 - 右列 -->
         <div class="card p-6">
           <div class="flex justify-between items-center mb-4">
             <h2 class="font-bold text-lg text-gray-900">⚡ 技能雷达</h2>
-            <button class="text-blue-600 hover:text-blue-700 text-xs font-medium hover:underline">
-              自定义
-            </button>
+            <router-link
+              to="/knowledge-base"
+              class="text-blue-600 hover:text-blue-700 text-xs font-medium hover:underline"
+              >管理技能→</router-link>
           </div>
           <div class="chart-container h-64" ref="skillRadarChart"></div>
         </div>
       </div>
 
-      <!-- 学习时长趋势 - 单列全宽 -->
+      <!-- 学习趋势 - 单列全宽 -->
       <div class="card p-6 mb-6">
         <div class="flex justify-between items-center mb-4">
           <h2 class="font-bold text-lg text-gray-900">📈 学习趋势</h2>
           <div class="flex space-x-2">
             <select
+              v-model="trendRange"
+              @change="handleTrendRangeChange"
               class="bg-gray-50 border border-gray-200 text-gray-700 text-xs rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent py-1.5 px-3 transition-all"
             >
-              <option selected>最近30天</option>
-              <option>最近90天</option>
-              <option>本年度</option>
+              <option value="30">最近30天</option>
+              <option value="90">最近90天</option>
+              <option value="year">本年度</option>
             </select>
           </div>
         </div>
@@ -262,6 +298,8 @@
     DEFAULT_USER_ID,
   } from "@/composables/useCurrentUser";
   import { getTaskBarStats, getTodayTasks } from "@/api/modules/task";
+  import { analyzeUserKnowledge, getSkillRadarData, getLearningTrends } from "@/api/modules/knowledge";
+  import { generatePieChartData, getSubjectConfig } from "@/utils/subjectConfig";
   import TaskHeatmap from "@/components/TaskHeatmap.vue";
 
   export default {
@@ -359,11 +397,10 @@
       const levelLabel = computed(
         () => studyStats.value?.level_label || "成长中学员"
       );
-      const totalStudyHoursLabel = computed(() => {
-        const hours = studyStats.value?.total_study_hours;
-        if (hours === null || hours === undefined) return "--";
-        return `${hours}h`;
-      });
+
+      // 总知识点数由 options(data/methods) 侧更新，这里仅作为展示占位，避免 setup 与 this 状态割裂
+      const totalKnowledgePointsLabel = computed(() => "--");
+
       const pointsToNextLevel = computed(
         () => studyStats.value?.distance_to_next ?? 0
       );
@@ -399,7 +436,7 @@
         userSchoolMajor,
         userLocation,
         levelLabel,
-        totalStudyHoursLabel,
+        totalKnowledgePointsLabel,
         studyGroupCount,
         taskCompletionRate,
         tasksInProgress,
@@ -414,17 +451,47 @@
         // 今日任务数据
         todayTasks: [],
         taskRefreshInterval: null,
+        // 知识库分析数据
+        knowledgeAnalysis: null,
+        knowledgeDistribution: [],
+        skillRadarData: [],
+        learningTrends: [],
+
+        // 总知识点（首页展示用）
+        totalKnowledgePoints: 0,
+
+        // 学习趋势范围：30/90/year
+        trendRange: "30",
       };
+    },
+    computed: {
+      // 用 options computed 覆盖 setup 同名字段（以 data 为准，且可响应更新）
+      totalKnowledgePointsLabel() {
+        return String(Number(this.totalKnowledgePoints) || 0);
+      },
     },
     mounted() {
       // 并行加载图表和任务数据，提高加载速度
       Promise.all([
-        this.initCharts(),
+        this.fetchKnowledgeAnalysis(),
         this.fetchTodayTasks(),
       ]).then(() => {
-        console.log("[首页] 数据加载完成");
+        // 将知识点总数同步给 setup 侧的 computed（来自知识库统计的分布数据）
+        const totalFromDist = Array.isArray(this.knowledgeDistribution)
+          ? this.knowledgeDistribution.reduce((sum, item) => sum + (Number(item?.count) || 0), 0)
+          : 0;
+        globalThis.__home_total_knowledge_points_from_distribution__ = totalFromDist;
+
+        // 使用 nextTick 确保 DOM 完全就绪后再初始化图表
+        this.$nextTick(() => {
+          this.initCharts();
+          console.log("[首页] 数据加载完成，图表已初始化");
+        });
       }).catch((error) => {
         console.error("[首页] 数据加载出错:", error);
+        this.$nextTick(() => {
+          this.initCharts(); // 即使出错也初始化图表（使用默认数据）
+        });
       });
       
       // 15秒自动刷新一次今日任务
@@ -450,6 +517,127 @@
       window.removeEventListener("focus", this.handleWindowFocus);
     },
     methods: {
+      unwrapArrayResponse(res) {
+        const payload = res?.data ?? res;
+        const arr = payload?.data ?? payload;
+        return Array.isArray(arr) ? arr : null;
+      },
+      unwrapReportResponse(res) {
+        const payload = res?.data ?? res;
+        return payload?.data ?? payload;
+      },
+      applyKnowledgeReport(report) {
+        this.knowledgeAnalysis = report;
+
+        const distribution =
+          report.knowledge_distribution || report.KnowledgeDistribution || [];
+        this.knowledgeDistribution =
+          Array.isArray(distribution) && distribution.length > 0
+            ? distribution
+            : this.getDefaultDistribution();
+
+        // 关键：总知识点 = 分布 count 求和
+        this.totalKnowledgePoints = Array.isArray(this.knowledgeDistribution)
+          ? this.knowledgeDistribution.reduce(
+              (sum, item) => sum + (Number(item?.count) || 0),
+              0
+            )
+          : 0;
+
+        if (!Array.isArray(this.skillRadarData) || this.skillRadarData.length === 0) {
+          const skillRadar = report.skill_radar || report.SkillRadar || [];
+          this.skillRadarData =
+            Array.isArray(skillRadar) && skillRadar.length > 0
+              ? skillRadar
+              : this.getDefaultSkillRadar();
+        }
+
+        if (!Array.isArray(this.learningTrends) || this.learningTrends.length === 0) {
+          const trendsRaw = report.learning_trends || report.LearningTrends || [];
+          this.learningTrends = Array.isArray(trendsRaw) ? trendsRaw : [];
+        }
+
+        if (!Array.isArray(this.skillRadarData) || this.skillRadarData.length === 0) {
+          this.skillRadarData = this.getDefaultSkillRadar();
+        }
+      },
+
+      // 加载知识库分析数据
+      async fetchKnowledgeAnalysis() {
+        const startTime = performance.now();
+        try {
+          console.log("[首页] 开始加载知识库分析数据");
+
+          const [skillRes, trendRes] = await Promise.allSettled([
+            getSkillRadarData(),
+            getLearningTrends(this.trendRange),
+          ]);
+
+          if (skillRes.status === "fulfilled") {
+            const arr = this.unwrapArrayResponse(skillRes.value);
+            if (arr) this.skillRadarData = arr;
+          }
+
+          if (trendRes.status === "fulfilled") {
+            const arr = this.unwrapArrayResponse(trendRes.value);
+            if (arr) this.learningTrends = arr;
+          }
+
+          const res = await analyzeUserKnowledge();
+          const report = this.unwrapReportResponse(res);
+
+          if (!report) {
+            console.warn("[首页] 知识库分析返回空数据，使用默认数据");
+            this.knowledgeDistribution = this.getDefaultDistribution();
+            this.skillRadarData = this.skillRadarData?.length
+              ? this.skillRadarData
+              : this.getDefaultSkillRadar();
+            this.learningTrends = Array.isArray(this.learningTrends)
+              ? this.learningTrends
+              : [];
+            return;
+          }
+
+          this.applyKnowledgeReport(report);
+
+          const loadTime = (performance.now() - startTime).toFixed(2);
+          console.log(`[首页] 知识库分析已加载 (${loadTime}ms)`, {
+            distribution: this.knowledgeDistribution.length,
+            skillRadar: this.skillRadarData.length,
+            trends: this.learningTrends.length,
+          });
+        } catch (error) {
+          console.error("[首页] 加载知识库分析失败:", error);
+          this.knowledgeDistribution = this.getDefaultDistribution();
+          this.skillRadarData = this.getDefaultSkillRadar();
+          this.learningTrends = [];
+        }
+      },
+
+      // 默认知识分布数据 - 面向学习场景
+      getDefaultDistribution() {
+        return [
+          { category: "数学", count: 15, percentage: 25, color: "#3b82f6", icon: "mdi:calculator-variant", gradient: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)" },
+          { category: "语文", count: 12, percentage: 20, color: "#f59e0b", icon: "mdi:book-open-page-variant", gradient: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)" },
+          { category: "英语", count: 10, percentage: 17, color: "#ec4899", icon: "mdi:alphabetical", gradient: "linear-gradient(135deg, #ec4899 0%, #db2777 100%)" },
+          { category: "物理", count: 8, percentage: 13, color: "#8b5cf6", icon: "mdi:atom", gradient: "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)" },
+          { category: "历史", count: 6, percentage: 10, color: "#92400e", icon: "mdi:castle", gradient: "linear-gradient(135deg, #92400e 0%, #78350f 100%)" },
+          { category: "其他", count: 9, percentage: 15, color: "#64748b", icon: "mdi:bookshelf", gradient: "linear-gradient(135deg, #94a3b8 0%, #64748b 100%)" },
+        ];
+      },
+
+      // 默认技能雷达数据 - 面向学习场景（与后端分类保持一致）
+      getDefaultSkillRadar() {
+        return [
+          { skill: "数学能力", value: 65, max_value: 100, category: "数学" },
+          { skill: "语文能力", value: 70, max_value: 100, category: "语文" },
+          { skill: "英语能力", value: 60, max_value: 100, category: "英语" },
+          { skill: "理科思维", value: 55, max_value: 100, category: "物理" },
+          { skill: "编程能力", value: 50, max_value: 100, category: "编程" },
+          { skill: "综合素养", value: 75, max_value: 100, category: "通用" },
+        ];
+      },
+
       normalizeStatus(status) {
         const normalized =
           typeof status === "string" ? status.trim().toLowerCase() : status;
@@ -532,15 +720,117 @@
           "bg-gray-100 text-gray-800": normalized === "pending",
         };
       },
+      handleTrendRangeChange() {
+        // 范围切换：重新拉取后端聚合后的趋势数据（30=日，90=周，year=月）
+        this.fetchLearningTrendsByRange(this.trendRange);
+      },
+
+      async fetchLearningTrendsByRange(range) {
+        try {
+          const res = await getLearningTrends(range);
+          const arr = this.unwrapArrayResponse(res);
+          if (arr) {
+            this.learningTrends = arr;
+          }
+        } catch (e) {
+          console.error("[首页] 加载学习趋势失败:", e);
+        } finally {
+          this.$nextTick(() => this.initCharts());
+        }
+      },
+
+      buildTrendSeries() {
+        // 返回给 ECharts 使用的 { dates, doneTasks, newNotes, newKnowledge }
+        if (!this.learningTrends || this.learningTrends.length === 0) {
+          return {
+            dates: ["5/1", "5/3", "5/5", "5/7", "5/9", "5/11", "5/13"],
+            doneTasks: [1, 0, 2, 1, 3, 1, 2],
+            newNotes: [0, 1, 0, 1, 0, 2, 1],
+            newKnowledge: [2, 1, 3, 2, 1, 2, 4],
+          };
+        }
+
+        // 后端已按 range 做了聚合与补零，这里只需要做 label 格式化
+        const recentTrends = [...this.learningTrends];
+
+        const dates = recentTrends.map((t) => {
+          const raw = t.date || t.day || t.created_at || t.createdAt;
+          if (!raw) return "--";
+          const s = typeof raw === "string" ? raw : String(raw);
+
+          if (this.trendRange === "year") {
+            // YYYY-MM -> M月
+            if (/^\d{4}-\d{2}$/.test(s)) {
+              const m = Number(s.slice(5, 7));
+              return `${m}月`;
+            }
+          }
+
+          if (this.trendRange === "90") {
+            // YYYY-Www -> Wxx
+            if (/^\d{4}-W\d{2}$/.test(s)) {
+              return `W${s.slice(6, 8)}`;
+            }
+          }
+
+          // 默认按天 YYYY-MM-DD -> M/D
+          if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+            return `${Number(s.slice(5, 7))}/${Number(s.slice(8, 10))}`;
+          }
+
+          // 兜底：尽量转 Date
+          const normalized = s.includes("T") ? s : s + "T00:00:00";
+          const d = new Date(normalized);
+          if (Number.isNaN(d.getTime())) return s;
+          return `${d.getMonth() + 1}/${d.getDate()}`;
+        });
+
+        return {
+          dates,
+          doneTasks: recentTrends.map((t) => Number(t.done_tasks ?? t.doneTasks ?? 0) || 0),
+          newNotes: recentTrends.map((t) => Number(t.new_notes ?? t.newNotes ?? 0) || 0),
+          newKnowledge: recentTrends.map((t) => Number(t.new_knowledge ?? t.newKnowledge ?? 0) || 0),
+        };
+      },
       initCharts() {
-        // 学习时长趋势图
+        console.log("[首页] 开始初始化图表...");
+        console.log("[首页] 技能雷达数据:", this.skillRadarData);
+        console.log("[首页] 学习趋势数据:", this.learningTrends);
+
+        // 检查图表容器是否存在
+        if (!this.$refs.studyTimeChart) {
+          console.error("[首页] 学习趋势图表容器不存在");
+          return;
+        }
+        if (!this.$refs.skillRadarChart) {
+          console.error("[首页] 技能雷达图表容器不存在");
+          return;
+        }
+        if (!this.$refs.knowledgeDistributionChart) {
+          console.error("[首页] 知识分布图表容器不存在");
+          return;
+        }
+
+        console.log("[首页] 图表容器检查通过，开始渲染图表...");
+        console.log("[首页] 学习趋势数据长度:", this.learningTrends?.length || 0);
+        console.log("[首页] 技能雷达数据长度:", this.skillRadarData?.length || 0);
+
+        // 学习趋势图 - 使用知识库趋势数据（完成任务/创建笔记/新增知识点）
         const studyTimeChart = echarts.init(this.$refs.studyTimeChart);
+
+        const trendSeries = this.buildTrendSeries();
+        const trendDates = trendSeries.dates;
+        const seriesDoneTasks = trendSeries.doneTasks;
+        const seriesNewNotes = trendSeries.newNotes;
+        const seriesNewKnowledge = trendSeries.newKnowledge;
+
         const studyTimeOption = {
           tooltip: {
             trigger: "axis",
-            formatter: function (params) {
-              return `${params[0].name}<br/>学习时长: ${params[0].value}小时`;
-            },
+          },
+          legend: {
+            top: 0,
+            textStyle: { color: "#4b5563", fontSize: 12 },
           },
           grid: {
             left: "3%",
@@ -551,7 +841,7 @@
           xAxis: {
             type: "category",
             boundaryGap: false,
-            data: ["5/1", "5/3", "5/5", "5/7", "5/9", "5/11", "5/13"],
+            data: trendDates,
             axisLine: {
               lineStyle: {
                 color: "#ddd",
@@ -560,11 +850,12 @@
           },
           yAxis: {
             type: "value",
+            minInterval: 1,
             axisLine: {
               show: false,
             },
             axisLabel: {
-              formatter: "{value}h",
+              formatter: "{value}",
             },
             splitLine: {
               lineStyle: {
@@ -574,19 +865,14 @@
           },
           series: [
             {
-              name: "学习时长",
+              name: "完成任务",
               type: "line",
-              data: [35, 28, 42, 30, 38, 45, 32],
+              data: seriesDoneTasks,
               smooth: true,
               symbol: "circle",
-              symbolSize: 8,
-              itemStyle: {
-                color: "#2D5BFF",
-              },
-              lineStyle: {
-                width: 3,
-                color: "#2D5BFF",
-              },
+              symbolSize: 7,
+              itemStyle: { color: "#2D5BFF" },
+              lineStyle: { width: 3, color: "#2D5BFF" },
               areaStyle: {
                 color: {
                   type: "linear",
@@ -595,37 +881,59 @@
                   x2: 0,
                   y2: 1,
                   colorStops: [
-                    {
-                      offset: 0,
-                      color: "rgba(45,91,255,0.2)",
-                    },
-                    {
-                      offset: 1,
-                      color: "rgba(45,91,255,0.01)",
-                    },
+                    { offset: 0, color: "rgba(45,91,255,0.18)" },
+                    { offset: 1, color: "rgba(45,91,255,0.01)" },
                   ],
                 },
               },
+            },
+            {
+              name: "创建笔记",
+              type: "line",
+              data: seriesNewNotes,
+              smooth: true,
+              symbol: "circle",
+              symbolSize: 6,
+              itemStyle: { color: "#10B981" },
+              lineStyle: { width: 2, color: "#10B981" },
+            },
+            {
+              name: "新增知识点",
+              type: "line",
+              data: seriesNewKnowledge,
+              smooth: true,
+              symbol: "circle",
+              symbolSize: 6,
+              itemStyle: { color: "#F59E0B" },
+              lineStyle: { width: 2, color: "#F59E0B" },
             },
           ],
         };
         studyTimeChart.setOption(studyTimeOption);
 
-        // 技能雷达图
+        // 技能雷达图 - 使用知识库分析的技能数据
         const skillRadarChart = echarts.init(this.$refs.skillRadarChart);
+
+        let radarIndicators = [];
+        let radarValues = [];
+
+        const skillData =
+          this.skillRadarData && this.skillRadarData.length > 0
+            ? this.skillRadarData.slice(0, 6)
+            : this.getDefaultSkillRadar();
+
+        radarIndicators = skillData.map((s) => ({
+          name: s.skill,
+          max: Number(s.max_value ?? s.max ?? 100) || 100,
+        }));
+        radarValues = skillData.map((s) => Number(s.value ?? s.score ?? 0) || 0);
+
         const skillRadarOption = {
           tooltip: {
             trigger: "item",
           },
           radar: {
-            indicator: [
-              { name: "前端开发", max: 100 },
-              { name: "后端开发", max: 100 },
-              { name: "数据分析", max: 100 },
-              { name: "项目管理", max: 100 },
-              { name: "UI设计", max: 100 },
-              { name: "软技能", max: 100 },
-            ],
+            indicator: radarIndicators,
             radius: "65%",
             splitNumber: 4,
             axisName: {
@@ -643,7 +951,7 @@
               type: "radar",
               data: [
                 {
-                  value: [85, 65, 70, 90, 60, 80],
+                  value: radarValues,
                   name: "技能掌握度",
                   symbol: "circle",
                   symbolSize: 6,
@@ -663,69 +971,87 @@
         };
         skillRadarChart.setOption(skillRadarOption);
 
-        // 知识点分布图
+        // 知识点分布图 - 使用知识库分析数据
         const knowledgeDistributionChart = echarts.init(
           this.$refs.knowledgeDistributionChart
         );
+        
+        // 从knowledgeDistribution中提取数据
+        const distData = this.knowledgeDistribution && this.knowledgeDistribution.length > 0 
+          ? this.knowledgeDistribution 
+          : this.getDefaultDistribution();
+        
+        // 使用 subjectConfig 生成带渐变色的饼图数据
+        const pieData = generatePieChartData(distData);
+        
         const knowledgeDistributionOption = {
           tooltip: {
             trigger: "item",
-            formatter: "{b}: {c}小时 ({d}%)",
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            borderColor: '#e5e7eb',
+            borderWidth: 1,
+            textStyle: {
+              color: '#374151'
+            },
+            formatter: function(params) {
+              const config = getSubjectConfig(params.name);
+              return `<div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:16px;">${config.emoji}</span>
+                <span style="font-weight:bold;color:${config.color}">${params.name}</span>
+              </div>
+              <div style="margin-top:4px;">
+                📚 知识点: <b>${params.value}</b> 个<br/>
+                📊 占比: <b>${params.percent}%</b>
+              </div>`;
+            }
           },
           legend: {
             bottom: "0%",
             left: "center",
-            itemWidth: 10,
-            itemHeight: 10,
+            itemWidth: 12,
+            itemHeight: 12,
+            itemGap: 15,
             textStyle: {
-              fontSize: 11,
+              fontSize: 12,
+              color: '#4b5563',
+              fontWeight: 500
             },
+            icon: 'circle'
           },
           series: [
             {
               type: "pie",
-              radius: ["40%", "70%"],
+              radius: ["45%", "75%"],
               center: ["50%", "45%"],
               avoidLabelOverlap: false,
               itemStyle: {
-                borderRadius: 6,
+                borderRadius: 8,
                 borderColor: "#fff",
-                borderWidth: 2,
+                borderWidth: 3,
+                shadowBlur: 10,
+                shadowColor: 'rgba(0, 0, 0, 0.1)'
               },
               label: {
                 show: false,
               },
               emphasis: {
+                scale: true,
+                scaleSize: 8,
+                itemStyle: {
+                  shadowBlur: 20,
+                  shadowColor: 'rgba(0, 0, 0, 0.2)'
+                },
                 label: {
-                  show: false,
+                  show: true,
+                  fontSize: 14,
+                  fontWeight: 'bold',
+                  formatter: '{b}\n{c}个'
                 },
               },
               labelLine: {
                 show: false,
               },
-              data: [
-                {
-                  value: 35,
-                  name: "前端技术",
-                  itemStyle: { color: "#2D5BFF" },
-                },
-                {
-                  value: 20,
-                  name: "后端开发",
-                  itemStyle: { color: "#34C759" },
-                },
-                {
-                  value: 15,
-                  name: "数据分析",
-                  itemStyle: { color: "#FF9500" },
-                },
-                {
-                  value: 25,
-                  name: "项目管理",
-                  itemStyle: { color: "#AF52DE" },
-                },
-                { value: 5, name: "其他", itemStyle: { color: "#FF3B30" } },
-              ],
+              data: pieData,
             },
           ],
         };
