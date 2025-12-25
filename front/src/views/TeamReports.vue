@@ -82,7 +82,8 @@
 
 <script>
 import * as echarts from 'echarts';
-import request from '../utils/request';
+import { getTeamTasks } from '@/api/modules/task';
+import { getTeamMembers } from '@/api/modules/team';
 
 export default {
   name: 'TeamReports',
@@ -131,8 +132,8 @@ export default {
       this.loading = true;
       try {
         const [tasksRes, membersRes] = await Promise.all([
-          request.get(`/team/${this.teamId}/tasks`),
-          request.get(`/team/${this.teamId}/members`)
+          getTeamTasks({ team_id: this.teamId }),
+          getTeamMembers(this.teamId)
         ]);
 
         this.tasks = tasksRes.data || [];
