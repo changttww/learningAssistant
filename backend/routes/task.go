@@ -536,6 +536,17 @@ func updateTask(c *gin.Context) {
 		updateData["description"] = *req.Description
 	}
 	if req.CategoryID != nil {
+		// 验证类别ID是否存在
+		var category models.TaskCategory
+		if err := database.GetDB().Where("id = ?", *req.CategoryID).First(&category).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "任务分类不存在"})
+				return
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "验证任务分类失败"})
+				return
+			}
+		}
 		updateData["category_id"] = *req.CategoryID
 	}
 	if req.Priority != nil {

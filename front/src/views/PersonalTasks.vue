@@ -226,6 +226,7 @@
                               'text-xs px-2.5 py-1 rounded-md font-medium shadow-sm',
                               getCategoryStyle(task.category),
                             ]"
+                            :style="getCategoryInlineStyle(task.category)"
                           >
                             {{ task.category }}
                           </span>
@@ -580,6 +581,7 @@
                       'text-xs px-2.5 py-1 rounded-md font-medium shadow-sm',
                       getCategoryStyle(task.category),
                     ]"
+                    :style="getCategoryInlineStyle(task.category)"
                   >
                     {{ task.category }}
                   </span>
@@ -615,7 +617,7 @@
                 <!-- 时间显示 -->
                 <span class="text-xs text-gray-500 font-medium flex items-center gap-1">
                   <iconify-icon icon="mdi:clock-outline" width="14" height="14"></iconify-icon>
-                  {{ task.time }}
+                  <span>开始时间：{{ formatTaskStartTime(task) }}</span>
                   <span>结束时间：{{ formatTaskEndTime(task) }}</span>
                 </span>
               </div>
@@ -707,6 +709,14 @@
                   >
                     <iconify-icon icon="mdi:file-question-outline" width="16" height="16"></iconify-icon>
                   </button>
+                  <!-- 新建笔记按钮 -->
+                  <button
+                    @click.stop="openNewNoteForTask(task)"
+                    class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors duration-200"
+                    title="新建笔记"
+                  >
+                    <iconify-icon icon="mdi:notebook-plus" width="16" height="16"></iconify-icon>
+                  </button>
                   <!-- 编辑按钮 -->
                   <button
                     @click.stop="editTask(task)"
@@ -754,14 +764,7 @@
                 <p class="text-xs text-purple-100 mt-1">记录学习点滴，沉淀知识精华</p>
               </div>
             </div>
-            <!-- 新建笔记按钮 -->
-            <button 
-              @click="openNotebookModal({ title: '新笔记', category: '默认', content: '', date: new Date().toLocaleDateString() })" 
-              class="bg-white text-purple-600 px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105 font-medium flex items-center gap-2"
-            >
-              <iconify-icon icon="mdi:plus-circle" width="18" height="18"></iconify-icon>
-              <span class="text-sm">新建笔记</span>
-            </button>
+
           </div>
         </div>
 
@@ -772,12 +775,6 @@
           >
             <iconify-icon icon="mdi:notebook-outline" width="64" height="64" class="text-gray-300 mb-3"></iconify-icon>
             <p class="text-gray-400 text-sm mb-2">暂无笔记</p>
-            <button 
-              @click="openNotebookModal({ title: '新笔记', category: '默认', content: '', date: new Date().toLocaleDateString() })"
-              class="text-sm text-purple-600 hover:text-purple-700 font-medium"
-            >
-              + 创建第一篇笔记
-            </button>
           </div>
 
           <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -794,11 +791,7 @@
                     {{ note.title }}
                   </h3>
                   <div class="flex items-center gap-1 text-xs text-gray-500">
-                    <span>创建时间：</span><span>{{ note.createdAt }}</span>
-                  </div>
-                  <div class="flex items-center gap-2 text-xs text-gray-500">
-                    <iconify-icon icon="mdi:calendar-outline" width="14" height="14"></iconify-icon>
-                    <span>{{ note.date }}</span>
+                    <span>创建时间：</span><span>{{ note.date }}</span>
                   </div>
                 </div>
                 <span
@@ -806,6 +799,7 @@
                     'text-xs px-2.5 py-1 rounded-lg font-medium shadow-sm flex-shrink-0',
                     getCategoryStyle(note.category),
                   ]"
+                  :style="getCategoryInlineStyle(note.category)"
                 >
                   {{ note.category }}
                 </span>
@@ -1025,11 +1019,13 @@
                 class="w-full border-2 border-gray-200 px-4 py-2.5 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none transition-all bg-white cursor-pointer"
               >
                 <option value="">请选择分类</option>
-                <option value="study">📚 学习</option>
-                <option value="exam">📝 考试</option>
-                <option value="project">💼 项目</option>
-                <option value="reading">📖 阅读</option>
-                <option value="other">📌 其他</option>
+                <option
+                  v-for="cat in taskCategories"
+                  :key="cat.id || cat.name"
+                  :value="cat.name"
+                >
+                  {{ cat.name }}
+                </option>
               </select>
             </div>
           </div>
@@ -1193,13 +1189,14 @@
                 v-model="currentNote.category"
                 class="w-full border-2 border-gray-200 px-4 py-3 rounded-lg text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all bg-white cursor-pointer"
               >
-                <option value="学习">📚 学习</option>
-                <option value="工作">💼 工作</option>
-                <option value="数学">🔢 数学</option>
-                <option value="英语">🗣️ 英语</option>
-                <option value="物理">⚛️ 物理</option>
-                <option value="研究">🔬 研究</option>
-                <option value="其他">📌 其他</option>
+                <option value="">请选择分类</option>
+                <option
+                  v-for="cat in taskCategories"
+                  :key="cat.id || cat.name"
+                  :value="cat.name"
+                >
+                  {{ cat.name }}
+                </option>
               </select>
             </div>
 
@@ -1898,6 +1895,8 @@ import {
   parseTaskWithAI,
   getTaskGuidance,
   generateQuiz,
+  getTaskCategories,
+  updateTask,
 } from "@/api/modules/task";
 import { getStudyNotes, updateStudyNote, createStudyNote } from "@/api/modules/study";
 import { ElMessage } from "element-plus";
@@ -1949,6 +1948,26 @@ const newTask = ref({
   endTime: "",
   category: "",
 });
+
+const CATEGORY_CODE_TO_NAME = {
+  study: "学习",
+  exam: "考试",
+  project: "项目",
+  reading: "阅读",
+  work: "工作",
+  sport: "运动",
+  exercise: "运动",
+  entertainment: "娱乐",
+  life: "生活",
+  other: "其他",
+};
+
+const normalizeTaskCategoryName = (raw) => {
+  const value = (raw || "").trim();
+  if (!value) return "";
+  return CATEGORY_CODE_TO_NAME[value] || value;
+};
+const taskCategories = ref([]);
 const teamTasks = ref([]);
 const allTasks = computed(() => {
   return [...tasks.value, ...teamTasks.value];
@@ -1962,6 +1981,29 @@ const teamTaskPreview = computed(() => teamTasks.value.slice(0, TEAM_TASK_PREVIE
 const currentNote = ref(null);
 const isNoteDirty = ref(false);
 const isNoteSaving = ref(false);
+
+const loadTaskCategories = async () => {
+  try {
+    const response = await getTaskCategories();
+    if (response && response.code === 0) {
+      taskCategories.value = response.data || [];
+    }
+  } catch (error) {
+    console.error('加载任务分类失败:', error);
+    // 设置默认类别
+    taskCategories.value = [
+      { id: 1, name: "学习", color: "#3B82F6" },
+      { id: 2, name: "考试", color: "#2563EB" },
+      { id: 3, name: "工作", color: "#10B981" },
+      { id: 4, name: "运动", color: "#F59E0B" },
+      { id: 5, name: "娱乐", color: "#8B5CF6" },
+      { id: 6, name: "生活", color: "#EF4444" },
+      { id: 7, name: "阅读", color: "#06B6D4" },
+      { id: 8, name: "项目", color: "#F97316" },
+      { id: 9, name: "其他", color: "#6B7280" }
+    ];
+  }
+};
 
 const loadNotes = async () => {
   try {
@@ -2546,7 +2588,7 @@ const parseNaturalLanguage = async () => {
       if (parsed.startTime) newTask.value.startTime = parsed.startTime;
       if (parsed.endDate) newTask.value.endDate = parsed.endDate;
       if (parsed.endTime) newTask.value.endTime = parsed.endTime;
-      if (parsed.category) newTask.value.category = parsed.category;
+      if (parsed.category) newTask.value.category = normalizeTaskCategoryName(parsed.category);
     }
   } catch (error) {
     console.error('AI解析失败:', error);
@@ -2604,6 +2646,8 @@ const saveTask = async () => {
     const isoStartTime = new Date(localStartStr).toISOString();
     const isoEndTime = new Date(localEndStr).toISOString();
     
+    const normalizedCategoryName = normalizeTaskCategoryName(newTask.value.category);
+
     // 准备API数据
     const taskData = {
       title: newTask.value.title,
@@ -2620,30 +2664,32 @@ const saveTask = async () => {
     
     // 判断是编辑还是新建
     if (modalDateMode.value === 'edit' && newTask.value.id) {
-      // 编辑现有任务 - 这里需要后端提供更新API
-      // response = await updateTask(newTask.value.id, taskData);
-      
-      // 暂时使用前端更新
-      const taskIndex = tasks.value.findIndex(t => t.id === newTask.value.id);
-      if (taskIndex !== -1) {
-        tasks.value[taskIndex] = {
-          ...tasks.value[taskIndex],
-          title: newTask.value.title,
-          description: newTask.value.description,
-          startDate: newTask.value.startDate,
-          endDate: newTask.value.endDate,
-          time: newTask.value.endTime || "全天",
-          category: newTask.value.category || "其他",
-        };
-        
-        closeTaskModal();
-        naturalLanguageInput.value = "";
-        modalDateMode.value = 'system';
-        alert("✅ 任务已更新");
-        return;
+      // 编辑现有任务 - 使用后端API更新
+      // 先获取任务类别ID
+      let categoryID = null;
+      if (normalizedCategoryName) {
+        // 从任务类别列表中查找对应的ID
+        const category = taskCategories.value.find(cat => cat.name === normalizedCategoryName);
+        if (category) {
+          categoryID = category.id;
+        }
       }
+      
+      // 添加类别ID到更新数据中
+      if (categoryID) {
+        taskData.category_id = categoryID;
+      }
+      
+      response = await updateTask(newTask.value.id, taskData);
     } else {
       // 调用API创建任务
+      // 添加类别ID到创建数据中
+      if (normalizedCategoryName) {
+        const category = taskCategories.value.find(cat => cat.name === normalizedCategoryName);
+        if (category) {
+          taskData.category_id = category.id;
+        }
+      }
       response = await createTask(taskData);
     }
     
@@ -2661,18 +2707,27 @@ const saveTask = async () => {
         endTime: newTask.value.endTime || "18:00",
         status: "pending", // 转换状态
         notes: "",
-        category: newTask.value.category || "其他",
+        category: normalizedCategoryName || "其他",
       };
       
-      // 添加到本地任务列表
-      tasks.value.push(task);
+      // 根据模式决定是添加新任务还是更新现有任务
+      if (modalDateMode.value === 'edit' && newTask.value.id) {
+        // 编辑模式：更新现有任务
+        const taskIndex = tasks.value.findIndex(t => t.id === newTask.value.id);
+        if (taskIndex !== -1) {
+          tasks.value[taskIndex] = task;
+        }
+      } else {
+        // 创建模式：添加新任务
+        tasks.value.push(task);
+      }
       
       closeTaskModal();
       naturalLanguageInput.value = "";
       modalDateMode.value = 'system';
     } else {
-      console.error('创建任务失败:', response);
-      alert('创建任务失败，请重试');
+      console.error('保存任务失败:', response);
+      alert('保存任务失败，请重试');
     }
   } catch (error) {
     console.error('保存任务失败:', error);
@@ -2717,6 +2772,7 @@ const cancelDeleteTask = () => {
 };
 
 const editTask = (task) => {
+  const nextCategory = normalizeTaskCategoryName(task?.category?.name || task?.category || "");
   // 填充表单数据
   newTask.value = {
     id: task.id,
@@ -2726,7 +2782,7 @@ const editTask = (task) => {
     startTime: task.time !== "全天" ? task.time.split('-')[0]?.trim() || "" : "",
     endDate: task.endDate,
     endTime: task.time !== "全天" ? task.time.split('-')[1]?.trim() || task.time : "",
-    category: task.category,
+    category: nextCategory || "其他",
   };
   
   modalDateMode.value = 'edit';
@@ -2819,11 +2875,26 @@ const openNotebookModal = (note = null) => {
       id: null,
       title: "新笔记",
       content: "",
-      category: "默认",
+      category: "其他",
       tags: [],
       lastUpdated: "",
     };
   }
+  showNotebookModal.value = true;
+  isNoteDirty.value = false;
+};
+
+// 打开与任务关联的新建笔记界面
+const openNewNoteForTask = (task) => {
+  currentNote.value = {
+    id: null,
+    title: `${task.title} - 学习笔记`,
+    content: `<h2>${task.title} 学习笔记</h2>\n<p>记录关于"${task.title}"任务的学习心得和要点。</p>\n\n<h3>任务目标</h3>\n<p>${task.description || '无描述'}</p>\n\n<h3>学习要点</h3>\n<p></p>\n\n<h3>完成情况</h3>\n<p></p>`,
+    category: task.category || "其他",
+    tags: [],
+    lastUpdated: new Date().toLocaleString("zh-CN"),
+    taskId: task.id, // 关联到任务ID
+  };
   showNotebookModal.value = true;
   isNoteDirty.value = false;
 };
@@ -2903,22 +2974,47 @@ const getRelatedTask = (taskId) => {
   return tasks.value.find((t) => t.id === taskId);
 };
 
-const getCategoryStyle = (category) => {
-  const styles = {
-    数学: "bg-blue-50 text-blue-600",
-    英语: "bg-orange-50 text-orange-600",
-    物理: "bg-red-50 text-red-600",
-    研究: "bg-purple-50 text-purple-600",
-    学习: "bg-blue-50 text-blue-600",
-    工作: "bg-teal-50 text-teal-600",
-    其他: "bg-gray-50 text-gray-600",
-    study: "bg-blue-50 text-blue-600",
-    exam: "bg-red-50 text-red-600",
-    project: "bg-purple-50 text-purple-600",
-    reading: "bg-green-50 text-green-600",
-    other: "bg-gray-50 text-gray-600",
+const hexToRgba = (hex, alpha = 1) => {
+  const value = (hex || "").trim();
+  if (!value) return "";
+
+  const normalized = value.startsWith("#") ? value.slice(1) : value;
+  if (![3, 6].includes(normalized.length)) return "";
+
+  const full = normalized.length === 3
+    ? normalized.split("").map((ch) => ch + ch).join("")
+    : normalized;
+
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  if ([r, g, b].some((n) => Number.isNaN(n))) return "";
+  const a = Math.max(0, Math.min(1, Number(alpha)));
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+};
+
+const getCategoryColor = (category) => {
+  const name = normalizeTaskCategoryName(category);
+  if (!name) return "";
+  const found = taskCategories.value.find((c) => c?.name === name);
+  return found?.color || "";
+};
+
+const getCategoryInlineStyle = (category) => {
+  const color = getCategoryColor(category);
+  if (!color) return {};
+  return {
+    backgroundColor: hexToRgba(color, 0.12),
+    color,
   };
-  return styles[category] || "bg-gray-50 text-gray-600";
+};
+
+const getCategoryStyle = (category) => {
+  if (getCategoryColor(category)) {
+    // 实际颜色由 :style 注入，这里保留布局相关 class
+    return "bg-transparent";
+  }
+  return "bg-gray-50 text-gray-600";
 };
 
 const getTaskCardBackground = (category) => {
@@ -2997,6 +3093,13 @@ const getTaskActualStatus = (task) => {
   return '未知状态';
 };
 
+const formatTaskStartTime = (task) => {
+  if (!task.startDate) return task.time || "全天";
+  const [year, month, day] = task.startDate.split('-');
+  const startTime = task.time && task.time !== "全天" ? task.time : "全天";
+  return `${parseInt(month)}月${parseInt(day)}日 ${startTime}`;
+};
+
 const formatTaskEndTime = (task) => {
   if (!task.endDate) return task.endTime;
   const [year, month, day] = task.endDate.split('-');
@@ -3028,6 +3131,9 @@ onMounted(async () => {
     localStorage.setItem('token', 'mock-token-3-test');
   }
   
+  // 加载任务类别
+  await loadTaskCategories();
+
   // 加载个人任务
   await loadPersonalTasks();
 
