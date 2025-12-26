@@ -103,6 +103,13 @@ export function completeTaskWithNote(taskId) {
 }
 
 /**
+ * 获取任务分类
+ */
+export function getTaskCategories() {
+  return request.get("/tasks/categories");
+}
+
+/**
  * 取消完成任务
  */
 export function uncompleteTask(taskId) {
@@ -134,13 +141,6 @@ export function updateTaskProgress(taskId, progress) {
  */
 export function getTaskStatistics(params = {}) {
   return request.get("/tasks/statistics", params);
-}
-
-/**
- * 获取任务分类
- */
-export function getTaskCategories() {
-  return request.get("/tasks/categories");
 }
 
 /**

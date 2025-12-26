@@ -53,6 +53,9 @@ func InitDatabase() {
 	if err := seeder.SeedAchievements(DB); err != nil {
 		log.Fatal("Failed to seed achievements:", err)
 	}
+	if err := seeder.SeedTaskCategories(DB); err != nil {
+		log.Println("Warning: Failed to seed task categories:", err)
+	}
 	if shouldSeedDemoData() {
 		if err := seeder.SeedDemoData(DB); err != nil {
 			log.Fatal("Failed to seed demo data:", err)

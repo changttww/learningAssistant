@@ -10,9 +10,10 @@ import (
 func SeedTaskCategories(db *gorm.DB) error {
 	categories := []models.TaskCategory{
 		{Name: "学习", Color: "#3B82F6"},
+		{Name: "考试", Color: "#8f25ebff"},
 		{Name: "工作", Color: "#10B981"},
 		{Name: "运动", Color: "#F59E0B"},
-		{Name: "娱乐", Color: "#8B5CF6"},
+		{Name: "娱乐", Color: "#0a8d38ff"},
 		{Name: "生活", Color: "#EF4444"},
 		{Name: "阅读", Color: "#06B6D4"},
 		{Name: "项目", Color: "#F97316"},
