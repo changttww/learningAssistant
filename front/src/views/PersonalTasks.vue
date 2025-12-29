@@ -1055,30 +1055,6 @@
          </div>
     </div>
 
-    <!-- 完成确认弹窗 -->
-    <div
-      v-if="showCompleteConfirm"
-      class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-    >
-      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-modal-enter">
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 class="text-lg font-bold text-gray-800">提示</h3>
-          <button @click="showCompleteConfirm = false" class="w-8 h-8 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100">
-            <iconify-icon icon="mdi:close" width="20" height="20"></iconify-icon>
-          </button>
-        </div>
-        <div class="p-6 text-sm text-gray-700">
-          <p>该任务已完成，是否要创建关联笔记？</p>
-        </div>
-        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
-          <button @click="cancelCompleteWithoutNote" class="text-sm text-gray-700 bg-white border-2 border-gray-300 py-2 px-4 rounded-lg hover:bg-gray-50">取消</button>
-          <button @click="confirmCompleteWithNote" class="text-sm text-white bg-gradient-to-r from-purple-600 to-pink-600 py-2 px-4 rounded-lg hover:shadow-lg">确认</button>
-        </div>
-      </div>
-    </div>
-
-
-
     <div
       v-if="showDeleteConfirm"
       class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -1302,11 +1278,12 @@
           </div>
           <div class="flex gap-3">
             <button
-              @click="addImage"
-              class="text-sm text-purple-600 py-2 px-4 border-2 border-purple-600 rounded-lg hover:bg-purple-50 transition-all font-medium flex items-center gap-2"
+              @click="deleteCurrentNote"
+              class="text-sm text-red-600 py-2 px-4 border-2 border-red-600 rounded-lg hover:bg-red-50 transition-all font-medium flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              :disabled="isNoteSaving"
             >
-              <iconify-icon icon="mdi:image-plus" width="16" height="16"></iconify-icon>
-              插入图片
+              <iconify-icon icon="mdi:trash-can-outline" width="16" height="16"></iconify-icon>
+              删除笔记
             </button>
             <button
               @click="closeAndSaveNote"
@@ -1889,7 +1866,6 @@ import {
   getPersonalTasks,
   getTeamTasks,
   completeTask,
-  completeTaskWithNote,
   uncompleteTask,
   deleteTask,
   parseTaskWithAI,
@@ -1898,7 +1874,7 @@ import {
   getTaskCategories,
   updateTask,
 } from "@/api/modules/task";
-import { getStudyNotes, updateStudyNote, createStudyNote } from "@/api/modules/study";
+import { getStudyNotes, updateStudyNote, createStudyNote, deleteStudyNote } from "@/api/modules/study";
 import { ElMessage } from "element-plus";
 // Name
 defineOptions({
@@ -1910,8 +1886,6 @@ const currentDate = ref(new Date());
 const selectedDate = ref(new Date());
 const showTaskModal = ref(false);
 const showNotebookModal = ref(false);
-const showCompleteConfirm = ref(false);
-const confirmingTask = ref(null);
 const showDeleteConfirm = ref(false);
 const deletingTask = ref(null);
 const isNotebookFullscreen = ref(false);
@@ -2800,70 +2774,17 @@ const toggleTaskComplete = async (task) => {
         throw new Error(response.msg || "取消完成失败");
       }
     } else {
-      confirmingTask.value = task;
-      showCompleteConfirm.value = true;
+      const response = await completeTask(task.id);
+      if (response.code === 0) {
+        task.status = "completed";
+      } else {
+        throw new Error(response.msg || "完成任务失败");
+      }
     }
   } catch (error) {
     console.error("更新任务状态失败:", error);
     alert("更新任务状态失败，请重试");
     await loadPersonalTasks();
-  }
-};
-
-const confirmCompleteWithNote = async () => {
-  if (!confirmingTask.value) return;
-  try {
-    const response = await completeTaskWithNote(confirmingTask.value.id);
-    if (response.code === 0) {
-      confirmingTask.value.status = "completed";
-      const note = response.data?.note || response.note || response.data;
-      if (note) {
-        currentNote.value = {
-          id: note.id,
-          title: note.title,
-          content: note.content || "",
-          category: confirmingTask.value.category || "学习",
-          date: note.created_at ? new Date(note.created_at).toLocaleString("zh-CN") : new Date().toLocaleString("zh-CN"),
-          lastUpdated: new Date().toLocaleString("zh-CN"),
-          taskId: confirmingTask.value.id,
-        };
-        notes.value.push({ ...currentNote.value });
-        showNotebookModal.value = true;
-        setTimeout(() => {
-          if (editor.value) {
-            editor.value.chain().focus().run();
-          }
-        }, 0);
-      }
-    } else {
-      throw new Error(response.msg || "完成任务并创建笔记失败");
-    }
-  } catch (e) {
-    console.error("完成并创建笔记失败:", e);
-    alert("笔记创建失败，任务状态已回滚。请稍后重试");
-    await loadPersonalTasks();
-  } finally {
-    showCompleteConfirm.value = false;
-    confirmingTask.value = null;
-  }
-};
-
-const cancelCompleteWithoutNote = async () => {
-  if (!confirmingTask.value) return;
-  try {
-    const response = await completeTask(confirmingTask.value.id);
-    if (response.code === 0) {
-      confirmingTask.value.status = "completed";
-    } else {
-      throw new Error(response.msg || "完成任务失败");
-    }
-  } catch (e) {
-    console.error("仅完成任务失败:", e);
-    alert("完成任务失败，请重试");
-    await loadPersonalTasks();
-  } finally {
-    showCompleteConfirm.value = false;
-    confirmingTask.value = null;
   }
 };
 
@@ -2961,6 +2882,28 @@ const closeAndSaveNote = async () => {
   const ok = await saveNote();
   if (ok) {
     closeNotebookModal();
+  }
+};
+
+const deleteCurrentNote = async () => {
+  if (!currentNote.value) return;
+  if (isNoteSaving.value) return;
+
+  const noteId = currentNote.value.id;
+  // 未保存的新笔记：直接关闭即可（等价于丢弃）
+  if (!noteId) {
+    closeNotebookModal();
+    return;
+  }
+
+  try {
+    await deleteStudyNote(noteId);
+    notes.value = notes.value.filter((n) => n.id !== noteId);
+    ElMessage.success("笔记已删除");
+    closeNotebookModal();
+  } catch (e) {
+    console.error("删除笔记失败", e);
+    ElMessage.error(e?.message || "删除失败，请稍后重试");
   }
 };
 

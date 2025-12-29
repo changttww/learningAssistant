@@ -93,16 +93,6 @@ export function completeTask(taskId) {
 }
 
 /**
- * 完成任务并创建关联笔记
- */
-export function completeTaskWithNote(taskId) {
-  return request.post(`/tasks/${taskId}/complete-with-note`).then((res) => {
-    emitTaskUpdateEvent("taskCompleted");
-    return res;
-  });
-}
-
-/**
  * 获取任务分类
  */
 export function getTaskCategories() {
