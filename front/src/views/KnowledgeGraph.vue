@@ -7,9 +7,6 @@
         <p class="page-subtitle">可视化展示知识点之间的关联关系</p>
       </div>
       <div class="header-right">
-        <router-link to="/knowledge-base" class="btn-back">
-          ← 返回知识库
-        </router-link>
         <button class="btn-refresh" @click="fetchGraphData">
           🔄 刷新
         </button>
@@ -301,23 +298,13 @@ export default {
   gap: 12px;
 }
 
-.btn-back, .btn-refresh {
+.btn-refresh {
   padding: 8px 16px;
   border-radius: 8px;
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
   text-decoration: none;
-}
-
-.btn-back {
-  background: white;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
-}
-
-.btn-back:hover {
-  background: #f1f5f9;
 }
 
 .btn-refresh {

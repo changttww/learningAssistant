@@ -3,10 +3,6 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
-        <button @click="$router.push({ name: 'TeamTasks', query: { teamId: teamId } })" class="btn-back">
-          <iconify-icon icon="mdi:arrow-left"></iconify-icon>
-          返回
-        </button>
         <div class="title-group">
           <h1 class="page-title">
             📚 团队知识库
@@ -572,26 +568,6 @@ export default {
   display: flex;
   align-items: center;
   gap: 16px;
-}
-
-.btn-back {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  color: #4b5563;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.btn-back:hover {
-  background: #f9fafb;
-  color: #1a1a2e;
-  border-color: #d1d5db;
 }
 
 .page-title {

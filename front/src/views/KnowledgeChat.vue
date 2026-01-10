@@ -6,11 +6,6 @@
         <h1 class="page-title">💬 知识问答助手</h1>
         <p class="page-subtitle">基于您的知识库进行智能问答，回答带引用溯源</p>
       </div>
-      <div class="header-right">
-        <router-link to="/knowledge-base" class="btn-back">
-          ← 返回知识库
-        </router-link>
-      </div>
     </div>
 
     <!-- 主体区域 -->
@@ -278,21 +273,6 @@ export default {
   font-size: 14px;
   color: #64748b;
   margin: 4px 0 0 0;
-}
-
-.btn-back {
-  padding: 8px 16px;
-  background: white;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  text-decoration: none;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.btn-back:hover {
-  background: #f1f5f9;
 }
 
 .chat-wrapper {

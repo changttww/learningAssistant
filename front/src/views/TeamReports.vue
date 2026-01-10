@@ -4,14 +4,6 @@
     <header class="bg-white shadow-sm z-10 sticky top-0">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div class="flex items-center gap-4">
-          <button 
-            @click="goBack"
-            class="btn-back"
-            title="返回团队任务"
-          >
-            <iconify-icon icon="mdi:arrow-left" width="24"></iconify-icon>
-            <span>返回团队任务</span>
-          </button>
           <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2">
             <iconify-icon icon="mdi:chart-box-outline" class="text-blue-600"></iconify-icon>
             团队数据报告
@@ -219,13 +211,6 @@ export default {
   methods: {
     formatTime(date) {
       return new Date(date).toLocaleTimeString();
-    },
-    goBack() {
-      // 返回时带上 teamId query 参数，保持选中状态
-      this.$router.push({ 
-        name: 'TeamTasks', 
-        query: { teamId: this.teamId } 
-      });
     },
     handleResize() {
       Object.values(this.charts).forEach(chart => chart && chart.resize());
@@ -476,24 +461,5 @@ export default {
 </script>
 
 <style scoped>
-.btn-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: #f9fafb;
-  color: #374151;
-  transition: all 0.2s ease;
-}
-
-.btn-back:hover {
-  background: #eef2ff;
-  border-color: #c7d2fe;
-  color: #1f2937;
-  transform: translateY(-1px);
-}
-
 /* 确保图表容器有高度 */
 </style>

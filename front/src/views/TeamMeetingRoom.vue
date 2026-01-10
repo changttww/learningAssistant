@@ -2,10 +2,6 @@
   <div class="meeting-room">
     <header class="meeting-header">
       <div class="header-left">
-        <button class="btn-back" @click="goBack">
-          <iconify-icon icon="bi:arrow-left" width="16"></iconify-icon>
-          返回团队任务
-        </button>
         <div class="meeting-title">
           <div class="meeting-icon">
             <iconify-icon icon="mdi:video" width="20"></iconify-icon>
@@ -228,10 +224,6 @@ export default {
         console.warn("无法清理会议室访问标记", error);
       }
     },
-    goBack() {
-      this.clearEntryFlag();
-      this.$router.push("/team-tasks");
-    },
     wsUrl() {
       const base = new URL(apiConfig.baseURL);
       const protocol = base.protocol === "https:" ? "wss:" : "ws:";
@@ -420,25 +412,6 @@ export default {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.btn-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: #f9fafb;
-  color: #374151;
-  transition: all 0.2s ease;
-}
-
-.btn-back:hover {
-  background: #eef2ff;
-  border-color: #c7d2fe;
-  color: #1f2937;
-  transform: translateY(-1px);
 }
 
 .meeting-title {
