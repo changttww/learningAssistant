@@ -5,7 +5,7 @@
         <div class="flex items-center gap-4">
           <button
             @click="$router.back()"
-            class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-all duration-200"
+            class="btn-back"
           >
             <iconify-icon icon="mdi:arrow-left" class="mr-1"></iconify-icon>
             返回
@@ -266,6 +266,25 @@ export default {
 </script>
 
 <style scoped>
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #374151;
+  transition: all 0.2s ease;
+}
+
+.btn-back:hover {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #1f2937;
+  transform: translateY(-1px);
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }

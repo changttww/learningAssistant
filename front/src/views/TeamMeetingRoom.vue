@@ -1,13 +1,19 @@
 <template>
   <div class="meeting-room">
     <header class="meeting-header">
-      <div class="meeting-title">
-        <div class="meeting-icon">
-          <iconify-icon icon="mdi:video" width="20"></iconify-icon>
-        </div>
-        <div>
-          <div class="title-text">快速会议室</div>
-          <div class="title-sub">团队私有 · 仅限当前团队成员进入</div>
+      <div class="header-left">
+        <button class="btn-back" @click="goBack">
+          <iconify-icon icon="bi:arrow-left" width="16"></iconify-icon>
+          返回团队任务
+        </button>
+        <div class="meeting-title">
+          <div class="meeting-icon">
+            <iconify-icon icon="mdi:video" width="20"></iconify-icon>
+          </div>
+          <div>
+            <div class="title-text">快速会议室</div>
+            <div class="title-sub">团队私有 · 仅限当前团队成员进入</div>
+          </div>
         </div>
       </div>
       <div class="meeting-meta">
@@ -20,10 +26,6 @@
           <span>{{ formattedDate }}</span>
         </div>
       </div>
-      <button class="ghost-btn" @click="goBack">
-        <iconify-icon icon="bi:arrow-left" width="16"></iconify-icon>
-        返回团队任务
-      </button>
     </header>
 
     <main class="meeting-main">
@@ -412,6 +414,31 @@ export default {
   gap: 12px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
   flex-wrap: wrap;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #374151;
+  transition: all 0.2s ease;
+}
+
+.btn-back:hover {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #1f2937;
+  transform: translateY(-1px);
 }
 
 .meeting-title {

@@ -6,10 +6,11 @@
         <div class="flex items-center gap-4">
           <button 
             @click="goBack"
-            class="p-2 rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
-            title="返回任务看板"
+            class="btn-back"
+            title="返回团队任务"
           >
             <iconify-icon icon="mdi:arrow-left" width="24"></iconify-icon>
+            <span>返回团队任务</span>
           </button>
           <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2">
             <iconify-icon icon="mdi:chart-box-outline" class="text-blue-600"></iconify-icon>
@@ -475,5 +476,24 @@ export default {
 </script>
 
 <style scoped>
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #374151;
+  transition: all 0.2s ease;
+}
+
+.btn-back:hover {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #1f2937;
+  transform: translateY(-1px);
+}
+
 /* 确保图表容器有高度 */
 </style>
