@@ -2,6 +2,7 @@ package routes
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -21,6 +22,8 @@ func registerKnowledgeSyncRoutes(router *gin.RouterGroup) {
 	sync.POST("/sync-notes", syncNotesToKnowledge)
 	// 一键同步所有内容
 	sync.POST("/sync-all", syncAllToKnowledge)
+	// 按团队同步团队任务到知识库
+	sync.POST("/team/sync", syncTeamKnowledge)
 	// 批量发布所有草稿状态的知识条目
 	sync.POST("/publish-all", publishAllDraftEntries)
 }
@@ -203,6 +206,98 @@ func syncAllToKnowledge(c *gin.Context) {
 			"total_synced": taskSyncedCount + noteSyncedCount,
 		},
 		"msg": "全部内容同步完成",
+	})
+}
+
+// syncTeamKnowledge 将指定团队的任务同步到知识库（写入 team_id）
+func syncTeamKnowledge(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
+		return
+	}
+
+	if ragService == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "RAG服务未初始化"})
+		return
+	}
+
+	var req struct {
+		TeamID uint64 `json:"team_id"`
+	}
+
+	// 允许 body 或 query，body 解析失败不直接返回，继续尝试 query
+	_ = c.ShouldBindJSON(&req)
+	if req.TeamID == 0 {
+		if teamIDStr := c.Query("team_id"); teamIDStr != "" {
+			if parsed, errParse := strconv.ParseUint(teamIDStr, 10, 64); errParse == nil {
+				req.TeamID = parsed
+			}
+		}
+	}
+
+	if req.TeamID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "需要提供有效的 team_id"})
+		return
+	}
+
+	db := database.GetDB()
+
+	// 校验团队存在且用户属于该团队（owner 或成员）
+	var allowed int64
+	db.Model(&models.Team{}).
+		Where("id = ? AND owner_user_id = ?", req.TeamID, userID.(uint64)).
+		Or("id = ? AND id IN (SELECT team_id FROM team_members WHERE team_id = ? AND user_id = ?)", req.TeamID, req.TeamID, userID.(uint64)).
+		Count(&allowed)
+	if allowed == 0 {
+		c.JSON(http.StatusForbidden, gin.H{"error": "无权同步该团队"})
+		return
+	}
+
+	// 拉取团队任务
+	var tasks []models.Task
+	if err := db.Where("owner_team_id = ?", req.TeamID).Find(&tasks).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取团队任务失败"})
+		return
+	}
+
+	syncedCount := 0
+	skippedCount := 0
+
+	for _, task := range tasks {
+		if task.Title == "" && task.Description == "" {
+			skippedCount++
+			continue
+		}
+
+		content := task.Description
+		if content == "" {
+			content = task.Title
+		}
+
+		entry, err := ragService.AddDocument(userID.(uint64), 1, task.ID, task.Title, content)
+		if err != nil {
+			skippedCount++
+			continue
+		}
+
+		// 绑定 team_id，确保团队列表可见
+		if err := db.Model(entry).Update("team_id", req.TeamID).Error; err != nil {
+			// 更新失败不阻塞其他任务
+			continue
+		}
+
+		syncedCount++
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"data": gin.H{
+			"tasks_synced":  syncedCount,
+			"skipped_count": skippedCount,
+			"total_tasks":   len(tasks),
+		},
+		"msg": "团队任务同步完成",
 	})
 }
 

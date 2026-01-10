@@ -12,7 +12,7 @@ import TeamTasks from "./views/TeamTasks.vue";
 import TeamConstellation from "./views/TeamConstellation.vue";
 import TeamMeetingRoom from "./views/TeamMeetingRoom.vue";
 import TeamCalendar from "./views/TeamCalendar.vue";
-import TeamDocs from "./views/TeamDocs.vue";
+import TeamDocs from "./views/TeamKnowledge.vue";
 import TeamReports from "./views/TeamReports.vue";
 import StudyRoom from "./views/StudyRoom.vue";
 import VideoRoom from "./views/VideoRoom.vue";

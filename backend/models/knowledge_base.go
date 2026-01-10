@@ -12,6 +12,7 @@ import (
 type KnowledgeBaseEntry struct {
 	BaseModel
 	UserID       uint64         `gorm:"index" json:"user_id"`
+	TeamID       *uint64        `gorm:"index" json:"team_id"` // 关联的团队ID（如果是团队共享知识）
 	SourceType   int8           `gorm:"type:tinyint;comment:1=task_note,2=study_note,3=quiz_answer" json:"source_type"`
 	SourceID     uint64         `json:"source_id"` // 关联的任务ID或笔记ID
 	TaskID       *uint64        `json:"task_id"`   // 关联的任务

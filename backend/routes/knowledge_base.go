@@ -74,6 +74,10 @@ func registerKnowledgeBaseRoutes(router *gin.RouterGroup) {
 	kb.GET("/stats", getUserKnowledgeStats)
 	kb.GET("/list", listUserKnowledge)
 
+	// 团队知识库
+	kb.GET("/team/list", listTeamKnowledge)
+	kb.GET("/team/stats", getTeamKnowledgeStats)
+
 	// AI分析
 	kb.GET("/analysis", analyzeUserKnowledge)
 	kb.GET("/distribution", getKnowledgeDistribution)
@@ -992,4 +996,145 @@ func generateSmartFallbackAnswer(query string, results []rag.SearchResult, allEn
 	}
 
 	return sb.String()
+}
+
+// listTeamKnowledge 获取团队知识库列�?
+func listTeamKnowledge(c *gin.Context) {
+	teamIDStr := c.Query("team_id")
+	if teamIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "需要提供team_id"})
+		return
+	}
+	teamID, err := strconv.ParseUint(teamIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的team_id"})
+		return
+	}
+
+	db := database.GetDB()
+	var entries []models.KnowledgeBaseEntry
+
+	pageStr := c.DefaultQuery("page", "1")
+	pageSizeStr := c.DefaultQuery("page_size", "20")
+	category := c.Query("category")
+	level := c.Query("level")
+	search := c.Query("search")
+
+	page, _ := strconv.Atoi(pageStr)
+	pageSize, _ := strconv.Atoi(pageSizeStr)
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	query := db.Where("team_id = ? AND status = 1", teamID)
+	countQuery := db.Model(&models.KnowledgeBaseEntry{}).Where("team_id = ? AND status = 1", teamID)
+
+	if category != "" {
+		query = query.Where("category = ?", category)
+		countQuery = countQuery.Where("category = ?", category)
+	}
+	if level != "" {
+		levelInt, err := strconv.Atoi(level)
+		if err == nil {
+			query = query.Where("level = ?", int8(levelInt))
+			countQuery = countQuery.Where("level = ?", int8(levelInt))
+		}
+	}
+	if search != "" {
+		searchPattern := "%" + search + "%"
+		query = query.Where("title LIKE ? OR content LIKE ? OR summary LIKE ?", searchPattern, searchPattern, searchPattern)
+		countQuery = countQuery.Where("title LIKE ? OR content LIKE ? OR summary LIKE ?", searchPattern, searchPattern, searchPattern)
+	}
+
+	offset := (page - 1) * pageSize
+	if err := query.Order("level DESC, created_at DESC").
+		Offset(offset).
+		Limit(pageSize).
+		Find(&entries).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取团队知识列表失败"})
+		return
+	}
+
+	var total int64
+	countQuery.Count(&total)
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"data": gin.H{
+			"items":     entries,
+			"total":     total,
+			"page":      page,
+			"page_size": pageSize,
+		},
+	})
+}
+
+// getTeamKnowledgeStats 获取团队知识库统�?
+func getTeamKnowledgeStats(c *gin.Context) {
+	teamIDStr := c.Query("team_id")
+	if teamIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "需要提供team_id"})
+		return
+	}
+	teamID, err := strconv.ParseUint(teamIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的team_id"})
+		return
+	}
+
+	db := database.GetDB()
+
+	type LevelCount struct {
+		Level int8
+		Count int64
+	}
+	var levelCounts []LevelCount
+
+	if err := db.Model(&models.KnowledgeBaseEntry{}).
+		Select("level, count(*) as count").
+		Where("team_id = ? AND status = 1", teamID).
+		Group("level").
+		Find(&levelCounts).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取团队统计失败"})
+		return
+	}
+
+	stats := map[string]interface{}{
+		"level_0_count": int64(0),
+		"level_1_count": int64(0),
+		"level_2_count": int64(0),
+		"level_3_count": int64(0),
+		"total_count":   int64(0),
+		"review_needed": int64(0),
+	}
+
+	for _, lc := range levelCounts {
+		switch lc.Level {
+		case 0:
+			stats["level_0_count"] = lc.Count
+		case 1:
+			stats["level_1_count"] = lc.Count
+		case 2:
+			stats["level_2_count"] = lc.Count
+		case 3:
+			stats["level_3_count"] = lc.Count
+		}
+		stats["total_count"] = stats["total_count"].(int64) + lc.Count
+	}
+
+	// 查询需要复习的知识点（超过7天未复习且等级低�?�?
+	var reviewCount int64
+	sevenDaysAgo := time.Now().AddDate(0, 0, -7)
+	db.Model(&models.KnowledgeBaseEntry{}).
+		Where("team_id = ? AND status = 1 AND level < 3 AND (last_review_at IS NULL OR last_review_at < ?)", teamID, sevenDaysAgo).
+		Count(&reviewCount)
+	stats["review_needed"] = reviewCount
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"data": stats,
+	})
 }

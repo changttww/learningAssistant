@@ -151,6 +151,17 @@ export function syncNotesToKnowledge() {
   return request.post("/knowledge-base/sync-notes");
 }
 
+// 按团队同步团队任务到知识库
+export function syncTeamKnowledgeBase(teamId) {
+  const teamIdNum = Number(teamId);
+  // 同时通过 body 与 query 传递，避免参数缺失
+  return request.post(
+    "/knowledge-base/team/sync",
+    { team_id: teamIdNum },
+    { params: { team_id: teamIdNum } }
+  );
+}
+
 /**
  * 获取知识图谱数据
  */
@@ -165,4 +176,34 @@ export function getKnowledgeGraph() {
  */
 export function ragChat(query, limit = 5) {
   return request.post("/knowledge-base/chat", { query, limit });
+}
+
+/**
+ * 获取团队知识库统�?
+ * @param {string|number} teamId
+ */
+export function getTeamKnowledgeStats(teamId) {
+  return request.get("/knowledge-base/team/stats", { team_id: teamId });
+}
+
+/**
+ * 列表团队知识�?
+ * @param {number} page
+ * @param {number} pageSize
+ * @param {string} category
+ * @param {number|string} level
+ * @param {string|number} teamId
+ */
+export function listTeamKnowledge(page, pageSize, category, level, teamId) {
+  const safePage = page ?? 1;
+  const safePageSize = pageSize ?? 20;
+
+  const params = { page: safePage, page_size: safePageSize, team_id: teamId };
+  if (category && category !== '') {
+    params.category = category;
+  }
+  if (level !== undefined && level !== null && level !== '') {
+    params.level = level;
+  }
+  return request.get("/knowledge-base/team/list", params);
 }
