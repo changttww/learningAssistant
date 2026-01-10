@@ -25,6 +25,15 @@ func registerAIRoutes(r *gin.RouterGroup) {
 
 	// 提交测验答案并加入知识库
 	r.POST("/submit-quiz", SubmitQuizToKnowledge)
+
+	// 通用聊天
+	r.POST("/chat", ChatWithAI)
+
+	// 学习计划生成
+	r.POST("/study-plan", GenerateStudyPlan)
+
+	// 房间创意生成
+	r.POST("/room-idea", GenerateRoomIdea)
 }
 
 // AI 解析请求结构
@@ -95,6 +104,63 @@ type QuizResponse struct {
 	EssayQuestion *EssayQuestion           `json:"essayQuestion,omitempty"` // 简答题(可选)
 }
 
+// AI 聊天请求结构
+type ChatRequest struct {
+	Message string        `json:"message" binding:"required"`
+	History []QwenMessage `json:"history"`
+}
+
+// AI 聊天响应结构
+type ChatResponse struct {
+	Reply string `json:"reply"`
+}
+
+// 学习计划请求结构
+type StudyPlanRequest struct {
+	CurrentTime         string          `json:"current_time"`
+	Timezone            string          `json:"timezone"`
+	Tasks               []StudyPlanTask `json:"tasks"`
+	FocusMinutes        int             `json:"focus_minutes"`
+	RestMinutes         int             `json:"rest_minutes"`
+	MealMinutes         int             `json:"meal_minutes"`
+	PostMealRestMinutes int             `json:"post_meal_rest_minutes"`
+}
+
+type StudyPlanTask struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	StartDate   string `json:"startDate"`
+	EndDate     string `json:"endDate"`
+}
+
+type StudyPlanSlot struct {
+	Start     string `json:"start"`
+	End       string `json:"end"`
+	Type      string `json:"type"`
+	Title     string `json:"title"`
+	TaskTitle string `json:"taskTitle"`
+	Notes     string `json:"notes"`
+}
+
+type StudyPlanResponse struct {
+	PlanDate       string          `json:"plan_date"`
+	Summary        string          `json:"summary"`
+	Recommendation string          `json:"recommendation"`
+	Schedule       []StudyPlanSlot `json:"schedule"`
+	Tips           []string        `json:"tips"`
+}
+
+// 房间创意请求结构
+type RoomIdeaRequest struct {
+	Prompt string `json:"prompt"`
+}
+
+type RoomIdeaResponse struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Tags        []string `json:"tags"`
+}
+
 // Qwen API 请求结构
 type QwenRequest struct {
 	Model        string        `json:"model"`
@@ -144,6 +210,73 @@ func ParseTaskWithAI(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": result})
+}
+
+// ChatWithAI 通用聊天接口
+func ChatWithAI(c *gin.Context) {
+	var req ChatRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请输入问题"})
+		return
+	}
+
+	apiKey := getQwenAPIKey()
+	if apiKey == "" {
+		c.JSON(http.StatusOK, gin.H{"code": 0, "data": ChatResponse{Reply: "我还在离线待机模式哦～先把问题记下来，等我恢复后再来一起解决吧！"}})
+		return
+	}
+
+	reply, err := callQwenForChat(apiKey, req.Message, req.History)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": 0, "data": ChatResponse{Reply: "刚刚思路有点打结了，我们换个说法再问一遍吧～"}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": ChatResponse{Reply: reply}})
+}
+
+// GenerateStudyPlan 生成学习计划
+func GenerateStudyPlan(c *gin.Context) {
+	var req StudyPlanRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+		return
+	}
+
+	apiKey := getQwenAPIKey()
+	if apiKey == "" {
+		c.JSON(http.StatusOK, gin.H{"code": 0, "data": mockStudyPlan(req)})
+		return
+	}
+
+	plan, err := callQwenForStudyPlan(apiKey, req)
+	if err != nil {
+		plan = mockStudyPlan(req)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": plan})
+}
+
+// GenerateRoomIdea 生成房间创意
+func GenerateRoomIdea(c *gin.Context) {
+	var req RoomIdeaRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误"})
+		return
+	}
+
+	apiKey := getQwenAPIKey()
+	if apiKey == "" {
+		c.JSON(http.StatusOK, gin.H{"code": 0, "data": mockRoomIdea(req.Prompt)})
+		return
+	}
+
+	idea, err := callQwenForRoomIdea(apiKey, req.Prompt)
+	if err != nil {
+		idea = mockRoomIdea(req.Prompt)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": idea})
 }
 
 // GenerateQuiz 生成智能测验
@@ -210,11 +343,6 @@ func GetTaskGuidance(c *gin.Context) {
 
 // callQwenForGuidance 调用通义千问获取任务指导
 func callQwenForGuidance(apiKey, title, description, category string) (*TaskGuidanceResponse, error) {
-	// --- 修改开始 ---
-	// 核心改动：
-	// 1. 明确要求 "先进行联网搜索"
-	// 2. 强调 URL 必须是 "验证过的"
-	// 3. 警告 "严禁编造"
 	prompt := fmt.Sprintf(`你是一个专业的学习指导助手。请务必先【进行联网搜索】，查找与以下任务最匹配的最新学习资源，然后制定指导方案。
 
 任务标题: %s
@@ -243,7 +371,7 @@ func callQwenForGuidance(apiKey, title, description, category string) (*TaskGuid
 4. 关于 resources (资源) 的特殊要求：
    1. 不要尝试生成具体的视频 ID (如 BV号) 或文章具体路径，因为这些极易失效。
    2. 请生成【搜索聚合页】的链接，确保用户一定能打开。
-   
+
    格式示例：
    - 推荐B站教程，URL请填: https://search.bilibili.com/all?keyword=具体的搜索词
    - 推荐书籍/文档，URL请填: https://www.bing.com/search?q=具体的搜索词
@@ -298,6 +426,243 @@ func callQwenForGuidance(apiKey, title, description, category string) (*TaskGuid
 	}
 
 	return &result, nil
+}
+
+// callQwenForChat 调用通义千问进行对话
+func callQwenForChat(apiKey, message string, history []QwenMessage) (string, error) {
+	systemPrompt := "你是一个学习助理，回答要清晰、温和、可执行。能简洁回答就简洁回答，遇到不确定的问题先给出澄清建议。"
+	messages := []QwenMessage{{Role: "system", Content: systemPrompt}}
+	for _, item := range history {
+		if item.Role == "" || item.Content == "" {
+			continue
+		}
+		messages = append(messages, item)
+	}
+	messages = append(messages, QwenMessage{Role: "user", Content: message})
+
+	reqBody := QwenRequest{
+		Model:    "qwen-plus",
+		Messages: messages,
+	}
+
+	jsonData, _ := json.Marshal(reqBody)
+	apiURL := qwenChatURL()
+
+	req, _ := http.NewRequest("POST", apiURL, bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var qwenResp QwenResponse
+	if err := json.Unmarshal(body, &qwenResp); err != nil {
+		return "", fmt.Errorf("解析响应失败: %v", err)
+	}
+	if qwenResp.Error != nil {
+		return "", fmt.Errorf("API 错误: %s", qwenResp.Error.Message)
+	}
+	if len(qwenResp.Choices) == 0 {
+		return "", fmt.Errorf("AI 返回内容为空")
+	}
+
+	content := strings.TrimSpace(qwenResp.Choices[0].Message.Content)
+	if content == "" {
+		return "", fmt.Errorf("AI 返回内容为空")
+	}
+	return content, nil
+}
+
+// callQwenForStudyPlan 调用通义千问生成学习计划
+func callQwenForStudyPlan(apiKey string, req StudyPlanRequest) (*StudyPlanResponse, error) {
+	taskLines := make([]string, 0, len(req.Tasks))
+	for _, task := range req.Tasks {
+		line := fmt.Sprintf("- %s (%s ~ %s): %s", task.Title, task.StartDate, task.EndDate, task.Description)
+		taskLines = append(taskLines, line)
+	}
+	if len(taskLines) == 0 {
+		taskLines = append(taskLines, "- 本周暂无明确任务，请根据当前学习目标安排")
+	}
+
+	promptTemplate := strings.Join([]string{
+		"你是一个学习规划助手。请根据当前时间和未来一周任务，生成一份今天的学习计划，帮助用户分配时间、安排休息与吃饭时间。",
+		"",
+		"当前时间: %s",
+		"时区: %s",
+		"默认专注时长: %d 分钟",
+		"默认休息时长: %d 分钟",
+		"建议吃饭时长: %d 分钟",
+		"饭后休息建议: %d 分钟",
+		"",
+		"本周任务列表:",
+		"%s",
+		"",
+		"输出要求:",
+		"1. 严格返回 JSON，不能有多余文字、不能使用 Markdown 代码块。",
+		"2. 时间必须使用 24 小时制 \"HH:MM\"。",
+		"3. schedule 至少包含学习、休息、吃饭三个类型(type)的安排。",
+		"4. type 只能是 study/break/meal/rest/buffer 之一。",
+		"5. recommendation 说明最优先做的任务和原因。",
+		"",
+		"JSON 格式:",
+		"{\"plan_date\":\"YYYY-MM-DD\",\"summary\":\"整体建议\",\"recommendation\":\"先做什么\",\"schedule\":[{\"start\":\"HH:MM\",\"end\":\"HH:MM\",\"type\":\"study\",\"title\":\"安排标题\",\"taskTitle\":\"对应任务\",\"notes\":\"说明\"}],\"tips\":[\"建议1\",\"建议2\"]}",
+	}, "\n")
+
+	prompt := fmt.Sprintf(promptTemplate,
+		req.CurrentTime,
+		req.Timezone,
+		req.FocusMinutes,
+		req.RestMinutes,
+		req.MealMinutes,
+		req.PostMealRestMinutes,
+		strings.Join(taskLines, "\n"),
+	)
+
+	reqBody := QwenRequest{
+		Model: "qwen-plus",
+		Messages: []QwenMessage{
+			{Role: "user", Content: prompt},
+		},
+	}
+
+	jsonData, _ := json.Marshal(reqBody)
+	apiURL := qwenChatURL()
+
+	httpReq, _ := http.NewRequest("POST", apiURL, bytes.NewBuffer(jsonData))
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
+
+	client := &http.Client{Timeout: 40 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var qwenResp QwenResponse
+	if err := json.Unmarshal(body, &qwenResp); err != nil {
+		return nil, fmt.Errorf("解析响应失败: %v", err)
+	}
+	if qwenResp.Error != nil {
+		return nil, fmt.Errorf("API 错误: %s", qwenResp.Error.Message)
+	}
+	if len(qwenResp.Choices) == 0 {
+		return nil, fmt.Errorf("AI 返回内容为空")
+	}
+
+	content := extractJSON(qwenResp.Choices[0].Message.Content)
+	var plan StudyPlanResponse
+	if err := json.Unmarshal([]byte(content), &plan); err != nil {
+		return nil, fmt.Errorf("解析 JSON 失败: %v, 内容: %s", err, content)
+	}
+	return &plan, nil
+}
+
+func mockStudyPlan(req StudyPlanRequest) *StudyPlanResponse {
+	planDate := getTodayStr()
+	summary := "先完成最明确的任务，再用短休息把专注节奏稳住。"
+	recommendation := "优先处理最紧急或最重要的一项任务，给大脑一个清晰开局。"
+	schedule := []StudyPlanSlot{
+		{Start: "09:00", End: "10:30", Type: "study", Title: "专注学习", TaskTitle: "本周任务", Notes: "集中完成最重要的一步"},
+		{Start: "10:30", End: "10:40", Type: "break", Title: "短休息", TaskTitle: "", Notes: "补水、伸展"},
+		{Start: "12:00", End: "12:45", Type: "meal", Title: "午餐时间", TaskTitle: "", Notes: "慢慢吃，补充能量"},
+		{Start: "12:45", End: "13:05", Type: "rest", Title: "饭后休息", TaskTitle: "", Notes: "放松眼睛"},
+	}
+
+	if len(req.Tasks) > 0 {
+		schedule[0].Title = req.Tasks[0].Title
+		schedule[0].TaskTitle = req.Tasks[0].Title
+	}
+
+	return &StudyPlanResponse{
+		PlanDate:       planDate,
+		Summary:        summary,
+		Recommendation: recommendation,
+		Schedule:       schedule,
+		Tips: []string{
+			"每完成一个番茄钟就做一次伸展。",
+			"安排一个固定的吃饭时间，让精力更稳定。",
+		},
+	}
+}
+
+// callQwenForRoomIdea 调用通义千问生成房间创意
+func callQwenForRoomIdea(apiKey, prompt string) (*RoomIdeaResponse, error) {
+	seed := strings.TrimSpace(prompt)
+	if seed == "" {
+		seed = "学习自习室"
+	}
+	template := strings.Join([]string{
+		"你是一个自习室策划助手，请生成一个有趣的房间名称、简介和标签。",
+		"用户提示: %s",
+		"",
+		"要求:",
+		"1. name 不超过 12 个字。",
+		"2. description 20-60 字，简洁有趣。",
+		"3. tags 返回 2-3 个标签，标签要简短。",
+		"4. 只返回 JSON，不要其他文字。",
+		"",
+		"JSON 格式:",
+		"{\"name\":\"房间名\",\"description\":\"一句话介绍\",\"tags\":[\"标签1\",\"标签2\"]}",
+	}, "\n")
+
+	reqBody := QwenRequest{
+		Model: "qwen-plus",
+		Messages: []QwenMessage{
+			{Role: "user", Content: fmt.Sprintf(template, seed)},
+		},
+	}
+
+	jsonData, _ := json.Marshal(reqBody)
+	apiURL := qwenChatURL()
+
+	httpReq, _ := http.NewRequest("POST", apiURL, bytes.NewBuffer(jsonData))
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var qwenResp QwenResponse
+	if err := json.Unmarshal(body, &qwenResp); err != nil {
+		return nil, fmt.Errorf("解析响应失败: %v", err)
+	}
+	if qwenResp.Error != nil {
+		return nil, fmt.Errorf("API 错误: %s", qwenResp.Error.Message)
+	}
+	if len(qwenResp.Choices) == 0 {
+		return nil, fmt.Errorf("AI 返回内容为空")
+	}
+
+	content := extractJSON(qwenResp.Choices[0].Message.Content)
+	var idea RoomIdeaResponse
+	if err := json.Unmarshal([]byte(content), &idea); err != nil {
+		return nil, fmt.Errorf("解析 JSON 失败: %v, 内容: %s", err, content)
+	}
+	return &idea, nil
+}
+
+func mockRoomIdea(prompt string) *RoomIdeaResponse {
+	seed := strings.TrimSpace(prompt)
+	if seed == "" {
+		seed = "专注星港"
+	}
+	return &RoomIdeaResponse{
+		Name:        seed,
+		Description: "在轻松氛围里完成今天的学习小目标，大家一起稳稳推进。",
+		Tags:        []string{"专注", "进度", "打卡"},
+	}
 }
 
 // callQwenForQuiz 调用通义千问生成测验

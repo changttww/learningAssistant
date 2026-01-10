@@ -7,6 +7,21 @@
       </div>
 
       <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">AI 房间灵感</label>
+          <div class="ai-row">
+            <input
+              v-model="aiPrompt"
+              type="text"
+              placeholder="例如：考研冲刺 / 前端刷题 / 论文阅读"
+            />
+            <button class="ai-btn" type="button" :disabled="aiLoading" @click="generateRoomIdea">
+              {{ aiLoading ? '生成中...' : 'AI 生成' }}
+            </button>
+          </div>
+          <div class="ai-hint">让 AI 帮你起名字、写简介并推荐标签。</div>
+        </div>
+
         <!-- 房间名称 -->
         <div class="form-group">
           <label class="form-label">房间名称</label>
@@ -112,6 +127,7 @@
 <script>
 import { ElMessage } from 'element-plus'
 import { createStudyRoom } from '@/api/modules/study'
+import { generateRoomIdea } from '@/api/modules/ai'
 
 export default {
   name: 'CreateRoom',
@@ -126,6 +142,8 @@ export default {
     return {
       showPassword: false,
       isCreating: false,
+      aiPrompt: '',
+      aiLoading: false,
       formData: {
         roomName: '',
         roomType: 'public',
@@ -165,6 +183,38 @@ export default {
         if (this.formData.tags.length < 3) {
           this.formData.tags.push(tag)
         }
+      }
+    },
+    async generateRoomIdea() {
+      if (this.aiLoading) return
+      this.aiLoading = true
+      try {
+        const response = await generateRoomIdea({ prompt: this.aiPrompt })
+        const data = response?.data || response
+        const name = (data?.name || '').trim()
+        const description = (data?.description || '').trim()
+        const tags = Array.isArray(data?.tags) ? data.tags : []
+
+        if (name) this.formData.roomName = name
+        if (description) this.formData.description = description
+
+        if (tags.length) {
+          const normalized = tags
+            .map((tag) => String(tag).trim())
+            .filter(Boolean)
+            .slice(0, 3)
+          normalized.forEach((tag) => {
+            if (!this.availableTags.includes(tag)) {
+              this.availableTags.push(tag)
+            }
+          })
+          this.formData.tags = normalized
+        }
+      } catch (error) {
+        console.error('生成房间创意失败:', error)
+        ElMessage.error(error?.message || '生成房间创意失败，请稍后重试')
+      } finally {
+        this.aiLoading = false
       }
     },
     
@@ -242,6 +292,8 @@ export default {
       }
       this.errors = {}
       this.showPassword = false
+      this.aiPrompt = ''
+      this.aiLoading = false
     }
   }
 }
@@ -313,6 +365,44 @@ export default {
 
 .form-group {
   margin-bottom: 20px;
+}
+
+.ai-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.ai-row input {
+  flex: 1;
+}
+
+.ai-btn {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 6px;
+  border: 1px solid #1e88e5;
+  background: #e6f4ff;
+  color: #1e88e5;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ai-btn:hover:not(:disabled) {
+  background: #1e88e5;
+  color: #fff;
+}
+
+.ai-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ai-hint {
+  font-size: 12px;
+  color: #7b8794;
+  margin-top: 6px;
 }
 
 .form-label {

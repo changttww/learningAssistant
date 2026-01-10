@@ -37,6 +37,33 @@ export function generateQuiz(data) {
 }
 
 /**
+ * 通用聊天
+ * @param {Object} data
+ * @param {string} data.message
+ * @param {Array} data.history
+ */
+export function chatWithAI(data) {
+  return request.post("/ai/chat", data);
+}
+
+/**
+ * 生成学习计划
+ * @param {Object} data
+ */
+export function generateStudyPlan(data) {
+  return request.post("/ai/study-plan", data);
+}
+
+/**
+ * 生成房间创意
+ * @param {Object} data
+ * @param {string} data.prompt
+ */
+export function generateRoomIdea(data) {
+  return request.post("/ai/room-idea", data);
+}
+
+/**
  * 提交测验答案并加入知识库
  * @param {Object} data - 测验结果
  * @param {number} data.task_id - 任务ID
@@ -122,6 +149,9 @@ export default {
   parseTaskWithAI,
   getTaskGuidance,
   generateQuiz,
+  chatWithAI,
+  generateStudyPlan,
+  generateRoomIdea,
   submitQuizToKnowledge,
   generateAIReport,
   getReportHistory,
