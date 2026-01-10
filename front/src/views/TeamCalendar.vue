@@ -3,13 +3,6 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
       <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-4">
-          <button
-            @click="$router.back()"
-            class="flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-all duration-200"
-          >
-            <iconify-icon icon="mdi:arrow-left" class="mr-1"></iconify-icon>
-            返回
-          </button>
           <h1 class="text-2xl font-bold text-gray-800">团队日历</h1>
         </div>
         <div class="flex items-center gap-2">

@@ -1,13 +1,15 @@
 <template>
   <div class="meeting-room">
     <header class="meeting-header">
-      <div class="meeting-title">
-        <div class="meeting-icon">
-          <iconify-icon icon="mdi:video" width="20"></iconify-icon>
-        </div>
-        <div>
-          <div class="title-text">快速会议室</div>
-          <div class="title-sub">团队私有 · 仅限当前团队成员进入</div>
+      <div class="header-left">
+        <div class="meeting-title">
+          <div class="meeting-icon">
+            <iconify-icon icon="mdi:video" width="20"></iconify-icon>
+          </div>
+          <div>
+            <div class="title-text">快速会议室</div>
+            <div class="title-sub">团队私有 · 仅限当前团队成员进入</div>
+          </div>
         </div>
       </div>
       <div class="meeting-meta">
@@ -20,10 +22,6 @@
           <span>{{ formattedDate }}</span>
         </div>
       </div>
-      <button class="ghost-btn" @click="goBack">
-        <iconify-icon icon="bi:arrow-left" width="16"></iconify-icon>
-        返回团队任务
-      </button>
     </header>
 
     <main class="meeting-main">
@@ -226,10 +224,6 @@ export default {
         console.warn("无法清理会议室访问标记", error);
       }
     },
-    goBack() {
-      this.clearEntryFlag();
-      this.$router.push("/team-tasks");
-    },
     wsUrl() {
       const base = new URL(apiConfig.baseURL);
       const protocol = base.protocol === "https:" ? "wss:" : "ws:";
@@ -412,6 +406,12 @@ export default {
   gap: 12px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
   flex-wrap: wrap;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .meeting-title {

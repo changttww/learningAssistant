@@ -3,10 +3,12 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">
-          📚 我的知识库
-        </h1>
-        <p class="page-subtitle">共收录 {{ totalCount }} 条知识点</p>
+        <div class="title-group">
+          <h1 class="page-title">
+            📚 团队知识库
+          </h1>
+          <p class="page-subtitle">共收录 {{ totalCount }} 条知识点</p>
+        </div>
       </div>
       <div class="header-right">
         <router-link to="/knowledge-graph" class="btn-feature">
@@ -63,7 +65,7 @@
         <input 
           v-model="searchQuery" 
           type="text" 
-          placeholder="搜索知识点..."
+          placeholder="搜索团队知识点..."
           @keyup.enter="handleSearch"
         />
         <button class="search-btn" @click="handleSearch">
@@ -149,8 +151,8 @@
     <!-- 空状态 -->
     <div class="empty-state" v-if="!loading && knowledgeList.length === 0">
       <div class="empty-icon">📚</div>
-      <h3>暂无知识记录</h3>
-      <p>完成任务或创建笔记后，知识将自动收录到这里</p>
+      <h3>暂无团队知识点</h3>
+      <p>团队成员协作过程中产生的知识点将汇聚于此</p>
     </div>
 
     <!-- 加载状态 -->
@@ -248,16 +250,16 @@
 
 <script>
 import { 
-  listUserKnowledge, 
+  listTeamKnowledge, 
   searchKnowledge, 
   updateKnowledgeLevel, 
   deleteKnowledgeEntry,
-  getUserKnowledgeStats,
-  syncUserKnowledgeBase
+  getTeamKnowledgeStats,
+  syncTeamKnowledgeBase
 } from '@/api/modules/knowledge';
 
 export default {
-  name: 'KnowledgeBase',
+  name: 'TeamKnowledge',
   data() {
     return {
       knowledgeList: [],
@@ -269,6 +271,7 @@ export default {
       searchQuery: '',
       filterCategory: '',
       filterLevel: '',
+      teamId: null,
       categories: [
         '数学', '物理', '化学', '生物', '语文', '英语', '历史', '地理', '政治',
         '编程', '计算机', '经济', '法律', '心理学', '艺术', '音乐', '体育',
@@ -290,28 +293,43 @@ export default {
   },
   computed: {
     totalPages() {
-      return Math.ceil(this.totalCount / this.pageSize);
+      // 避免除以0的情况
+      if (this.pageSize <= 0) return 1;
+      return Math.ceil((this.totalCount || 0) / this.pageSize);
     }
   },
-  mounted() {
-    this.fetchKnowledgeList();
-    this.fetchStats();
+  async mounted() {
+    this.teamId = this.$route.params.teamId || this.$route.query.teamId || sessionStorage.getItem("currentTeamId");
+    // 安全加载，防止初次渲染出错
+    try {
+        await this.fetchKnowledgeList();
+        await this.fetchStats();
+    } catch (e) {
+        console.error("Mount error:", e);
+    }
   },
   methods: {
     async fetchKnowledgeList() {
       this.loading = true;
       try {
-        console.log('[知识库] 开始获取知识列表...', {
+        if (!this.teamId) {
+            console.warn("TeamID missing");
+            this.loading = false;
+            return;
+        }
+        console.log('[知识库] 开始获取团队知识列表...', {
           page: this.currentPage,
           pageSize: this.pageSize,
           category: this.filterCategory,
-          level: this.filterLevel
+          level: this.filterLevel,
+          teamId: this.teamId
         });
-        const res = await listUserKnowledge(
+        const res = await listTeamKnowledge(
           this.currentPage, 
           this.pageSize, 
           this.filterCategory, 
-          this.filterLevel
+          this.filterLevel,
+          this.teamId
         );
         console.log('[知识库] 获取知识列表响应:', res);
         
@@ -337,10 +355,9 @@ export default {
 
     async fetchStats() {
       try {
-        console.log('[知识库] 开始获取统计数据...');
-        const res = await getUserKnowledgeStats();
-        console.log('[知识库] 获取统计响应:', res);
-        
+        if (!this.teamId) return;
+        console.log('[知识库] 开始获取团队统计数据...');
+        const res = await getTeamKnowledgeStats(this.teamId);
         // 兼容多种响应格式
         if (res && (res.code === 0 || res.code === undefined)) {
           const data = res.data || res;
@@ -350,7 +367,6 @@ export default {
             unfamiliar: data.level_1_count || 0,
             needReview: data.review_needed || 0
           };
-          console.log('[知识库] 统计数据:', this.stats);
         }
       } catch (error) {
         console.error('[知识库] 获取统计失败:', error);
@@ -362,22 +378,17 @@ export default {
       if (query) {
         this.loading = true;
         try {
-          console.log('[知识库] 搜索关键词:', query);
           const res = await searchKnowledge(query, 50);
-          console.log('[知识库] 搜索结果:', res);
           if (res && (res.code === 0 || res.code === undefined)) {
             const data = res.data || res;
             this.knowledgeList = data.results || data.items || data || [];
             this.totalCount = data.total || this.knowledgeList.length;
-            console.log('[知识库] 搜索到', this.knowledgeList.length, '条结果');
           } else {
-            console.warn('[知识库] 搜索响应异常:', res);
             this.knowledgeList = [];
             this.totalCount = 0;
           }
         } catch (error) {
           console.error('[知识库] 搜索失败:', error);
-          alert('搜索失败：' + (error.message || '请检查网络'));
           this.knowledgeList = [];
           this.totalCount = 0;
         } finally {
@@ -420,16 +431,14 @@ export default {
     async deleteKnowledge() {
       if (!this.itemToDelete) return;
       try {
-        console.log('[知识库] 删除:', this.itemToDelete.id);
         const res = await deleteKnowledgeEntry(this.itemToDelete.id);
-        console.log('[知识库] 删除结果:', res);
         if (res && (res.code === 0 || res.code === undefined)) {
           this.knowledgeList = this.knowledgeList.filter(k => k.id !== this.itemToDelete.id);
           this.totalCount--;
           this.closeDeleteConfirm();
           this.fetchStats();
         } else {
-          alert('删除失败：' + (res?.msg || res?.error || '未知错误'));
+          alert('删除失败：' + (res?.msg || '未知错误'));
         }
       } catch (error) {
         console.error('删除失败:', error);
@@ -438,20 +447,13 @@ export default {
     },
 
     async upgradeLevel(item) {
-      if (item.level >= 3) {
-        console.log('[知识库] 已达最高等级');
-        return;
-      }
+      if (item.level >= 3) return;
       try {
         const newLevel = (item.level || 0) + 1;
-        console.log('[知识库] 提升等级:', item.id, newLevel);
         const res = await updateKnowledgeLevel(item.id, newLevel);
-        console.log('[知识库] 提升等级结果:', res);
         if (res && (res.code === 0 || res.code === undefined)) {
           item.level = newLevel;
           this.fetchStats();
-        } else {
-          console.error('提升等级失败:', res?.msg || res?.error);
         }
       } catch (error) {
         console.error('更新等级失败:', error);
@@ -459,119 +461,47 @@ export default {
     },
 
     getSourceLabel(type) {
-      const labels = {
-        1: '任务',
-        2: '笔记',
-        3: '测验',
-        4: '手动'
-      };
+      const labels = { 1: '任务', 2: '笔记', 3: '测验', 4: '手动' };
       return labels[type] || '未知';
     },
 
     getSourceClass(type) {
-      const classes = {
-        1: 'source-task',
-        2: 'source-note',
-        3: 'source-quiz',
-        4: 'source-manual'
-      };
+      const classes = { 1: 'source-task', 2: 'source-note', 3: 'source-quiz', 4: 'source-manual' };
       return classes[type] || '';
     },
 
     getLevelLabel(level) {
-      const labels = {
-        0: '待学习',
-        1: '了解',
-        2: '熟悉',
-        3: '已掌握'
-      };
+      const labels = { 0: '待学习', 1: '了解', 2: '熟悉', 3: '已掌握' };
       return labels[level] || '待学习';
     },
 
     getLevelClass(level) {
-      const classes = {
-        0: 'level-0',
-        1: 'level-1',
-        2: 'level-2',
-        3: 'level-3'
-      };
+      const classes = { 0: 'level-0', 1: 'level-1', 2: 'level-2', 3: 'level-3' };
       return classes[level] || 'level-0';
     },
 
-    // 获取分类的显示配置
     getCategoryConfig(category) {
+      // 简化版配置，与 Personal KB 保持一致
       const configs = {
-        // 理科
-        '数学': { color: '#3b82f6', icon: '🔢', gradient: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', bgColor: '#eff6ff' },
-        '物理': { color: '#8b5cf6', icon: '⚛️', gradient: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', bgColor: '#f5f3ff' },
-        '化学': { color: '#06b6d4', icon: '🧪', gradient: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)', bgColor: '#ecfeff' },
-        '生物': { color: '#10b981', icon: '🧬', gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', bgColor: '#ecfdf5' },
-        // 文科
-        '语文': { color: '#f59e0b', icon: '📖', gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', bgColor: '#fffbeb' },
-        '英语': { color: '#ec4899', icon: '🗣️', gradient: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)', bgColor: '#fdf2f8' },
-        '历史': { color: '#92400e', icon: '🏛️', gradient: 'linear-gradient(135deg, #92400e 0%, #78350f 100%)', bgColor: '#fef3c7' },
-        '地理': { color: '#16a34a', icon: '🌍', gradient: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', bgColor: '#f0fdf4' },
-        '政治': { color: '#dc2626', icon: '⚖️', gradient: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', bgColor: '#fef2f2' },
-        // 技能
-        '编程': { color: '#0ea5e9', icon: '💻', gradient: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)', bgColor: '#f0f9ff' },
-        '计算机': { color: '#6366f1', icon: '🖥️', gradient: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', bgColor: '#eef2ff' },
-        '艺术': { color: '#f472b6', icon: '🎨', gradient: 'linear-gradient(135deg, #f472b6 0%, #ec4899 100%)', bgColor: '#fdf2f8' },
-        '音乐': { color: '#a855f7', icon: '🎵', gradient: 'linear-gradient(135deg, #a855f7 0%, #9333ea 100%)', bgColor: '#faf5ff' },
-        '体育': { color: '#f97316', icon: '⚽', gradient: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)', bgColor: '#fff7ed' },
-        // 通识
-        '学习方法': { color: '#14b8a6', icon: '💡', gradient: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)', bgColor: '#f0fdfa' },
-        '考试技巧': { color: '#eab308', icon: '📝', gradient: 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)', bgColor: '#fefce8' },
-        '阅读': { color: '#84cc16', icon: '📚', gradient: 'linear-gradient(135deg, #84cc16 0%, #65a30d 100%)', bgColor: '#f7fee7' },
-        '思维训练': { color: '#7c3aed', icon: '🧠', gradient: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)', bgColor: '#f5f3ff' },
-        '其他': { color: '#64748b', icon: '📁', gradient: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)', bgColor: '#f1f5f9' },
+        '数学': { color: '#3b82f6', icon: '🔢', bgColor: '#eff6ff' },
+        '语文': { color: '#f59e0b', icon: '📖', bgColor: '#fffbeb' },
+        '英语': { color: '#ec4899', icon: '🗣️', bgColor: '#fdf2f8' },
+        '编程': { color: '#0ea5e9', icon: '💻', bgColor: '#f0f9ff' },
+        '其他': { color: '#64748b', icon: '📁', bgColor: '#f1f5f9' },
       };
       
-      // 直接匹配
-      if (configs[category]) {
-        return configs[category];
-      }
+      if (configs[category]) return configs[category];
       
-      // 模糊匹配
-      const lowerCat = (category || '').toLowerCase();
-      const keywordMap = {
-        'math': '数学', '代数': '数学', '几何': '数学',
-        'physics': '物理', '力学': '物理',
-        'chemistry': '化学',
-        'biology': '生物', '生命': '生物',
-        'chinese': '语文', '文学': '语文',
-        'english': '英语', '外语': '英语',
-        'history': '历史',
-        'geography': '地理',
-        'programming': '编程', '代码': '编程', '开发': '编程',
-        'computer': '计算机',
-        'art': '艺术', '美术': '艺术',
-        'music': '音乐',
-        'sports': '体育', '运动': '体育',
-      };
-      
-      for (const [keyword, subject] of Object.entries(keywordMap)) {
-        if (lowerCat.includes(keyword)) {
-          return configs[subject];
-        }
-      }
+      // 简单的一级 fallback
+      if ((category || '').includes('学')) return configs['数学'];
+      if ((category || '').includes('语') || (category || '').includes('文')) return configs['语文'];
       
       return configs['其他'];
     },
 
-    // 获取分类的图标
-    getCategoryIcon(category) {
-      return this.getCategoryConfig(category).icon;
-    },
-
-    // 获取分类的颜色
-    getCategoryColor(category) {
-      return this.getCategoryConfig(category).color;
-    },
-
-    // 获取分类的背景色
-    getCategoryBgColor(category) {
-      return this.getCategoryConfig(category).bgColor;
-    },
+    getCategoryIcon(category) { return this.getCategoryConfig(category).icon; },
+    getCategoryColor(category) { return this.getCategoryConfig(category).color; },
+    getCategoryBgColor(category) { return this.getCategoryConfig(category).bgColor; },
 
     truncateText(text, maxLength) {
       if (!text) return '';
@@ -581,35 +511,35 @@ export default {
     formatDate(dateStr) {
       if (!dateStr) return '';
       const date = new Date(dateStr);
-      return date.toLocaleDateString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      });
+      return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
     },
 
     async handleSyncKnowledgeBase() {
       if (this.syncing) return;
+      if (!this.teamId) {
+        alert('缺少团队ID，无法同步');
+        return;
+      }
+      const safeTeamId = Number(this.teamId);
+      if (!safeTeamId) {
+        alert('团队ID无效，无法同步');
+        return;
+      }
       this.syncing = true;
       try {
-        console.log('[知识库] 开始同步知识库...');
-        const res = await syncUserKnowledgeBase();
-        console.log('[知识库] 同步结果:', res);
-        
+        console.log('[团队知识库] 同步请求 teamId:', safeTeamId);
+        const res = await syncTeamKnowledgeBase(safeTeamId);
         if (res && (res.code === 0 || res.code === undefined)) {
           const data = res.data || res;
-          const syncedTasks = data.tasks_synced || 0;
-          const syncedNotes = data.notes_synced || 0;
-          alert(`同步完成！已从 ${syncedTasks} 个任务和 ${syncedNotes} 个笔记构建知识库。`);
-          // 刷新列表和统计
+          alert(`同步完成！已从团队任务构建 ${data.tasks_synced || 0} 条知识。`);
           this.fetchKnowledgeList();
           this.fetchStats();
         } else {
-          alert('同步失败：' + (res?.msg || '未知错误'));
+          alert('同步失败');
         }
       } catch (error) {
-        console.error('[知识库] 同步失败:', error);
-        alert('同步失败：' + (error.message || '请检查网络连接'));
+        console.error('同步失败:', error);
+        alert('同步失败');
       } finally {
         this.syncing = false;
       }
@@ -632,6 +562,12 @@ export default {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .page-title {
@@ -679,54 +615,31 @@ export default {
   background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
 }
 
-.btn-feature.chat:hover {
-  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
-}
-
 .btn-sync {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
   background: #059669;
   color: white;
   border: none;
   border-radius: 8px;
+  padding: 10px 20px;
   cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
 }
-
 .btn-sync:hover:not(:disabled) {
   background: #047857;
-  transform: translateY(-1px);
-}
-
-.btn-sync:disabled {
-  background: #9ca3af;
-  cursor: not-allowed;
 }
 
 .btn-refresh {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
   background: #4f46e5;
   color: white;
   border: none;
   border-radius: 8px;
+  padding: 10px 20px;
   cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
 }
-
 .btn-refresh:hover {
   background: #4338ca;
-  transform: translateY(-1px);
 }
 
-/* 统计卡片 */
+/* 统计卡片布局 */
 .stats-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -742,50 +655,19 @@ export default {
   align-items: center;
   gap: 16px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  transition: transform 0.2s;
 }
 
-.stat-card:hover {
-  transform: translateY(-2px);
-}
+.stat-card.mastered { border-left: 4px solid #10b981; }
+.stat-card.learning { border-left: 4px solid #3b82f6; }
+.stat-card.unfamiliar { border-left: 4px solid #f59e0b; }
+.stat-card.review { border-left: 4px solid #ef4444; }
 
-.stat-card.mastered {
-  border-left: 4px solid #10b981;
-}
+.stat-icon { font-size: 32px; }
+.stat-info { display: flex; flex-direction: column; }
+.stat-value { font-size: 28px; font-weight: 700; color: #1a1a2e; }
+.stat-label { font-size: 14px; color: #666; }
 
-.stat-card.learning {
-  border-left: 4px solid #3b82f6;
-}
-
-.stat-card.unfamiliar {
-  border-left: 4px solid #f59e0b;
-}
-
-.stat-card.review {
-  border-left: 4px solid #ef4444;
-}
-
-.stat-icon {
-  font-size: 32px;
-}
-
-.stat-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #1a1a2e;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #666;
-}
-
-/* 筛选栏 */
+/* Filter Bar */
 .filter-bar {
   display: flex;
   justify-content: space-between;
@@ -796,7 +678,6 @@ export default {
   margin-bottom: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
-
 .search-box {
   display: flex;
   align-items: center;
@@ -805,29 +686,14 @@ export default {
   padding: 4px 8px;
   flex: 1;
   max-width: 450px;
-  border: 2px solid transparent;
-  transition: all 0.2s;
 }
-
-.search-box:focus-within {
-  border-color: #4f46e5;
-  background: white;
-}
-
-.search-icon {
-  font-size: 16px;
-  margin-left: 8px;
-}
-
 .search-box input {
   border: none;
   background: transparent;
-  padding: 10px 12px;
-  font-size: 14px;
-  flex: 1;
+  padding: 10px;
   outline: none;
+  flex: 1;
 }
-
 .search-btn {
   background: #4f46e5;
   color: white;
@@ -835,89 +701,15 @@ export default {
   padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s;
 }
-
-.search-btn:hover {
-  background: #4338ca;
-}
-
-.clear-btn {
-  background: #e5e7eb;
-  border: none;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  cursor: pointer;
-  margin-left: 8px;
-  font-size: 12px;
-  color: #6b7280;
-  transition: all 0.2s;
-}
-
-.clear-btn:hover {
-  background: #ef4444;
-  color: white;
-}
-
-.filter-group {
-  display: flex;
-  gap: 12px;
-}
-
+.filter-group { display: flex; gap: 12px; }
 .filter-group select {
   padding: 10px 16px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  font-size: 14px;
-  background: white;
-  cursor: pointer;
-  min-width: 120px;
-  transition: all 0.2s;
 }
 
-.filter-group select:hover {
-  border-color: #4f46e5;
-}
-
-.filter-group select:focus {
-  outline: none;
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-}
-
-/* 搜索结果提示 */
-.search-result-hint {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 10px;
-  padding: 12px 16px;
-  margin-bottom: 20px;
-  color: #1e40af;
-  font-size: 14px;
-}
-
-.clear-search-btn {
-  background: #2563eb;
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.clear-search-btn:hover {
-  background: #1d4ed8;
-}
-
-/* 知识列表 */
+/* List */
 .knowledge-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -928,134 +720,80 @@ export default {
   background: white;
   border-radius: 16px;
   padding: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
   cursor: pointer;
-  transition: all 0.2s;
   position: relative;
   border-left: 4px solid #64748b;
+  transition: transform 0.2s;
 }
-
-.knowledge-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-}
-
-.knowledge-card:hover .card-actions {
-  opacity: 1;
-}
+.knowledge-card:hover { transform: translateY(-4px); }
 
 .card-header {
   display: flex;
-  justify-content: flex-start;
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
   flex-wrap: wrap;
 }
-
-.knowledge-source {
+.knowledge-source, .knowledge-category-tag, .knowledge-level {
   font-size: 12px;
   padding: 4px 10px;
   border-radius: 12px;
-  font-weight: 500;
 }
-
-.knowledge-category-tag {
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-weight: 500;
-  border: 1px solid;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.source-task {
-  background: #dbeafe;
-  color: #2563eb;
-}
-
-.source-note {
-  background: #dcfce7;
-  color: #16a34a;
-}
-
-.source-quiz {
-  background: #fef3c7;
-  color: #d97706;
-}
-
-.source-manual {
-  background: #e5e7eb;
-  color: #4b5563;
-}
-
-.knowledge-level {
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-weight: 500;
-}
-
-.level-0 {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-
-.level-1 {
-  background: #fef3c7;
-  color: #d97706;
-}
-
-.level-2 {
-  background: #dbeafe;
-  color: #2563eb;
-}
-
-.level-3 {
-  background: #dcfce7;
-  color: #16a34a;
-}
+.source-task { background: #dbeafe; color: #2563eb; }
+.level-3 { background: #dcfce7; color: #16a34a; }
 
 .knowledge-title {
   font-size: 16px;
   font-weight: 600;
-  color: #1a1a2e;
-  margin: 0 0 8px 0;
-  line-height: 1.4;
+  margin-bottom: 8px;
 }
-
 .knowledge-summary {
   font-size: 14px;
   color: #666;
-  line-height: 1.6;
-  margin: 0 0 16px 0;
+  margin-bottom: 16px;
 }
-
 .card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   font-size: 12px;
   color: #9ca3af;
 }
 
-.knowledge-category {
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  z-index: 1000;
 }
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 600px;
+  padding: 24px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 20px;
+}
+.close-btn { background: none; border: none; font-size: 24px; cursor: pointer; }
+.detail-meta { display: flex; gap: 16px; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+.content-text { background: #f9fafb; padding: 15px; border-radius: 8px; white-space: pre-wrap; }
+.modal-footer { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
 
-.card-actions {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: flex;
-  gap: 8px;
-  opacity: 0;
-  transition: opacity 0.2s;
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 60px;
+  background: white;
+  border-radius: 16px;
 }
+.empty-icon { font-size: 64px; margin-bottom: 16px; }
 
 .action-btn {
   width: 32px;
@@ -1072,307 +810,23 @@ export default {
   transition: all 0.2s;
 }
 
-.action-btn:hover:not(:disabled) {
-  transform: scale(1.1);
-}
-
-.action-btn.upgrade {
-  background: #dbeafe;
-  color: #2563eb;
-}
-
-.action-btn.upgrade:hover:not(:disabled) {
-  background: #2563eb;
-  color: white;
-}
-
-.action-btn.upgrade:disabled {
-  background: #dcfce7;
-  color: #16a34a;
-  cursor: default;
-}
-
-.action-btn.danger {
-  background: #fee2e2;
-  color: #ef4444;
-}
-
-.action-btn.danger:hover {
-  background: #ef4444;
-  color: white;
-}
-
-/* 空状态和加载 */
-.empty-state,
-.loading-state {
-  text-align: center;
-  padding: 60px 20px;
-  background: white;
-  border-radius: 16px;
-}
-
-.empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-}
-
-.empty-state h3 {
-  font-size: 20px;
-  color: #1a1a2e;
-  margin: 0 0 8px 0;
-}
-
-.empty-state p {
-  color: #666;
-  margin: 0;
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #e5e7eb;
-  border-top-color: #4f46e5;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 16px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* 分页 */
-.pagination {
+.card-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 16px;
-  margin-top: 32px;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.knowledge-card:hover .card-actions {
+  opacity: 1;
 }
 
-.page-btn {
-  padding: 10px 20px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: white;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.page-btn:hover:not(:disabled) {
-  background: #4f46e5;
-  color: white;
-  border-color: #4f46e5;
-}
-
-.page-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.page-info {
-  font-size: 14px;
-  color: #666;
-}
-
-/* 弹窗 */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 16px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.delete-modal {
-  max-width: 400px;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #1a1a2e;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: #9ca3af;
-  cursor: pointer;
-  line-height: 1;
-}
-
-.close-btn:hover {
-  color: #1a1a2e;
-}
-
-.modal-body {
-  padding: 24px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.detail-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.meta-item {
-  font-size: 14px;
-  color: #666;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.detail-content h4,
-.detail-summary h4 {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1a1a2e;
-  margin: 0 0 12px 0;
-}
-
-.content-text {
-  background: #f9fafb;
-  padding: 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  line-height: 1.6;
-  color: #374151;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.detail-summary {
-  margin-top: 20px;
-}
-
-.detail-summary p {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.6;
-  margin: 0;
-}
-
-.warning-text {
-  color: #ef4444;
-  font-size: 13px;
-  margin-top: 8px;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 24px;
-  border-top: 1px solid #e5e7eb;
-}
-
-.btn-secondary,
-.btn-primary,
-.btn-danger {
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-secondary {
-  background: #f3f4f6;
-  border: none;
-  color: #374151;
-}
-
-.btn-secondary:hover {
-  background: #e5e7eb;
-}
-
-.btn-primary {
-  background: #4f46e5;
-  border: none;
-  color: white;
-}
-
-.btn-primary:hover {
-  background: #4338ca;
-}
-
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-danger {
-  background: #ef4444;
-  border: none;
-  color: white;
-}
-
-.btn-danger:hover {
-  background: #dc2626;
-}
-
-/* 响应式 */
+/* Responsive */
 @media (max-width: 768px) {
-  .stats-row {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .filter-bar {
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .search-box {
-    max-width: 100%;
-  }
-
-  .filter-group {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .filter-group select {
-    flex: 1;
-  }
-
-  .knowledge-list {
-    grid-template-columns: 1fr;
-  }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .filter-bar { flex-direction: column; }
+  .knowledge-list { grid-template-columns: 1fr; }
 }
 </style>

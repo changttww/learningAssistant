@@ -462,27 +462,40 @@ func classifyContent(title, content string) (category, subCategory string) {
 	// 学习场景的分类体系
 	categories := map[string][]string{
 		// 理科
-		"数学": {"数学", "math", "代数", "几何", "微积分", "函数", "方程", "公式", "计算", "概率", "统计"},
-		"物理": {"物理", "physics", "力学", "电学", "磁学", "光学", "热学", "能量", "牛顿", "运动"},
+		"数学": {"数学", "math", "代数", "几何", "微积分", "函数", "方程", "公式", "计算", "概率", "统计", "线性代数", "Linear Algebra", "高等数学", "Advanced Mathematics"},
+		"物理": {"物理", "physics", "力学", "电学", "磁学", "光学", "热学", "能量", "牛顿", "运动", "大学物理", "College Physics"},
+		// （化学、生物分类保持不变）
 		"化学": {"化学", "chemistry", "元素", "分子", "原子", "反应", "酸碱", "有机"},
 		"生物": {"生物", "biology", "细胞", "遗传", "基因", "生命", "生态", "动物", "植物"},
-		// 文科
+		// 文科（保持不变）
 		"语文": {"语文", "chinese", "文言文", "古诗", "阅读理解", "写作", "作文", "文学", "诗词"},
 		"英语": {"英语", "english", "单词", "语法", "词汇", "口语", "听力", "翻译"},
 		"历史": {"历史", "history", "朝代", "战争", "革命", "古代", "近代", "历史事件"},
 		"地理": {"地理", "geography", "气候", "地形", "区域", "城市", "自然", "环境"},
 		"政治": {"政治", "politics", "政策", "制度", "法律", "哲学", "思想"},
 		// 技能
-		"编程":  {"编程", "programming", "代码", "python", "java", "javascript", "程序", "开发", "算法"},
-		"计算机": {"计算机", "computer", "软件", "硬件", "网络", "系统", "数据库"},
-		"艺术":  {"艺术", "art", "绘画", "美术", "设计", "色彩", "创作"},
-		"音乐":  {"音乐", "music", "歌曲", "乐器", "旋律", "节奏", "音符"},
-		"体育":  {"体育", "sports", "运动", "锻炼", "健身", "比赛", "训练"},
-		// 学习通识
+		"编程":  {"编程", "programming", "代码", "python", "java", "javascript", "程序", "开发", "算法", "程序设计", "Computer Programming", "程序分析", "Program Analysis"},
+		"计算机": {"计算机", "computer", "软件", "硬件", "网络", "系统", "数据库", "计算机网络", "Computer Networks", "操作系统", "Operating Systems", "编译原理", "Principles of Compilers", "数字电路与逻辑设计", "Digital Circuits and Logical Design"},
+		// （艺术、音乐、体育分类保持不变）
+		"艺术": {"艺术", "art", "绘画", "美术", "设计", "色彩", "创作"},
+		"音乐": {"音乐", "music", "歌曲", "乐器", "旋律", "节奏", "音符"},
+		"体育": {"体育", "sports", "运动", "锻炼", "健身", "比赛", "训练"},
+		// 学习通识（保持不变）
 		"学习方法": {"学习方法", "学习技巧", "记忆", "复习", "笔记", "思维导图", "效率"},
 		"考试技巧": {"考试", "exam", "测验", "答题", "解题", "技巧"},
 		"阅读":   {"阅读", "reading", "书籍", "文章", "理解"},
 		"思维训练": {"思维", "逻辑", "推理", "思考", "分析"},
+		// 软件工程专业核心分类（新增图中课程对应的关键词）
+		"软件工程":     {"软件工程", "software engineering", "需求分析", "软件设计", "项目管理", "软件生命周期", "工程化", "架构设计", "模块化", "软件工程实训", "Software Engineering Training"},
+		"软件测试":     {"软件测试", "software testing", "黑盒测试", "白盒测试", "自动化测试", "单元测试", "集成测试", "测试用例", "bug", "质量保证", "软件质量保证", "Software Quality Assurance", "软件测试实验", "Software Testing Experiment"},
+		"数据库工程":    {"数据库工程", "database engineering", "sql", "mysql", "oracle", "postgres", "数据建模", "索引", "事务", "分库分表", "数据备份", "数据库系统原理", "Principles of Database Systems", "数据库系统实验", "Database Systems Laboratory"},
+		"软件开发框架":   {"框架", "framework", "spring", "django", "flask", "vue", "react", "angular", "mybatis", "微服务"},
+		"版本控制":     {"版本控制", "version control", "git", "github", "gitlab", "commit", "branch", "merge", "revert", "reset"},
+		"操作系统与内核":  {"操作系统", "os", "linux", "windows", "内核", "进程", "线程", "内存管理", "文件系统", "驱动", "操作系统原理", "Principles of Operating Systems", "操作系统实验", "Operating Systems Laboratory"},
+		"计算机网络与接口": {"网络编程", "network", "http", "tcp/ip", "restful", "api", "接口", "socket", "网关", "负载均衡", "计算机网络实验", "Computer Networks Laboratory"},
+		"软件架构":     {"软件架构", "architecture", "单体架构", "微服务架构", "分布式架构", "云原生", "docker", "k8s", "服务网格"},
+		"编译原理与实现":  {"编译原理", "Principles of Compilers", "编译器构造实验", "Compilers Construction Laboratory"},
+		"软件需求分析":   {"软件需求分析与设计", "Software Analysis and Design", "软件需求分析与设计实验", "Software Analysis and Design Laboratory"},
 	}
 
 	// 匹配分类

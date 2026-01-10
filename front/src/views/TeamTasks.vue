@@ -287,7 +287,7 @@
         class="lg:col-span-3 flex items-center mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100"
       >
         <button
-          @click="selectedTeam = null"
+          @click="clearSelectedTeam"
           class="flex items-center px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-all duration-200 group"
         >
           <iconify-icon
@@ -879,7 +879,7 @@
                 height="24"
                 style="color: #ff9500"
               ></iconify-icon>
-              <span class="mt-2 text-sm text-gray-700">协作文档</span>
+              <span class="mt-2 text-sm text-gray-700">团队知识库</span>
             </button>
             <button
               class="py-3 bg-green-50 hover:bg-green-100 rounded-lg flex flex-col items-center justify-center transition-colors"
@@ -1350,6 +1350,11 @@ export default {
       }
     },
     selectTeam(team) {
+      // Update URL to reflect selected team
+      if (this.$route.query.teamId !== String(team.id)) {
+        this.$router.replace({ ...this.$route, query: { ...this.$route.query, teamId: team.id } });
+      }
+
       this.selectedTeam = team;
       this.$nextTick(() => {
         this.initChart();
@@ -1358,6 +1363,13 @@ export default {
         this.fetchTeamMembers();
         this.fetchTeamActivities();
       });
+    },
+    clearSelectedTeam() {
+      this.selectedTeam = null;
+      // Clear teamId from URL
+      const query = { ...this.$route.query };
+      delete query.teamId;
+      this.$router.replace({ ...this.$route, query });
     },
     async fetchTeamMembers() {
       if (!this.selectedTeam) return;
