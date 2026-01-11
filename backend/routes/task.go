@@ -200,6 +200,7 @@ func createTask(c *gin.Context) {
 				OwnerTeamID:  task.OwnerTeamID,
 				OwnerUserID:  sub.OwnerUserID,
 				ParentID:     &task.ID,
+				DueAt:        task.DueAt, // 继承主任务截止时间
 				Status:       0,
 				EffortPoints: 0, // 默认
 				SortOrder:    i + 1,
