@@ -948,7 +948,7 @@ func callQwenAPI(apiKey, input string) (*ParseTaskResponse, error) {
 
 解析规则：
 1. title: 提取核心任务名称
-2. description: 生成详细描述，说明任务的具体内容和目标，任务描述务必给出详细指导，不少于100字
+2. description: 生成简洁描述，说明任务的具体内容和目标，不超过50字
 3. startDate: 开始日期，默认今天 %s
 4. startTime: 开始时间，上午默认09:00，下午默认14:00，晚上默认19:00
 5. endDate: 结束日期，默认等于开始日期
