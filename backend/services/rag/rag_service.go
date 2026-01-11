@@ -1,9 +1,12 @@
 package rag
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -419,13 +422,79 @@ func md5Hash(text string) string {
 	return fmt.Sprintf("%x", h)
 }
 
-// generateSummary 生成内容摘要
+// generateSummary 生成内容摘要，长度不超过 100 字
 func generateSummary(content string) string {
-	// 简单实现：取前200字符
+	apiKey := os.Getenv("QWEN_API_KEY")
+	if apiKey == "" {
+		// 降级策略：截取前200字符
+		if len(content) <= 200 {
+			return content
+		}
+		runeContent := []rune(content)
+		if len(runeContent) <= 200 {
+			return content
+		}
+		return string(runeContent[:200]) + "..."
+	}
+
+	// 构造 AI 请求
+	qwenURL := os.Getenv("QWEN_CHAT_URL")
+	if qwenURL == "" {
+		qwenURL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
+	}
+
+	prompt := fmt.Sprintf("请为以下内容生成一个简短的摘要，不超过100字，抓住核心要点：\n\n%s", content)
+
+	reqBody := map[string]interface{}{
+		"model": "qwen-plus",
+		"input": map[string]interface{}{
+			"messages": []map[string]string{
+				{"role": "user", "content": prompt},
+			},
+		},
+	}
+
+	jsonData, _ := json.Marshal(reqBody)
+	req, _ := http.NewRequest("POST", qwenURL, bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+
+	if err != nil {
+		fmt.Printf("调用 AI 生成摘要失败: %v\n", err)
+		return fallbackSummary(content)
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Output struct {
+			Text string `json:"text"`
+		} `json:"output"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Printf("解析 AI 摘要响应失败: %v\n", err)
+		return fallbackSummary(content)
+	}
+
+	if result.Output.Text == "" {
+		return fallbackSummary(content)
+	}
+
+	return strings.TrimSpace(result.Output.Text)
+}
+
+func fallbackSummary(content string) string {
 	if len(content) <= 200 {
 		return content
 	}
-	return content[:200] + "..."
+	runeContent := []rune(content)
+	if len(runeContent) <= 200 {
+		return content
+	}
+	return string(runeContent[:200]) + "..."
 }
 
 // extractKeywords 提取关键词

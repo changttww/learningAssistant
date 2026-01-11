@@ -597,10 +597,8 @@ export default {
         console.log('[知识库] 同步结果:', res);
         
         if (res && (res.code === 0 || res.code === undefined)) {
-          const data = res.data || res;
-          const syncedTasks = data.tasks_synced || 0;
-          const syncedNotes = data.notes_synced || 0;
-          alert(`同步完成！已从 ${syncedTasks} 个任务和 ${syncedNotes} 个笔记构建知识库。`);
+          const msg = res.msg || '同步请求已提交';
+          alert(`同步成功！${msg}`);
           // 刷新列表和统计
           this.fetchKnowledgeList();
           this.fetchStats();

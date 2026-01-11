@@ -35,54 +35,48 @@ func syncTasksToKnowledge(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
 	}
+	uid := userID.(uint64)
 
 	if ragService == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "RAG服务未初始化"})
 		return
 	}
 
-	db := database.GetDB()
+	// 异步处理同步任务
+	go func(targetUserID uint64) {
+		db := database.GetDB()
 
-	// 获取用户所有任务（不仅仅是已完成的）
-	var tasks []models.Task
-	if err := db.Where("created_by = ? OR owner_user_id = ?", userID.(uint64), userID.(uint64)).
-		Find(&tasks).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取任务失败"})
-		return
-	}
-
-	syncedCount := 0
-	skippedCount := 0
-
-	for _, task := range tasks {
-		// 跳过标题和描述都为空的任务
-		if task.Title == "" && task.Description == "" {
-			skippedCount++
-			continue
+		// 获取用户所有任务（不仅仅是已完成的）
+		var tasks []models.Task
+		if err := db.Where("created_by = ? OR owner_user_id = ?", targetUserID, targetUserID).
+			Find(&tasks).Error; err != nil {
+			// 异步任务中的错误只能打印日志
+			return
 		}
 
-		// 使用标题作为内容（如果描述为空）
-		content := task.Description
-		if content == "" {
-			content = task.Title
-		}
+		for _, task := range tasks {
+			// 跳过标题和描述都为空的任务
+			if task.Title == "" && task.Description == "" {
+				continue
+			}
 
-		_, err := ragService.AddDocument(userID.(uint64), 1, task.ID, task.Title, content)
-		if err != nil {
-			skippedCount++
-		} else {
-			syncedCount++
+			// 使用标题作为内容（如果描述为空）
+			content := task.Description
+			if content == "" {
+				content = task.Title
+			}
+
+			// 忽略错误，继续处理下一个
+			_, _ = ragService.AddDocument(targetUserID, 1, task.ID, task.Title, content)
 		}
-	}
+	}(uid)
 
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"data": gin.H{
-			"synced_count":  syncedCount,
-			"skipped_count": skippedCount,
-			"total_tasks":   len(tasks),
+			"status": "processing",
 		},
-		"msg": "任务同步完成",
+		"msg": "任务同步已在后台开始",
 	})
 }
 
@@ -93,53 +87,45 @@ func syncNotesToKnowledge(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
 	}
+	uid := userID.(uint64)
 
 	if ragService == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "RAG服务未初始化"})
 		return
 	}
 
-	db := database.GetDB()
+	// 异步处理同步任务
+	go func(targetUserID uint64) {
+		db := database.GetDB()
 
-	// 获取用户所有笔记
-	var notes []models.StudyNote
-	if err := db.Where("user_id = ?", userID.(uint64)).Find(&notes).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取笔记失败"})
-		return
-	}
-
-	syncedCount := 0
-	skippedCount := 0
-
-	for _, note := range notes {
-		// 跳过标题和内容都为空的笔记
-		if note.Title == "" && note.Content == "" {
-			skippedCount++
-			continue
+		// 获取用户所有笔记
+		var notes []models.StudyNote
+		if err := db.Where("user_id = ?", targetUserID).Find(&notes).Error; err != nil {
+			return
 		}
 
-		// 使用标题作为内容（如果内容为空）
-		content := note.Content
-		if content == "" {
-			content = note.Title
-		}
+		for _, note := range notes {
+			// 跳过标题和内容都为空的笔记
+			if note.Title == "" && note.Content == "" {
+				continue
+			}
 
-		_, err := ragService.AddDocument(userID.(uint64), 2, note.ID, note.Title, content)
-		if err != nil {
-			skippedCount++
-		} else {
-			syncedCount++
+			// 使用标题作为内容（如果内容为空）
+			content := note.Content
+			if content == "" {
+				content = note.Title
+			}
+
+			_, _ = ragService.AddDocument(targetUserID, 2, note.ID, note.Title, content)
 		}
-	}
+	}(uid)
 
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"data": gin.H{
-			"synced_count":  syncedCount,
-			"skipped_count": skippedCount,
-			"total_notes":   len(notes),
+			"status": "processing",
 		},
-		"msg": "笔记同步完成",
+		"msg": "笔记同步已在后台开始",
 	})
 }
 
@@ -150,62 +136,58 @@ func syncAllToKnowledge(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
 	}
+	uid := userID.(uint64)
 
 	if ragService == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "RAG服务未初始化"})
 		return
 	}
 
-	db := database.GetDB()
+	// 异步处理同步任务
+	go func(targetUserID uint64) {
+		db := database.GetDB()
 
-	// 同步任务 - 同步所有任务（不仅仅是已完成的）
-	var tasks []models.Task
-	db.Where("created_by = ? OR owner_user_id = ?", userID.(uint64), userID.(uint64)).Find(&tasks)
+		// 同步任务 - 同步所有任务（不仅仅是已完成的）
+		var tasks []models.Task
+		db.Where("created_by = ? OR owner_user_id = ?", targetUserID, targetUserID).Find(&tasks)
 
-	taskSyncedCount := 0
-	for _, task := range tasks {
-		// 如果标题和描述都为空，跳过
-		if task.Title == "" && task.Description == "" {
-			continue
+		for _, task := range tasks {
+			// 如果标题和描述都为空，跳过
+			if task.Title == "" && task.Description == "" {
+				continue
+			}
+			// 使用标题作为内容（如果描述为空）
+			content := task.Description
+			if content == "" {
+				content = task.Title
+			}
+			_, _ = ragService.AddDocument(targetUserID, 1, task.ID, task.Title, content)
 		}
-		// 使用标题作为内容（如果描述为空）
-		content := task.Description
-		if content == "" {
-			content = task.Title
-		}
-		if _, err := ragService.AddDocument(userID.(uint64), 1, task.ID, task.Title, content); err == nil {
-			taskSyncedCount++
-		}
-	}
 
-	// 同步笔记
-	var notes []models.StudyNote
-	db.Where("user_id = ?", userID.(uint64)).Find(&notes)
+		// 同步笔记
+		var notes []models.StudyNote
+		db.Where("user_id = ?", targetUserID).Find(&notes)
 
-	noteSyncedCount := 0
-	for _, note := range notes {
-		// 如果标题和内容都为空，跳过
-		if note.Title == "" && note.Content == "" {
-			continue
+		for _, note := range notes {
+			// 如果标题和内容都为空，跳过
+			if note.Title == "" && note.Content == "" {
+				continue
+			}
+			// 使用标题作为内容（如果内容为空）
+			content := note.Content
+			if content == "" {
+				content = note.Title
+			}
+			_, _ = ragService.AddDocument(targetUserID, 2, note.ID, note.Title, content)
 		}
-		// 使用标题作为内容（如果内容为空）
-		content := note.Content
-		if content == "" {
-			content = note.Title
-		}
-		if _, err := ragService.AddDocument(userID.(uint64), 2, note.ID, note.Title, content); err == nil {
-			noteSyncedCount++
-		}
-	}
+	}(uid)
 
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"data": gin.H{
-			"tasks_synced": taskSyncedCount,
-			"notes_synced": noteSyncedCount,
-			"total_synced": taskSyncedCount + noteSyncedCount,
+			"status": "processing",
 		},
-		"msg": "全部内容同步完成",
+		"msg": "全部内容同步已在后台开始",
 	})
 }
 
@@ -216,6 +198,7 @@ func syncTeamKnowledge(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
 	}
+	uid := userID.(uint64)
 
 	if ragService == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "RAG服务未初始化"})
@@ -246,58 +229,51 @@ func syncTeamKnowledge(c *gin.Context) {
 	// 校验团队存在且用户属于该团队（owner 或成员）
 	var allowed int64
 	db.Model(&models.Team{}).
-		Where("id = ? AND owner_user_id = ?", req.TeamID, userID.(uint64)).
-		Or("id = ? AND id IN (SELECT team_id FROM team_members WHERE team_id = ? AND user_id = ?)", req.TeamID, req.TeamID, userID.(uint64)).
+		Where("id = ? AND owner_user_id = ?", req.TeamID, uid).
+		Or("id = ? AND id IN (SELECT team_id FROM team_members WHERE team_id = ? AND user_id = ?)", req.TeamID, req.TeamID, uid).
 		Count(&allowed)
 	if allowed == 0 {
 		c.JSON(http.StatusForbidden, gin.H{"error": "无权同步该团队"})
 		return
 	}
 
-	// 拉取团队任务
-	var tasks []models.Task
-	if err := db.Where("owner_team_id = ?", req.TeamID).Find(&tasks).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取团队任务失败"})
-		return
-	}
+	// 异步处理同步任务
+	go func(targetUserID uint64, targetTeamID uint64) {
+		db := database.GetDB()
 
-	syncedCount := 0
-	skippedCount := 0
-
-	for _, task := range tasks {
-		if task.Title == "" && task.Description == "" {
-			skippedCount++
-			continue
+		// 拉取团队任务
+		var tasks []models.Task
+		if err := db.Where("owner_team_id = ?", targetTeamID).Find(&tasks).Error; err != nil {
+			return
 		}
 
-		content := task.Description
-		if content == "" {
-			content = task.Title
-		}
+		for _, task := range tasks {
+			if task.Title == "" && task.Description == "" {
+				continue
+			}
 
-		entry, err := ragService.AddDocument(userID.(uint64), 1, task.ID, task.Title, content)
-		if err != nil {
-			skippedCount++
-			continue
-		}
+			content := task.Description
+			if content == "" {
+				content = task.Title
+			}
 
-		// 绑定 team_id，确保团队列表可见
-		if err := db.Model(entry).Update("team_id", req.TeamID).Error; err != nil {
-			// 更新失败不阻塞其他任务
-			continue
-		}
+			entry, err := ragService.AddDocument(targetUserID, 1, task.ID, task.Title, content)
+			if err != nil {
+				continue
+			}
 
-		syncedCount++
-	}
+			// 绑定 team_id，确保团队列表可见
+			// 忽略错误
+			_ = db.Model(entry).Update("team_id", targetTeamID).Error
+		}
+	}(uid, req.TeamID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"data": gin.H{
-			"tasks_synced":  syncedCount,
-			"skipped_count": skippedCount,
-			"total_tasks":   len(tasks),
+			"status": "processing",
 		},
-		"msg": "团队任务同步完成",
+		"msg": "团队任务同步已在后台开始",
 	})
 }
 
