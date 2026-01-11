@@ -134,6 +134,18 @@ func NewRAGService(embeddingService EmbeddingService) RAGService {
 func (r *DefaultRAGService) AddDocument(userID uint64, sourceType int8, sourceID uint64, title, content string) (*models.KnowledgeBaseEntry, error) {
 	db := database.GetDB()
 
+	// 关联任务/笔记ID，便于后续按 task_id/note_id 追溯
+	var taskID *uint64
+	var noteID *uint64
+	if sourceID > 0 {
+		switch sourceType {
+		case 1: // 任务
+			taskID = &sourceID
+		case 2: // 笔记
+			noteID = &sourceID
+		}
+	}
+
 	// 清理 HTML 标签，保存纯文本
 	cleanTitle := stripHTMLTags(title)
 	cleanContent := stripHTMLTags(content)
@@ -163,6 +175,8 @@ func (r *DefaultRAGService) AddDocument(userID uint64, sourceType int8, sourceID
 			"display_color": displayConfig.Color,
 			"display_icon":  displayConfig.Icon,
 			"subject":       category,
+			"task_id":       taskID,
+			"note_id":       noteID,
 		}
 		if err := db.Model(&existingEntry).Updates(updates).Error; err != nil {
 			return nil, fmt.Errorf("更新知识库条目失败: %w", err)
@@ -191,6 +205,8 @@ func (r *DefaultRAGService) AddDocument(userID uint64, sourceType int8, sourceID
 		UserID:       userID,
 		SourceType:   sourceType,
 		SourceID:     sourceID,
+		TaskID:       taskID,
+		NoteID:       noteID,
 		Title:        cleanTitle,
 		Content:      cleanContent,
 		Summary:      summary,
