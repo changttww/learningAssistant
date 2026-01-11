@@ -1,22 +1,17 @@
 <template>
   <div class="w-full min-h-full flex flex-col px-4">
-    <div
-      v-if="!selectedTeam"
-      class="relative w-full flex-1 min-h-[80vh] flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl"
-    >
-      <!-- 粒子背景 Canvas -->
-      <canvas
-        ref="particleCanvas"
-        class="absolute inset-0 w-full h-full pointer-events-none"
-      ></canvas>
+    <template v-if="!selectedTeam">
+      <div
+        class="relative w-full min-h-[80vh] flex flex-col items-center justify-center py-10"
+      >
+        <canvas
+          ref="particleCanvas"
+          class="absolute inset-0 w-full h-full pointer-events-none opacity-60"
+        ></canvas>
 
-      <div class="relative z-10 w-full flex flex-col items-center py-10">
-        <div v-if="loadingTeams" class="text-lg text-gray-600 animate-pulse">
-          正在加载团队数据...
-        </div>
         <div
-          v-else-if="allTeams.length === 0"
-          class="bg-white/80 backdrop-blur-sm p-8 rounded-xl shadow-xl text-center max-w-md w-full border border-white/50 transform transition-all hover:scale-105 duration-300"
+          v-if="allTeams.length === 0"
+          class="relative z-10 w-full max-w-4xl bg-white/80 backdrop-blur-md rounded-2xl shadow-lg p-8 text-center border border-gray-100"
         >
           <div
             class="mb-6 bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto text-blue-600"
@@ -33,8 +28,10 @@
           <p class="text-gray-600 mb-8">
             您还没有加入任何团队。开启您的团队协作之旅吧！
           </p>
-          <div class="flex gap-3 mb-6">
+          <div class="flex flex-col md:flex-row gap-3 mb-6">
+            <label for="team-name-input" class="sr-only">团队名称</label>
             <input
+              id="team-name-input"
               v-model="teamNameInput"
               type="text"
               class="flex-1 p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-gray-50 focus:bg-white"
@@ -58,11 +55,8 @@
             </button>
           </div>
         </div>
-        <div v-else class="w-full max-w-6xl px-4">
-          <div class="text-center mb-10">
-            <h2 class="text-3xl font-bold text-gray-800 mb-2">选择您的团队</h2>
-            <p class="text-gray-500">点击卡片进入团队工作区</p>
-          </div>
+
+        <div class="relative z-10 w-full max-w-6xl mt-10">
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <div
               v-for="team in allTeams"
@@ -106,9 +100,11 @@
                     icon="mdi:account-tie"
                     class="text-blue-400 text-sm"
                   ></iconify-icon>
-                  <span class="truncate max-w-[80px]">{{
-                    team.owner_name || "未知"
-                  }}</span>
+                  <span class="truncate max-w-[80px]">
+                    {{
+                      team.owner_name || "未知"
+                    }}</span
+                  >
                 </div>
                 <div class="flex items-center gap-1.5" title="团队人数">
                   <iconify-icon
@@ -185,104 +181,10 @@
           </div>
         </div>
       </div>
+    </template>
 
-      <div
-        v-if="showJoinModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity"
-      >
-        <div
-          class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all scale-100"
-        >
-          <h3
-            class="text-xl font-bold mb-6 text-gray-800 flex items-center gap-2"
-          >
-            <iconify-icon
-              icon="mdi:account-plus"
-              class="text-blue-600"
-            ></iconify-icon>
-            加入团队
-          </h3>
-          <input
-            v-model="teamNameInput"
-            type="text"
-            class="w-full p-3 border border-gray-200 rounded-lg mb-6 focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
-            placeholder="请输入准确的团队名称"
-          />
-          <div class="flex justify-end gap-3">
-            <button
-              @click="showJoinModal = false"
-              class="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium"
-            >
-              取消
-            </button>
-            <button
-              @click="handleJoinTeam"
-              class="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-200 font-medium transition-all active:scale-95"
-            >
-              确认加入
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div
-        v-if="showCreateTeamModal"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity"
-      >
-        <div
-          class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all scale-100"
-        >
-          <h3
-            class="text-xl font-bold mb-6 text-gray-800 flex items-center gap-2"
-          >
-            <iconify-icon
-              icon="mdi:plus-box"
-              class="text-purple-600"
-            ></iconify-icon>
-            创建团队
-          </h3>
-          <div class="space-y-5">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5"
-                >团队名称</label
-              >
-              <input
-                v-model="newTeamForm.name"
-                type="text"
-                class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none bg-gray-50"
-                placeholder="给团队起个响亮的名字"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1.5"
-                >团队描述</label
-              >
-              <textarea
-                v-model="newTeamForm.description"
-                rows="3"
-                class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none bg-gray-50"
-                placeholder="简单介绍一下团队的目标（可选）"
-              ></textarea>
-            </div>
-          </div>
-          <div class="flex justify-end gap-3 mt-8">
-            <button
-              @click="showCreateTeamModal = false"
-              class="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium"
-            >
-              取消
-            </button>
-            <button
-              @click="handleCreateTeam"
-              class="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 shadow-lg shadow-purple-200 font-medium transition-all active:scale-95"
-            >
-              立即创建
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <template v-else>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div
         class="lg:col-span-3 flex items-center mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100"
       >
@@ -361,84 +263,100 @@
             ></div>
             <div class="bg-white rounded-lg shadow-lg z-10 w-full max-w-md p-6">
               <h3 class="text-lg font-semibold mb-4">创建新任务</h3>
-              <div class="space-y-3">
+              <div class="space-y-4">
+                <div class="border-2 border-blue-100 bg-blue-50/70 rounded-lg p-3">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2 text-sm text-blue-700 font-semibold">
+                      <iconify-icon icon="mdi:magic-staff" width="16" height="16" class="text-blue-600"></iconify-icon>
+                      智能解析
+                    </div>
+                  </div>
+                  <div class="flex gap-2">
+                    <input
+                      v-model="naturalLanguageInput"
+                      type="text"
+                      class="flex-1 border border-blue-100 bg-white px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none"
+                      placeholder="例如：明天下午3点完成数学作业第三章"
+                      :disabled="isParsing"
+                    />
+                    <button
+                      @click="parseNaturalLanguage"
+                      :disabled="isParsing"
+                      class="px-4 py-2 text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg text-sm font-medium hover:shadow-md transition disabled:opacity-60 flex items-center gap-1"
+                    >
+                      <iconify-icon :icon="isParsing ? 'mdi:loading' : 'mdi:wand'" width="16" height="16" :class="{ 'animate-spin': isParsing }"></iconify-icon>
+                      {{ isParsing ? '解析中...' : '解析' }}
+                    </button>
+                  </div>
+                  <p class="text-xs text-blue-600 mt-2 flex items-center gap-1">
+                    <iconify-icon icon="mdi:information-outline" width="14" height="14"></iconify-icon>
+                    支持自然语言，AI 自动填充任务信息
+                  </p>
+                </div>
+
                 <div>
-                  <label for="create-title" class="text-sm">任务名称</label>
+                  <label for="create-title" class="text-sm font-medium flex items-center gap-1">
+                    任务名称 <span class="text-red-500">*</span>
+                  </label>
                   <input
                     id="create-title"
                     v-model="newTaskForm.title"
                     type="text"
-                    class="w-full mt-1 p-2 border rounded"
+                    class="w-full mt-1 p-2 border rounded focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
                     placeholder="请输入任务名称"
                   />
                 </div>
                 <div>
-                  <label for="create-desc" class="text-sm">描述</label>
+                  <div class="flex items-center justify-between">
+                    <label for="create-desc" class="text-sm font-medium">任务描述</label>
+                    <span class="text-xs text-gray-500">剩余 {{ descriptionRemaining }} 字</span>
+                  </div>
                   <textarea
                     id="create-desc"
                     v-model="newTaskForm.description"
                     rows="3"
-                    class="w-full mt-1 p-2 border rounded"
-                    placeholder="任务描述（可选）"
+                    class="w-full mt-1 p-2 border rounded focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                    placeholder="简要描述任务"
+                    :maxlength="descriptionLimit"
+                    @input="enforceDescriptionLimit"
                   ></textarea>
                 </div>
                 <div class="flex gap-2">
                   <div class="flex-1">
-                    <label for="create-due" class="text-sm">到期日</label>
+                    <label for="create-due" class="text-sm font-medium">到期日</label>
                     <input
                       id="create-due"
                       v-model="newTaskForm.due_date"
                       type="date"
-                      class="w-full mt-1 p-2 border rounded"
+                      class="w-full mt-1 p-2 border rounded focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
                     />
                   </div>
                   <div class="flex-1">
-                    <label for="create-team" class="text-sm"
-                      >所属团队（可选）</label
+                    <div class="text-sm font-medium">所属团队</div>
+                    <div
+                      class="w-full mt-1 p-2 border rounded bg-gray-50 text-gray-700"
                     >
-                    <select
-                      id="create-team"
-                      v-model="newTaskForm.owner_team_id"
-                      class="w-full mt-1 p-2 border rounded"
-                      :disabled="ownedTeamsLoading || !ownedTeams.length"
-                    >
-                      <option value="">未关联团队</option>
-                      <option
-                        v-for="team in ownedTeams"
-                        :key="team.id"
-                        :value="team.id"
-                      >
-                        {{ team.name }}
-                      </option>
-                    </select>
-                    <p
-                      v-if="ownedTeamsLoading"
-                      class="text-xs text-gray-400 mt-1"
-                    >
-                      加载团队列表中...
-                    </p>
-                    <p
-                      v-else-if="!ownedTeams.length"
-                      class="text-xs text-gray-400 mt-1"
-                    >
-                      暂无你拥有的团队
+                      {{ selectedTeam?.name || "未选择团队" }}
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">
+                      创建时自动使用当前进入的团队
                     </p>
                   </div>
                 </div>
                 <div>
-                  <label for="create-points" class="text-sm">任务积分</label>
+                  <label for="create-points" class="text-sm font-medium">任务积分</label>
                   <input
                     id="create-points"
                     v-model.number="newTaskForm.effort_points"
                     type="number"
                     min="0"
-                    class="w-full mt-1 p-2 border rounded"
+                    class="w-full mt-1 p-2 border rounded focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
                     placeholder="完成任务可获得的积分"
                   />
                 </div>
                 <div>
                   <div class="flex items-center justify-between">
-                    <span class="text-sm">子任务</span>
+                    <span class="text-sm font-medium">子任务</span>
                     <button
                       type="button"
                       class="text-xs text-blue-600"
@@ -806,7 +724,7 @@
             </div>
             <div v-for="(activity, index) in displayedActivities" :key="index" class="flex items-start">
               <div class="relative">
-                <img v-if="activity.user_avatar" :src="activity.user_avatar" class="w-10 h-10 rounded-full object-cover" />
+                <img v-if="activity.user_avatar" :src="activity.user_avatar" class="w-10 h-10 rounded-full object-cover" :alt="activity.user_name || '成员头像'" />
                 <div v-else class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-blue-600 font-bold">
                   {{ activity.user_name ? activity.user_name.charAt(0) : '?' }}
                 </div>
@@ -839,7 +757,7 @@
               <div class="w-6 text-center font-bold" :class="{'text-[#FF6B35]': index === 0, 'text-[#FF9500]': index === 1, 'text-[#FFC107]': index === 2, 'text-gray-500': index > 2}">{{ index + 1 }}</div>
               
               <div class="ml-2">
-                 <img v-if="member.avatar" :src="member.avatar" class="w-8 h-8 rounded-full object-cover" />
+                 <img v-if="member.avatar" :src="member.avatar" class="w-8 h-8 rounded-full object-cover" :alt="member.nickname || '成员头像'" />
                  <div v-else class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-blue-600 font-bold text-xs">
                    {{ member.nickname ? member.nickname.charAt(0) : '?' }}
                  </div>
@@ -906,6 +824,100 @@
               <span class="mt-2 text-sm text-gray-700">数据报告</span>
             </button>
           </div>
+        </div>
+      </div>
+      </div>
+    </template>
+
+    <!-- 加入/创建团队模态框 -->
+    <div
+      v-if="showJoinModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity"
+    >
+      <div
+        class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all scale-100"
+      >
+        <h3
+          class="text-xl font-bold mb-6 text-gray-800 flex items-center gap-2"
+        >
+          <iconify-icon icon="mdi:account-plus" class="text-blue-600"></iconify-icon>
+          加入团队
+        </h3>
+        <input
+          v-model="teamNameInput"
+          type="text"
+          class="w-full p-3 border border-gray-200 rounded-lg mb-6 focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
+          placeholder="请输入准确的团队名称"
+        />
+        <div class="flex justify-end gap-3">
+          <button
+            @click="showJoinModal = false"
+            class="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium"
+          >
+            取消
+          </button>
+          <button
+            @click="handleJoinTeam"
+            class="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-200 font-medium transition-all active:scale-95"
+          >
+            确认加入
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="showCreateTeamModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity"
+    >
+      <div
+        class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all scale-100"
+      >
+        <h3
+          class="text-xl font-bold mb-6 text-gray-800 flex items-center gap-2"
+        >
+          <iconify-icon icon="mdi:plus-box" class="text-purple-600"></iconify-icon>
+          创建团队
+        </h3>
+        <div class="space-y-5">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5" for="new-team-name"
+              >团队名称</label
+            >
+            <input
+              id="new-team-name"
+              v-model="newTeamForm.name"
+              type="text"
+              class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none bg-gray-50"
+              placeholder="给团队起个响亮的名字"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5" for="new-team-desc"
+              >团队描述</label
+            >
+            <textarea
+              id="new-team-desc"
+              v-model="newTeamForm.description"
+              rows="3"
+              class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none bg-gray-50"
+              placeholder="简单介绍一下团队的目标（可选）"
+            ></textarea>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-8">
+          <button
+            @click="showCreateTeamModal = false"
+            class="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors font-medium"
+          >
+            取消
+          </button>
+          <button
+            @click="handleCreateTeam"
+            class="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 shadow-lg shadow-purple-200 font-medium transition-all active:scale-95"
+          >
+            立即创建
+          </button>
         </div>
       </div>
     </div>
@@ -1014,6 +1026,7 @@ import {
   updateTaskProgress,
   getTaskDetail,
   addTaskComment,
+  parseTaskWithAI,
 } from "@/api/modules/task";
 import {
   getTeamList,
@@ -1055,6 +1068,9 @@ export default {
       expandedTaskIds: [],
       taskDetailCache: {},
       newCommentMap: {},
+      naturalLanguageInput: "",
+      isParsing: false,
+      descriptionLimit:50,
 
       // Team Management
       showInviteModal: false,
@@ -1065,15 +1081,12 @@ export default {
       showAllActivities: false,
       loadingMembers: false,
       detailLoadingMap: {},
-      ownedTeams: [],
-      ownedTeamsLoading: false,
       createTaskTeamMembers: [],
       newTaskForm: {
         title: "",
         description: "",
         due_date: "",
         effort_points: 0,
-        owner_team_id: "",
         subtasks: [{ title: "", owner_user_id: "" }],
       },
       allTeams: [],
@@ -1093,24 +1106,15 @@ export default {
   },
   watch: {
     selectedTeam(val) {
-      if (!val) {
-        this.$nextTick(() => {
-          this.initParticles();
-        });
-      } else {
+      if (val) {
         if (this.animationFrameId) {
           cancelAnimationFrame(this.animationFrameId);
         }
+        return;
       }
-    },
-    "newTaskForm.owner_team_id": {
-      handler(newVal) {
-        if (newVal) {
-          this.loadCreateTaskTeamMembers(newVal);
-        } else {
-          this.createTaskTeamMembers = [];
-        }
-      },
+      this.$nextTick(() => {
+        this.initParticles();
+      });
     },
   },
   computed: {
@@ -1134,6 +1138,10 @@ export default {
         return this.teamActivities;
       }
       return this.teamActivities.slice(0, 5);
+    },
+    descriptionRemaining() {
+      const len = (this.newTaskForm.description || "").length;
+      return Math.max(0, this.descriptionLimit - len);
     },
     filteredTasks() {
       if (this.taskStatusFilter === 'all') {
@@ -1187,20 +1195,56 @@ export default {
     formatDate(dateStr) {
       if (!dateStr) return "未知时间";
       const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return dateStr;
+      if (Number.isNaN(date.getTime())) return dateStr;
       return date.toLocaleDateString("zh-CN", {
         year: "numeric",
         month: "long",
         day: "numeric",
       });
     },
-    async loadCreateTaskTeamMembers(teamId) {
+    formatDateInput(val) {
+      if (!val) return "";
+      const d = new Date(val);
+      if (!Number.isNaN(d.getTime())) {
+        return d.toISOString().slice(0, 10);
+      }
+      if (typeof val === "string") {
+        return val.slice(0, 10);
+      }
+      return "";
+    },
+    applyDescriptionLimit(text) {
+      if (!text) return "";
+      return String(text).slice(0, this.descriptionLimit);
+    },
+    enforceDescriptionLimit() {
+      this.newTaskForm.description = this.applyDescriptionLimit(
+        this.newTaskForm.description
+      );
+    },
+    async parseNaturalLanguage() {
+      const input = (this.naturalLanguageInput || "").trim();
+      if (!input) return;
+      this.isParsing = true;
       try {
-        const res = await getTeamMembers(teamId);
-        this.createTaskTeamMembers = res.data || [];
+        const res = await parseTaskWithAI(input);
+        const parsed = res?.data?.data || res?.data || res;
+        if (parsed?.title) this.newTaskForm.title = parsed.title;
+        if (parsed?.description)
+          this.newTaskForm.description = this.applyDescriptionLimit(
+            parsed.description
+          );
+        const parsedDue =
+          parsed?.endDate || parsed?.dueDate || parsed?.due_at || parsed?.due_date;
+        if (parsedDue) {
+          this.newTaskForm.due_date = this.formatDateInput(parsedDue);
+        }
       } catch (error) {
-        console.error("获取团队成员失败", error);
-        this.createTaskTeamMembers = [];
+        console.error("AI解析失败:", error);
+        alert("AI 解析失败，请稍后重试");
+      } finally {
+        this.isParsing = false;
+        this.enforceDescriptionLimit();
       }
     },
     async loadAllTeams() {
@@ -1273,13 +1317,15 @@ export default {
         alert("请先选择一个团队再进入会议室");
         return;
       }
-      try {
-        sessionStorage.setItem(
-          "team:quickMeeting",
-          String(this.selectedTeam.id)
-        );
-      } catch (error) {
-        console.warn("无法写入会议室访问标记", error);
+      if (window?.sessionStorage) {
+        try {
+          sessionStorage.setItem(
+            "team:quickMeeting",
+            String(this.selectedTeam.id)
+          );
+        } catch (error) {
+          console.warn("无法写入会议室访问标记", error);
+        }
       }
       this.$router.push({
         name: "TeamMeetingRoom",
@@ -1292,10 +1338,12 @@ export default {
         return;
       }
       // 保存当前团队ID，防止刷新丢失
-      try {
-        sessionStorage.setItem("currentTeamId", String(this.selectedTeam.id));
-      } catch (e) {
-        // ignore
+      if (window?.sessionStorage) {
+        try {
+          sessionStorage.setItem("currentTeamId", String(this.selectedTeam.id));
+        } catch (error) {
+          console.warn("无法保存团队ID", error);
+        }
       }
       this.$router.push({
         name: "TeamCalendar",
@@ -1307,10 +1355,12 @@ export default {
         alert("请先选择一个团队");
         return;
       }
-      try {
-        sessionStorage.setItem("currentTeamId", String(this.selectedTeam.id));
-      } catch (e) {
-        // ignore
+      if (window?.sessionStorage) {
+        try {
+          sessionStorage.setItem("currentTeamId", String(this.selectedTeam.id));
+        } catch (error) {
+          console.warn("无法保存团队ID", error);
+        }
       }
       this.$router.push({
         name: "TeamReports",
@@ -1322,10 +1372,12 @@ export default {
         alert("请先选择一个团队");
         return;
       }
-      try {
-        sessionStorage.setItem("currentTeamId", String(this.selectedTeam.id));
-      } catch (e) {
-        // ignore
+      if (window?.sessionStorage) {
+        try {
+          sessionStorage.setItem("currentTeamId", String(this.selectedTeam.id));
+        } catch (error) {
+          console.warn("无法保存团队ID", error);
+        }
       }
       this.$router.push({
         name: "TeamDocs",
@@ -1359,7 +1411,6 @@ export default {
       this.$nextTick(() => {
         this.initChart();
         this.loadTasks();
-        this.loadOwnedTeams();
         this.fetchTeamMembers();
         this.fetchTeamActivities();
       });
@@ -1376,6 +1427,7 @@ export default {
       try {
         const res = await getTeamMembers(this.selectedTeam.id);
         this.teamMembers = res.data || [];
+        this.createTaskTeamMembers = this.teamMembers;
         // Sort by points for ranking
         this.teamMembers.sort((a, b) => (b.total_points || 0) - (a.total_points || 0));
 
@@ -1403,6 +1455,7 @@ export default {
         }
       } catch (error) {
         console.error("Failed to fetch team members:", error);
+        this.createTaskTeamMembers = [];
       }
     },
     async fetchTeamActivities() {
@@ -1443,25 +1496,11 @@ export default {
         this.toggleTaskDetails(taskId);
       }
     },
-    async loadOwnedTeams() {
-      this.ownedTeamsLoading = true;
-      try {
-        const res = await getTeamList({ owned_only: true });
-        const list = res?.data?.data || res?.data || res;
-        this.ownedTeams = Array.isArray(list) ? list : [];
-      } catch (error) {
-        console.warn("加载团队列表失败：", error);
-        this.ownedTeams = [];
-      } finally {
-        this.ownedTeamsLoading = false;
-      }
-    },
     resetNewTaskForm() {
       this.newTaskForm.title = "";
       this.newTaskForm.description = "";
       this.newTaskForm.due_date = "";
       this.newTaskForm.effort_points = 0;
-      this.newTaskForm.owner_team_id = "";
       this.newTaskForm.subtasks = [{ title: "", owner_user_id: "" }];
     },
     addSubtaskField() {
@@ -1503,8 +1542,6 @@ export default {
     initParticles() {
       const canvas = this.$refs.particleCanvas;
       if (!canvas) return;
-
-      const ctx = canvas.getContext("2d");
       canvas.width = canvas.parentElement.clientWidth;
       canvas.height = canvas.parentElement.clientHeight;
 
@@ -1555,7 +1592,7 @@ export default {
           const p2 = this.particles[j];
           const dx = p.x - p2.x;
           const dy = p.y - p2.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
+          const distance = Math.hypot(dx, dy);
 
           if (distance < 120) {
             // 增加连线距离
@@ -2103,6 +2140,8 @@ export default {
     },
     openCreateModal() {
       this.resetNewTaskForm();
+      this.naturalLanguageInput = "";
+      this.isParsing = false;
       this.showCreateModal = true;
     },
     closeCreateModal() {
@@ -2137,9 +2176,12 @@ export default {
         alert("任务名称不能为空");
         return;
       }
-      const ownerTeamId = this.newTaskForm.owner_team_id
-        ? Number(this.newTaskForm.owner_team_id)
-        : null;
+      const ownerTeamId = this.selectedTeam?.id ? Number(this.selectedTeam.id) : null;
+      if (!ownerTeamId) {
+        alert("请先进入一个团队再创建任务");
+        return;
+      }
+      this.enforceDescriptionLimit();
       const subtasks = this.normalizeNewTaskSubtasks();
       
       let formattedDueDate = null;
@@ -2149,11 +2191,14 @@ export default {
         formattedDueDate = new Date(this.newTaskForm.due_date).toISOString();
       }
 
+      const limitedDesc = this.applyDescriptionLimit(
+        this.newTaskForm.description?.trim?.()
+          ? this.newTaskForm.description.trim()
+          : this.newTaskForm.description || ""
+      );
       const payload = {
         title: this.newTaskForm.title.trim(),
-        description: this.newTaskForm.description?.trim?.()
-          ? this.newTaskForm.description.trim()
-          : this.newTaskForm.description || "",
+        description: limitedDesc,
         due_at: formattedDueDate,
         effort_points: this.newTaskForm.effort_points || 0,
         task_type: 2,
@@ -2289,10 +2334,11 @@ export default {
 
 .card.surface-card + .surface-card {
   margin-top: 16px;
-  .task-card--highlight {
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4),
-      0 20px 45px rgba(15, 23, 42, 0.08);
-  }
+}
+
+.task-card--highlight {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4),
+    0 20px 45px rgba(15, 23, 42, 0.08);
 }
 
 .page-title {
