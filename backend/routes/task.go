@@ -2,6 +2,7 @@ package routes
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,6 +17,8 @@ import (
 	"learningAssistant-backend/models"
 	"learningAssistant-backend/services/points"
 )
+
+var errDuplicateStudyNoteTitle = errors.New("duplicate-study-note-title")
 
 // CreateSubtaskRequest 创建子任务请求结构
 type CreateSubtaskRequest struct {
@@ -824,6 +827,18 @@ func completeTaskWithNote(c *gin.Context) {
 		}
 
 		title := task.Title + " - " + now.Format("2006-01-02 15:04")
+
+		// 防止并发/重复调用导致同标题笔记重复创建
+		var existingCount int64
+		if err := tx.Model(&models.StudyNote{}).
+			Where("user_id = ? AND title = ?", userID.(uint64), title).
+			Count(&existingCount).Error; err != nil {
+			return err
+		}
+		if existingCount > 0 {
+			return errDuplicateStudyNoteTitle
+		}
+
 		createdNote = models.StudyNote{
 			UserID:  userID.(uint64),
 			TaskID:  &taskID,
@@ -835,6 +850,13 @@ func completeTaskWithNote(c *gin.Context) {
 		}
 		return nil
 	}); err != nil {
+		if errors.Is(err, errDuplicateStudyNoteTitle) {
+			c.JSON(http.StatusConflict, gin.H{
+				"error":   "完成任务并创建笔记失败",
+				"message": "已存在同标题的笔记，不允许重复创建",
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "完成任务并创建笔记失败"})
 		return
 	}

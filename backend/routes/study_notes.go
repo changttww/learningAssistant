@@ -1,10 +1,13 @@
 package routes
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
 
 	"learningAssistant-backend/database"
@@ -74,14 +77,49 @@ func handleCreateNote(c *gin.Context) {
 		return
 	}
 
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误", "message": "标题不能为空"})
+		return
+	}
+
+	// 同一用户不允许创建同标题笔记
+	var existing models.StudyNote
+	if err := database.GetDB().Model(&models.StudyNote{}).
+		Select("id").
+		Where("user_id = ? AND title = ?", userID.(uint64), title).
+		Limit(1).
+		First(&existing).Error; err != nil {
+		if err != gorm.ErrRecordNotFound {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询笔记失败"})
+			return
+		}
+	} else {
+		c.JSON(http.StatusConflict, gin.H{
+			"error":            "创建笔记失败",
+			"message":          "已存在同标题的笔记，不允许重复创建",
+			"existing_note_id": existing.ID,
+		})
+		return
+	}
+
 	note := models.StudyNote{
 		UserID:  userID.(uint64),
 		TaskID:  req.TaskID,
-		Title:   req.Title,
+		Title:   title,
 		Content: req.Content,
 	}
 
 	if err := database.GetDB().Create(&note).Error; err != nil {
+		// 如果数据库层面存在唯一约束，兜底把重复键映射成 409（避免误导成“标题重复”）
+		var mysqlErr *mysql.MySQLError
+		if errors.As(err, &mysqlErr) && mysqlErr.Number == 1062 {
+			c.JSON(http.StatusConflict, gin.H{
+				"error":   "创建笔记失败",
+				"message": "数据冲突，创建失败（可能已存在相同标题的笔记）",
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建笔记失败"})
 		return
 	}
@@ -131,7 +169,33 @@ func handleUpdateNote(c *gin.Context) {
 
 	updates := map[string]interface{}{}
 	if req.Title != nil {
-		updates["title"] = *req.Title
+		newTitle := strings.TrimSpace(*req.Title)
+		if newTitle == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误", "message": "标题不能为空"})
+			return
+		}
+
+		// 同一用户不允许把标题改成已存在的标题（排除自己）
+		var existing models.StudyNote
+		if err := database.GetDB().Model(&models.StudyNote{}).
+			Select("id").
+			Where("user_id = ? AND title = ? AND id <> ?", userID.(uint64), newTitle, noteID).
+			Limit(1).
+			First(&existing).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "查询笔记失败"})
+				return
+			}
+		} else {
+			c.JSON(http.StatusConflict, gin.H{
+				"error":            "更新笔记失败",
+				"message":          "已存在同标题的笔记，不允许使用该标题",
+				"existing_note_id": existing.ID,
+			})
+			return
+		}
+
+		updates["title"] = newTitle
 	}
 	if req.Content != nil {
 		updates["content"] = *req.Content

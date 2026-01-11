@@ -99,6 +99,13 @@ service.interceptors.response.use(
 
     const { status, data } = error.response;
 
+    // 让业务侧 catch(error) 能拿到更友好的错误信息
+    if (data?.message) {
+      error.message = data.message;
+    } else if (data?.error) {
+      error.message = data.error;
+    }
+
     // HTTP状态码处理
     switch (status) {
       case 400:
