@@ -2210,18 +2210,33 @@ export default {
         payload.subtasks = subtasks;
       }
       this.creating = true;
-      let newTask;
       try {
         const res = await createTask(payload);
         const created = res?.data?.data || res?.data || res;
-        newTask = this.normalizeFetchedTask(created);
-      } catch (error) {
-        console.warn("创建任务失败，使用本地数据：", error);
-        newTask = this.buildLocalTask(payload);
-      } finally {
+        
+        // 添加主任务
+        const newTask = this.normalizeFetchedTask(created);
         if (newTask) {
           this.tasks.unshift(newTask);
         }
+
+        // 添加分配给我的子任务
+        if (created.children && Array.isArray(created.children)) {
+           const mySubtasks = created.children.filter(child => 
+              String(child.owner_user_id) === String(this.currentUserId)
+           );
+           mySubtasks.forEach(child => {
+              const subTask = this.normalizeFetchedTask(child);
+              this.tasks.unshift(subTask);
+           });
+        }
+      } catch (error) {
+        console.warn("创建任务失败，使用本地数据：", error);
+        const fallbackTask = this.buildLocalTask(payload);
+        if (fallbackTask) {
+          this.tasks.unshift(fallbackTask);
+        }
+      } finally {
         this.creating = false;
         this.showCreateModal = false;
         this.resetNewTaskForm();
