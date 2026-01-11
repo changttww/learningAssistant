@@ -530,8 +530,8 @@ export default {
         console.log('[团队知识库] 同步请求 teamId:', safeTeamId);
         const res = await syncTeamKnowledgeBase(safeTeamId);
         if (res && (res.code === 0 || res.code === undefined)) {
-          const data = res.data || res;
-          alert(`同步完成！已从团队任务构建 ${data.tasks_synced || 0} 条知识。`);
+          const msg = res.msg || '同步请求已提交';
+          alert(`同步成功！${msg}`);
           this.fetchKnowledgeList();
           this.fetchStats();
         } else {
