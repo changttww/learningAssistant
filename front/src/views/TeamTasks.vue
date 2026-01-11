@@ -56,7 +56,7 @@
           </div>
         </div>
 
-        <div class="relative z-10 w-full max-w-6xl mt-10">
+        <div v-if="allTeams.length > 0" class="relative z-10 w-full max-w-6xl mt-10">
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <div
               v-for="team in allTeams"
