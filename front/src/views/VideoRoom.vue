@@ -324,7 +324,7 @@
     </div>
 
     <button class="ai-floating-btn" type="button" @click="toggleAiPanel">
-      <iconify-icon icon="mdi:robot-happy-outline" width="22"></iconify-icon>
+      <iconify-icon icon="mdi:robot-happy-outline" width="44"></iconify-icon>
       <span>AI 助理</span>
     </button>
     <div v-if="aiPanelVisible" class="ai-panel">
@@ -1460,6 +1460,7 @@ export default {
   color: #1f2937;
   display: flex;
   flex-direction: column;
+  --ai-scale: 1.6;
 }
 
 .room-header {
@@ -2268,13 +2269,13 @@ export default {
 
 .ai-panel {
   position: fixed;
-  right: 24px;
-  bottom: 92px;
-  width: min(420px, 92vw);
-  height: 420px;
-  max-height: 420px;
+  right: calc(24px * var(--ai-scale));
+  bottom: calc(92px * var(--ai-scale));
+  width: min(calc(420px * var(--ai-scale)), 96vw);
+  height: min(calc(420px * var(--ai-scale)), 80vh);
+  max-height: min(calc(420px * var(--ai-scale)), 80vh);
   background: #fff;
-  border-radius: 18px;
+  border-radius: calc(18px * var(--ai-scale));
   border: 1px solid #e5e7eb;
   box-shadow: 0 24px 50px rgba(15, 23, 42, 0.2);
   display: flex;
@@ -2286,45 +2287,47 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px 10px;
+  gap: calc(12px * var(--ai-scale));
+  padding: calc(14px * var(--ai-scale)) calc(16px * var(--ai-scale))
+    calc(10px * var(--ai-scale));
   border-bottom: 1px solid #eef2f7;
 }
 
 .ai-panel-title {
   font-weight: 700;
   color: #0f172a;
+  font-size: calc(16px * var(--ai-scale));
 }
 
 .ai-panel-sub {
-  font-size: 12px;
+  font-size: calc(12px * var(--ai-scale));
   color: #64748b;
-  margin-top: 4px;
+  margin-top: calc(4px * var(--ai-scale));
 }
 
 .ai-panel-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: calc(8px * var(--ai-scale));
 }
 
 .ai-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 14px 0;
+  padding: calc(12px * var(--ai-scale)) calc(14px * var(--ai-scale)) 0;
 }
 
 .ai-empty {
   text-align: center;
   color: #9ca3af;
-  font-size: 13px;
-  padding: 16px 0;
+  font-size: calc(13px * var(--ai-scale));
+  padding: calc(16px * var(--ai-scale)) 0;
 }
 
 .ai-message {
   display: flex;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: calc(10px * var(--ai-scale));
+  margin-bottom: calc(12px * var(--ai-scale));
   align-items: flex-start;
 }
 
@@ -2333,20 +2336,20 @@ export default {
 }
 
 .ai-avatar {
-  width: 32px;
-  height: 32px;
+  width: calc(32px * var(--ai-scale));
+  height: calc(32px * var(--ai-scale));
   border-radius: 50%;
   background: #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: calc(16px * var(--ai-scale));
 }
 
 .ai-bubble {
   background: #f1f5f9;
-  border-radius: 12px;
-  padding: 10px 12px;
+  border-radius: calc(12px * var(--ai-scale));
+  padding: calc(10px * var(--ai-scale)) calc(12px * var(--ai-scale));
   max-width: 100%;
   box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06);
 }
@@ -2358,13 +2361,13 @@ export default {
 .ai-text {
   color: #1f2937;
   line-height: 1.6;
-  font-size: 13px;
+  font-size: calc(13px * var(--ai-scale));
 }
 
 .ai-plan {
-  margin-top: 10px;
-  border-radius: 12px;
-  padding: 12px;
+  margin-top: calc(10px * var(--ai-scale));
+  border-radius: calc(12px * var(--ai-scale));
+  padding: calc(12px * var(--ai-scale));
   background: #fff;
   border: 1px solid #e2e8f0;
 }
@@ -2372,52 +2375,53 @@ export default {
 .ai-plan-title {
   font-weight: 700;
   color: #0f172a;
-  margin-bottom: 6px;
+  font-size: calc(14px * var(--ai-scale));
+  margin-bottom: calc(6px * var(--ai-scale));
 }
 
 .ai-plan-summary {
-  font-size: 13px;
+  font-size: calc(13px * var(--ai-scale));
   color: #475569;
-  margin-bottom: 6px;
+  margin-bottom: calc(6px * var(--ai-scale));
 }
 
 .ai-plan-recommendation {
-  font-size: 12px;
+  font-size: calc(12px * var(--ai-scale));
   color: #2563eb;
-  margin-bottom: 10px;
+  margin-bottom: calc(10px * var(--ai-scale));
 }
 
 .ai-plan-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: calc(8px * var(--ai-scale));
 }
 
 .ai-plan-item {
   display: flex;
-  gap: 12px;
-  padding: 8px 10px;
-  border-radius: 10px;
+  gap: calc(12px * var(--ai-scale));
+  padding: calc(8px * var(--ai-scale)) calc(10px * var(--ai-scale));
+  border-radius: calc(10px * var(--ai-scale));
   background: #f8fafc;
   border: 1px solid #e2e8f0;
 }
 
 .ai-plan-time {
-  font-size: 12px;
+  font-size: calc(12px * var(--ai-scale));
   color: #64748b;
-  min-width: 90px;
+  min-width: calc(90px * var(--ai-scale));
 }
 
 .ai-plan-name {
   font-weight: 600;
   color: #0f172a;
-  font-size: 13px;
+  font-size: calc(13px * var(--ai-scale));
 }
 
 .ai-plan-note {
-  font-size: 12px;
+  font-size: calc(12px * var(--ai-scale));
   color: #64748b;
-  margin-top: 2px;
+  margin-top: calc(2px * var(--ai-scale));
 }
 
 .plan-study {
@@ -2441,23 +2445,24 @@ export default {
 }
 
 .ai-plan-tips {
-  margin-top: 10px;
-  font-size: 12px;
+  margin-top: calc(10px * var(--ai-scale));
+  font-size: calc(12px * var(--ai-scale));
   color: #475569;
 }
 
 .ai-input {
   display: flex;
-  gap: 10px;
-  margin: 12px 14px 14px;
+  gap: calc(10px * var(--ai-scale));
+  margin: calc(12px * var(--ai-scale)) calc(14px * var(--ai-scale))
+    calc(14px * var(--ai-scale));
 }
 
 .ai-input input {
   flex: 1;
   border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 13px;
+  border-radius: calc(10px * var(--ai-scale));
+  padding: calc(10px * var(--ai-scale)) calc(12px * var(--ai-scale));
+  font-size: calc(13px * var(--ai-scale));
   outline: none;
   transition: border 0.2s ease, box-shadow 0.2s ease;
 }
@@ -2468,11 +2473,11 @@ export default {
 }
 
 .ai-input button {
-  width: 72px;
+  width: calc(72px * var(--ai-scale));
   border: none;
   background: #2563eb;
   color: #fff;
-  border-radius: 10px;
+  border-radius: calc(10px * var(--ai-scale));
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -2491,17 +2496,18 @@ export default {
 
 .ai-floating-btn {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
+  right: calc(24px * var(--ai-scale));
+  bottom: calc(24px * var(--ai-scale));
   border: none;
   background: #2563eb;
   color: #fff;
   border-radius: 999px;
-  padding: 12px 18px;
+  padding: calc(12px * var(--ai-scale)) calc(18px * var(--ai-scale));
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: calc(8px * var(--ai-scale));
   font-weight: 700;
+  font-size: calc(14px * var(--ai-scale));
   cursor: pointer;
   box-shadow: 0 16px 32px rgba(37, 99, 235, 0.3);
   z-index: 80;
