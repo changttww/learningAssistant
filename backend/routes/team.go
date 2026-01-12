@@ -162,7 +162,7 @@ func joinTeamByName(c *gin.Context) {
 	}
 	database.GetDB().Create(&notification)
 
-	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "申请已发送，等待团队创建者审核"})
+	c.JSON(http.StatusOK, gin.H{"code": 0, "msg": "申请已成功发送，请等待队长审核"})
 }
 
 func inviteMember(c *gin.Context) {
@@ -407,7 +407,7 @@ func handleTeamRequest(c *gin.Context) {
 
 		notification := models.Notification{
 			UserID:      request.UserID,
-			Title:       "申请通过",
+			Title:       "加入团队成功",
 			Content:     "您的入队申请已被 " + approver.DisplayName + " 批准，您已成功加入团队: " + team.Name,
 			Type:        "SYSTEM",
 			RelatedID:   request.ID,
