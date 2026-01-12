@@ -3,7 +3,7 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">🔗 知识图谱</h1>
+        <h1 class="page-title">🔗 {{ teamId ? '团队' : '' }}知识图谱</h1>
         <p class="page-subtitle">AI驱动的知识点关联可视化 · 共 {{ realNodeCount }} 个知识点</p>
       </div>
       <div class="header-right">
@@ -142,7 +142,8 @@ export default {
       mining: false,
       graphData: null,
       chart: null,
-      selectedNode: null
+      selectedNode: null,
+      teamId: null
     };
   },
   computed: {
@@ -168,6 +169,7 @@ export default {
     }
   },
   mounted() {
+    this.teamId = this.$route.query.teamId || null;
     this.fetchGraphData();
     window.addEventListener('resize', this.handleResize);
   },
@@ -181,7 +183,7 @@ export default {
     async fetchGraphData() {
       this.loading = true;
       try {
-        const res = await getKnowledgeGraph();
+        const res = await getKnowledgeGraph(this.teamId);
         this.graphData = res?.data;
         
         this.$nextTick(() => {

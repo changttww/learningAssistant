@@ -11,7 +11,7 @@
         </div>
       </div>
       <div class="header-right">
-        <router-link to="/knowledge-graph" class="btn-feature">
+        <router-link :to="{ path: '/knowledge-graph', query: { teamId: teamId } }" class="btn-feature">
           🔗 知识图谱
         </router-link>
         <router-link to="/knowledge-chat" class="btn-feature chat">

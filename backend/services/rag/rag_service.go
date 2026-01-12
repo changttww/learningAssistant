@@ -58,7 +58,7 @@ type RAGService interface {
 	// 获取知识点关系
 	GetKnowledgeRelations(entryID uint64) ([]models.KnowledgeRelation, error)
 	// 获取用户知识图谱数据
-	GetKnowledgeGraph(userID uint64) (*KnowledgeGraphData, error)
+	GetKnowledgeGraph(userID uint64, teamID *uint64) (*KnowledgeGraphData, error)
 	// 批量重分类现有知识点（数据清洗）
 	ReclassifyAllEntries(userID uint64) (int, error)
 }
@@ -1144,12 +1144,49 @@ func (r *DefaultRAGService) vectorSearchWithScore(userID uint64, queryVector mod
 }
 
 // GetKnowledgeGraph 获取用户知识图谱数据（聚类拓扑结构）
-func (r *DefaultRAGService) GetKnowledgeGraph(userID uint64) (*KnowledgeGraphData, error) {
+// GetKnowledgeGraph 获取知识图谱数据
+func (r *DefaultRAGService) GetKnowledgeGraph(userID uint64, teamID *uint64) (*KnowledgeGraphData, error) {
 	db := database.GetDB()
 
-	// 获取用户的所有知识条目
+	// 获取知识条目查询
+	query := db.Where("user_id = ?", userID)
+	if teamID != nil {
+		query = query.Where("team_id = ?", *teamID)
+	} else {
+		// 个人图谱：如果不传TeamID，是否应该只看个人的？或者全部？
+		// 根据需求，个人任务和团队任务分开。
+		// 如果 teamID == nil, 假设是个人图谱，通常包含所有个人条目，或者排除团队条目？
+		// 现有逻辑是 WHERE user_id = ?，包含所有。为了区分，这里可以加上 team_id IS NULL 吗？
+		// 暂时保持 user_id = ? 包含所有（或者根据产品逻辑，个人图谱是否包含团队任务的分配？通常是包含的）
+		// 但用户现在的需求是 "团队任务的知识图谱应该独立于个人任务"。
+		// 所以，如果 teamID != nil，只查该 Team。
+		// 如果 teamID == nil，为了不混淆，我们可能需要排除 team_id != nil 的吗？
+		// 用户的原话："团队任务的知识图谱和个人任务知识图谱是一样的，但是实际上团队任务的知识图谱应该是独立于个人任务的"
+		// 这意味着 Team Graph 应该只显示 Team Data。Personal Graph 可能是显示 Personal Data (OR all data).
+		// 现在的修改重点是让 Team Graph 独立。
+
+		// 暂时保持 teamID == nil 时查所有 belongs to user (Current behavior),
+		// 或者根据需求改为 team_id IS NULL。
+		// 既然用户抱怨一样，那说明 Team Graph 里混入了 Personal Data (or vice versa).
+		// 其实之前是因为根本没有 filter TeamID。
+		// 只要 Team Graph 加上 filter，它就会只显示 Team 的。
+
+		// 但 Personal Graph 是否要排除 Team 的？
+		// 通常 "Use Personal Tasks" 可能意味着 exclude team stuff.
+		// 但是 models.Task 有 TaskType (1=personal, 2=team).
+		// KnowledgeBaseEntry 也有 TeamID.
+
+		// 稍微改一下 query 逻辑：
+		// 如果 teamID != nil, explicitly filter by team_id
+		// 如果 teamID == nil， 暂时保持查询所有 user_id 的（因为个人可能也会把自己在团队里的贡献视为己有），
+		// 或者仅查询 team_id IS NULL。
+		// 考虑到用户抱怨 "不能用个人的那些任务创建"，说明 Team Graph 应该纯粹一点。
+		// Personal Graph 如果包含 Team 的也许还好？
+		// 让我们先只处理 TeamID != nil 的情况。
+	}
+
 	var entries []models.KnowledgeBaseEntry
-	if err := db.Where("user_id = ?", userID).Find(&entries).Error; err != nil {
+	if err := query.Find(&entries).Error; err != nil {
 		return nil, fmt.Errorf("获取知识条目失败: %w", err)
 	}
 

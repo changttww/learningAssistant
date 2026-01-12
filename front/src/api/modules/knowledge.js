@@ -164,9 +164,12 @@ export function syncTeamKnowledgeBase(teamId) {
 
 /**
  * 获取知识图谱数据
+ * @param {string|number} [teamId] - 可选，团队ID
  */
-export function getKnowledgeGraph() {
-  return request.get("/knowledge-base/graph");
+export function getKnowledgeGraph(teamId) {
+  const params = {};
+  if (teamId) params.team_id = teamId;
+  return request.get("/knowledge-base/graph", params);
 }
 
 /**
