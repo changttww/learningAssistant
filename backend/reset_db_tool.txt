@@ -1,0 +1,60 @@
+package main
+
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+	"path/filepath"
+
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+
+	"learningAssistant-backend/config"
+)
+
+func main() {
+	// Load config
+	config.LoadConfig()
+
+	// Construct DSN with multiStatements=true
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=%s&parseTime=True&loc=Local&multiStatements=true",
+		config.AppConfig.Database.Username,
+		config.AppConfig.Database.Password,
+		config.AppConfig.Database.Host,
+		config.AppConfig.Database.Port,
+		config.AppConfig.Database.Database,
+		config.AppConfig.Database.Charset,
+	)
+
+	fmt.Println("Connecting to", dsn)
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
+
+	// Paths to SQL files
+	files := []string{
+		"../demo_full_data.sql",
+		"../demo_defense_data.sql",
+	}
+
+	for _, file := range files {
+		path, _ := filepath.Abs(file)
+		fmt.Printf("Executing %s...\n", path)
+		content, err := ioutil.ReadFile(path)
+		if err != nil {
+			log.Fatalf("Failed to read file %s: %v", file, err)
+		}
+
+		sql := string(content)
+		// Ensure Foreign Key Checks are off globally for this session if not in file
+		// But the file likely has it. demo_full_data.sql has it.
+
+		err = db.Exec(sql).Error
+		if err != nil {
+			log.Printf("Warning/Error executing SQL in %s: %v\n", file, err)
+		}
+		fmt.Println("Done.")
+	}
+	fmt.Println("Database reset sequence completed.")
+}
