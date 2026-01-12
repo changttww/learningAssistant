@@ -1936,6 +1936,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
@@ -1958,6 +1959,10 @@ import { ElMessage } from "element-plus";
 defineOptions({
   name: "PersonalTasks",
 });
+
+// 路由
+const route = useRoute();
+const router = useRouter();
 
 // 响应式数据
 const currentDate = ref(new Date());
@@ -3249,7 +3254,44 @@ onMounted(async () => {
 
   // 加载学习笔记
   await loadNotes();
+
+  // 处理来自知识库的跳转参数
+  await handleKnowledgeBaseRedirect();
 });
+
+// 处理知识库跳转参数
+const handleKnowledgeBaseRedirect = async () => {
+  const { openTask, openNote } = route.query;
+  
+  if (openTask) {
+    // 从知识库跳转过来，打开指定任务
+    const taskId = Number(openTask);
+    console.log('[知识库跳转] 查找任务ID:', taskId, '当前任务列表:', tasks.value.map(t => ({ id: t.id, title: t.title })));
+    const task = tasks.value.find(t => t.id === taskId);
+    if (task) {
+      console.log('[知识库跳转] 找到任务:', task);
+      editTask(task);
+      ElMessage.success('已打开关联任务');
+    } else {
+      console.warn('[知识库跳转] 未找到任务ID:', taskId);
+      ElMessage.warning('未找到关联任务，可能已被删除');
+    }
+    // 清除URL参数
+    router.replace({ path: route.path });
+  } else if (openNote) {
+    // 从知识库跳转过来，打开指定笔记
+    const noteId = Number(openNote);
+    const note = notes.value.find(n => n.id === noteId);
+    if (note) {
+      openNotebookModal(note);
+      ElMessage.success('已打开关联笔记');
+    } else {
+      ElMessage.warning('未找到关联笔记，可能已被删除');
+    }
+    // 清除URL参数
+    router.replace({ path: route.path });
+  }
+};
 
 watch(selectedDate, (d) => {
   if (!showTaskModal.value || !d) return;

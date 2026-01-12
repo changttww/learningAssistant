@@ -14,12 +14,13 @@ type KnowledgeBaseEntry struct {
 	UserID       uint64         `gorm:"index" json:"user_id"`
 	TeamID       *uint64        `gorm:"index" json:"team_id"` // 关联的团队ID（如果是团队共享知识）
 	SourceType   int8           `gorm:"type:tinyint;comment:1=task_note,2=study_note,3=quiz_answer" json:"source_type"`
-	SourceID     uint64         `json:"source_id"` // 关联的任务ID或笔记ID
-	TaskID       *uint64        `json:"task_id"`   // 关联的任务
-	NoteID       *uint64        `json:"note_id"`   // 关联的笔记
+	SourceID     uint64         `json:"source_id"`                 // 关联的任务ID或笔记ID
+	TaskID       *uint64        `json:"task_id"`                   // 关联的任务
+	NoteID       *uint64        `json:"note_id"`                   // 关联的笔记（单个笔记来源时）
+	NoteIDs      datatypes.JSON `gorm:"type:json" json:"note_ids"` // 关联的笔记ID列表（任务来源时）
 	Title        string         `gorm:"type:varchar(256);not null;index" json:"title"`
-	Content      string         `gorm:"type:longtext" json:"content"`
-	Summary      string         `gorm:"type:text" json:"summary"`               // AI生成的摘要
+	Content      string         `gorm:"type:longtext" json:"content"`           // 简化：仅存储关键信息用于搜索，不再拼接全文
+	Summary      string         `gorm:"type:text" json:"summary"`               // AI生成的摘要（主要展示内容）
 	Keywords     datatypes.JSON `gorm:"type:json" json:"keywords"`              // 关键词列表 []string
 	Category     string         `gorm:"type:varchar(64);index" json:"category"` // 知识分类
 	SubCategory  string         `gorm:"type:varchar(64)" json:"sub_category"`   // 子分类
