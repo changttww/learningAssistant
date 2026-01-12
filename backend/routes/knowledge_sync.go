@@ -46,10 +46,32 @@ func syncTasksToKnowledge(c *gin.Context) {
 	go func(targetUserID uint64) {
 		db := database.GetDB()
 
-		// 获取用户所有任务（不仅仅是已完成的）
+		// 获取用户所属的所有团队ID
+		var teamIDs []uint64
+		// 1. 作为成员
+		db.Model(&models.TeamMember{}).Where("user_id = ?", targetUserID).Pluck("team_id", &teamIDs)
+		// 2. 作为Owner
+		var ownedTeamIDs []uint64
+		db.Model(&models.Team{}).Where("owner_user_id = ?", targetUserID).Pluck("id", &ownedTeamIDs)
+		teamIDs = append(teamIDs, ownedTeamIDs...)
+
+		// 构建查询：
+		// 1. 个人任务：(owner_team_id IS NULL) AND (created_by = me OR owner_user_id = me)
+		// 2. 团队任务：(owner_team_id IN my_teams) AND (parent_id IS NULL OR owner_user_id = me)
+		//    即：读取团队的主任务(parent_id IS NULL) 和 分配给自己的子任务
 		var tasks []models.Task
-		if err := db.Where("created_by = ? OR owner_user_id = ?", targetUserID, targetUserID).
-			Find(&tasks).Error; err != nil {
+
+		query := db.Where("owner_team_id IS NULL").
+			Where("created_by = ? OR owner_user_id = ?", targetUserID, targetUserID)
+
+		if len(teamIDs) > 0 {
+			query = query.Or(
+				db.Where("owner_team_id IN ?", teamIDs).
+					Where("parent_id IS NULL OR owner_user_id = ?", targetUserID),
+			)
+		}
+
+		if err := query.Order("id desc").Find(&tasks).Error; err != nil {
 			// 异步任务中的错误只能打印日志
 			return
 		}
@@ -94,7 +116,7 @@ func syncNotesToKnowledge(c *gin.Context) {
 
 		// 获取用户所有笔记
 		var notes []models.StudyNote
-		if err := db.Where("user_id = ?", targetUserID).Find(&notes).Error; err != nil {
+		if err := db.Where("user_id = ?", targetUserID).Order("id desc").Find(&notes).Error; err != nil {
 			return
 		}
 
@@ -141,9 +163,27 @@ func syncAllToKnowledge(c *gin.Context) {
 	go func(targetUserID uint64) {
 		db := database.GetDB()
 
+		// 获取用户所属的所有团队ID
+		var teamIDs []uint64
+		db.Model(&models.TeamMember{}).Where("user_id = ?", targetUserID).Pluck("team_id", &teamIDs)
+		var ownedTeamIDs []uint64
+		db.Model(&models.Team{}).Where("owner_user_id = ?", targetUserID).Pluck("id", &ownedTeamIDs)
+		teamIDs = append(teamIDs, ownedTeamIDs...)
+
 		// 同步任务 - 使用任务聚合方式（任务+笔记聚合为一个知识点）
 		var tasks []models.Task
-		db.Where("created_by = ? OR owner_user_id = ?", targetUserID, targetUserID).Find(&tasks)
+
+		query := db.Where("owner_team_id IS NULL").
+			Where("created_by = ? OR owner_user_id = ?", targetUserID, targetUserID)
+
+		if len(teamIDs) > 0 {
+			query = query.Or(
+				db.Where("owner_team_id IN ?", teamIDs).
+					Where("parent_id IS NULL OR owner_user_id = ?", targetUserID),
+			)
+		}
+
+		query.Order("id desc").Find(&tasks)
 
 		for _, task := range tasks {
 			// 如果标题和描述都为空，跳过
@@ -155,7 +195,7 @@ func syncAllToKnowledge(c *gin.Context) {
 
 		// 同步独立笔记（不关联任务的笔记）
 		var notes []models.StudyNote
-		db.Where("user_id = ? AND task_id IS NULL", targetUserID).Find(&notes)
+		db.Where("user_id = ? AND task_id IS NULL", targetUserID).Order("id desc").Find(&notes)
 
 		for _, note := range notes {
 			// 如果标题和内容都为空，跳过
@@ -231,7 +271,7 @@ func syncTeamKnowledge(c *gin.Context) {
 
 		// 拉取团队任务
 		var tasks []models.Task
-		if err := db.Where("owner_team_id = ?", targetTeamID).Find(&tasks).Error; err != nil {
+		if err := db.Where("owner_team_id = ?", targetTeamID).Order("id desc").Find(&tasks).Error; err != nil {
 			return
 		}
 

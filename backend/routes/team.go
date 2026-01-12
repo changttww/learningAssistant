@@ -20,6 +20,7 @@ func registerTeamRoutes(r *gin.RouterGroup) {
 
 	r.GET("", listTeams)
 	r.GET("/", listTeams)
+	r.GET("/:id", getTeamDetail) // 新增团队详情接口
 	r.POST("", createTeam)
 	r.POST("/", createTeam)
 	r.POST("/join_by_name", joinTeamByName)
@@ -550,4 +551,51 @@ func listTeamActivities(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"code": 0, "data": activities})
+}
+
+// getTeamDetail 获取团队详情
+func getTeamDetail(c *gin.Context) {
+	teamID := c.Param("id")
+	userID, _ := c.Get("user_id")
+	uid := userID.(uint64)
+
+	var team struct {
+		models.Team
+		OwnerName   string `json:"owner_name"`
+		MemberCount int64  `json:"member_count"`
+		IsMember    bool   `json:"is_member"`
+	}
+
+	db := database.GetDB()
+
+	// 首先检查团队是否存在
+	var t models.Team
+	if err := db.First(&t, teamID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "该团队不存在"})
+		return
+	}
+
+	// 检查权限：只有成员或创建者可以查看详情
+	var count int64
+	db.Model(&models.TeamMember{}).Where("team_id = ? AND user_id = ?", teamID, uid).Count(&count)
+	isOwner := t.OwnerUserID == uid
+
+	if !isOwner && count == 0 {
+		c.JSON(http.StatusForbidden, gin.H{"error": "您不是该团队成员，无法查看详情"})
+		return
+	}
+
+	err := db.Table("teams").
+		Select("teams.*, users.display_name as owner_name, (SELECT COUNT(*) FROM team_members WHERE team_members.team_id = teams.id) as member_count").
+		Joins("LEFT JOIN users ON users.id = teams.owner_user_id").
+		Where("teams.id = ?", teamID).
+		Scan(&team).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取团队详情失败"})
+		return
+	}
+	team.IsMember = count > 0 || isOwner
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "data": team})
 }

@@ -2,6 +2,13 @@
   <div class="meeting-room">
     <header class="meeting-header">
       <div class="header-left">
+        <div class="flex items-center gap-3 mr-4">
+             <button @click="goBack" class="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors">
+               <iconify-icon icon="mdi:arrow-left" width="20"></iconify-icon>
+               <span class="text-sm font-medium">返回团队任务</span>
+             </button>
+             <div class="h-8 w-px bg-gray-300"></div>
+        </div>
         <div class="meeting-title">
           <div class="meeting-icon">
             <iconify-icon icon="mdi:video" width="20"></iconify-icon>
@@ -36,7 +43,7 @@
           </div>
           <div class="overview-grid">
             <div class="overview-item">
-              <div class="overview-label">团队ID</div>
+              <div class="overview-label">团队名称</div>
               <div class="overview-value">{{ teamIdLabel }}</div>
             </div>
             <div class="overview-item">
@@ -121,7 +128,8 @@
 import { computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { useCurrentUser } from "@/composables/useCurrentUser";
-import { getRoomChatHistory, sendRoomChatMessage } from "@/api/modules/study";
+import { getRoomChatHistory } from "@/api/modules/study";
+import { getTeamDetail } from "@/api/modules/team";
 import { apiConfig } from "@/config";
 
 export default {
@@ -152,11 +160,15 @@ export default {
       newMessage: "",
       ws: null,
       wsConnected: false,
+      teamInfo: null,
     };
   },
   computed: {
     teamIdLabel() {
-      return this.$route.params.teamId || "-";
+      if (this.teamInfo && this.teamInfo.name) {
+        return this.teamInfo.name;
+      }
+      return `Team ${this.$route.params.teamId || "-"}`;
     },
     teamIdValue() {
       const raw = this.$route.params.teamId;
@@ -192,6 +204,7 @@ export default {
     }
     if (this.teamIdValue) {
       this.loadChatHistory();
+      this.loadTeamInfo();
     }
     this.connectWebSocket();
   },
@@ -202,6 +215,13 @@ export default {
     this.clearEntryFlag();
   },
   methods: {
+    goBack() {
+      if (this.teamIdValue) {
+        this.$router.push({ name: 'TeamTasks', query: { teamId: this.teamIdValue } });
+      } else {
+        this.$router.push({ name: 'TeamTasks' });
+      }
+    },
     ensureEntry() {
       const currentId = String(this.$route.params.teamId || "");
       let allowed = "";
@@ -319,18 +339,16 @@ export default {
         return;
       }
       this.sendWs("chat", { content });
-      if (this.teamIdValue) {
-        try {
-          await sendRoomChatMessage(this.teamIdValue, {
-            user_id: this.currentUserId,
-            content,
-          });
-        } catch (error) {
-          console.error("发送消息失败", error);
-          ElMessage.error("发送消息失败");
-        }
-      }
       this.newMessage = "";
+    },
+    async loadTeamInfo() {
+      if (!this.teamIdValue) return;
+      try {
+        const res = await getTeamDetail(this.teamIdValue);
+        this.teamInfo = res.data?.data || res.data || {};
+      } catch (error) {
+        console.error("加载团队信息失败", error);
+      }
     },
     async loadChatHistory() {
       if (!this.teamIdValue) return;

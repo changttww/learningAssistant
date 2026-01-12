@@ -309,7 +309,6 @@
                 <div>
                   <div class="flex items-center justify-between">
                     <label for="create-desc" class="text-sm font-medium">任务描述</label>
-                    <span class="text-xs text-gray-500">剩余 {{ descriptionRemaining }} 字</span>
                   </div>
                   <textarea
                     id="create-desc"
@@ -1070,7 +1069,7 @@ export default {
       newCommentMap: {},
       naturalLanguageInput: "",
       isParsing: false,
-      descriptionLimit:50,
+      descriptionLimit:500,
 
       // Team Management
       showInviteModal: false,

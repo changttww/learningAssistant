@@ -4,10 +4,17 @@
     <header class="bg-white shadow-sm z-10 sticky top-0">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div class="flex items-center gap-4">
-          <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <iconify-icon icon="mdi:chart-box-outline" class="text-blue-600"></iconify-icon>
-            团队数据报告
-          </h1>
+          <div class="flex items-center gap-3">
+             <button @click="goBack" class="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors">
+               <iconify-icon icon="mdi:arrow-left" width="20"></iconify-icon>
+               <span class="text-sm font-medium">返回团队任务</span>
+             </button>
+             <div class="h-4 w-px bg-gray-300"></div>
+            <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <iconify-icon icon="mdi:chart-box-outline" class="text-blue-600"></iconify-icon>
+              团队数据报告
+            </h1>
+          </div>
         </div>
         <div class="flex items-center gap-4">
            <div class="text-sm text-gray-500 flex items-center gap-2">
@@ -157,6 +164,12 @@ export default {
         pending: 0,
         totalPoints: 0
       },
+      pieStats: {
+        completed: 0,
+        inProgress: 0,
+        overdue: 0,
+        pending: 0
+      },
       lastUpdated: null,
       refreshTimer: null,
       charts: {
@@ -209,6 +222,13 @@ export default {
     Object.values(this.charts).forEach(chart => chart && chart.dispose());
   },
   methods: {
+    goBack() {
+      if (this.teamId) {
+        this.$router.push({ name: 'TeamTasks', query: { teamId: this.teamId } });
+      } else {
+        this.$router.push({ name: 'TeamTasks' });
+      }
+    },
     formatTime(date) {
       return new Date(date).toLocaleTimeString();
     },
@@ -248,6 +268,11 @@ export default {
       let pending = 0;
       let totalPoints = 0;
 
+      // 用于图表的互斥统计
+      let pieOverdue = 0;
+      let pieInProgress = 0;
+      let piePending = 0;
+
       this.tasks.forEach(task => {
         // 积分统计 (假定 status=2 是完成)
         if (task.status === 2) {
@@ -256,19 +281,25 @@ export default {
         } else {
           // 检查逾期
           const dueDate = (task.due_at || task.due_date);
-          if (dueDate && new Date(dueDate) < now) {
-            overdue++;
+          const isOverdue = dueDate && new Date(dueDate) < now;
+          
+          if (isOverdue) {
+            overdue++; // 卡片统计：所有逾期
+            pieOverdue++; // 图表统计：优先归为逾期
           }
           
           if (task.status === 1 || (task.progress > 0 && task.progress < 100)) {
-            inProgress++;
+            inProgress++; // 卡片统计：所有进行中
+            if (!isOverdue) pieInProgress++; // 图表统计：未逾期的进行中
           } else {
-            pending++;
+            pending++; // 卡片统计：所有待处理
+            if (!isOverdue) piePending++; // 图表统计：未逾期的待处理
           }
         }
       });
 
       this.stats = { completed, inProgress, overdue, pending, totalPoints };
+      this.pieStats = { completed, inProgress: pieInProgress, overdue: pieOverdue, pending: piePending };
     },
     initCharts() {
       this.initHealthChart();
@@ -295,10 +326,10 @@ export default {
             label: { show: true, fontSize: 18, fontWeight: 'bold' }
           },
           data: [
-            { value: this.stats.completed, name: '已完成' },
-            { value: this.stats.inProgress, name: '进行中' },
-            { value: this.stats.overdue, name: '已逾期' },
-            { value: this.stats.pending, name: '待处理' }
+            { value: this.pieStats.completed, name: '已完成' },
+            { value: this.pieStats.inProgress, name: '进行中' },
+            { value: this.pieStats.overdue, name: '已逾期' },
+            { value: this.pieStats.pending, name: '待处理' }
           ]
         }]
       };

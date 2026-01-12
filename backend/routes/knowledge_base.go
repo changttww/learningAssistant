@@ -667,16 +667,32 @@ func getKnowledgeGraph(c *gin.Context) {
 		return
 	}
 
+	// 获取 TeamID 参数
+	var teamID *uint64
+	teamIDStr := c.Query("team_id")
+	if teamIDStr != "" {
+		tid, err := strconv.ParseUint(teamIDStr, 10, 64)
+		if err == nil {
+			teamID = &tid
+		}
+	}
+
 	// 添加调试信息：查询不限 status 的条目数
 	db := database.GetDB()
 	var totalCount, publishedCount int64
-	db.Model(&models.KnowledgeBaseEntry{}).Where("user_id = ?", userID.(uint64)).Count(&totalCount)
-	db.Model(&models.KnowledgeBaseEntry{}).Where("user_id = ? AND status = 1", userID.(uint64)).Count(&publishedCount)
 
-	fmt.Printf("[DEBUG] GetKnowledgeGraph - userID: %d, totalEntries: %d, publishedEntries(status=1): %d\n",
-		userID.(uint64), totalCount, publishedCount)
+	query := db.Model(&models.KnowledgeBaseEntry{}).Where("user_id = ?", userID.(uint64))
+	if teamID != nil {
+		query = query.Where("team_id = ?", *teamID)
+	}
 
-	graphData, err := ragService.GetKnowledgeGraph(userID.(uint64))
+	query.Count(&totalCount)
+	query.Where("status = 1").Count(&publishedCount)
+
+	fmt.Printf("[DEBUG] GetKnowledgeGraph - userID: %d, teamID: %v, totalEntries: %d, publishedEntries(status=1): %d\n",
+		userID.(uint64), teamID, totalCount, publishedCount)
+
+	graphData, err := ragService.GetKnowledgeGraph(userID.(uint64), teamID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -690,6 +706,7 @@ func getKnowledgeGraph(c *gin.Context) {
 		"data": graphData,
 		"debug": gin.H{
 			"user_id":           userID.(uint64),
+			"team_id":           teamID,
 			"total_entries":     totalCount,
 			"published_entries": publishedCount,
 		},
