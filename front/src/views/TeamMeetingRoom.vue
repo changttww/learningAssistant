@@ -36,7 +36,7 @@
           </div>
           <div class="overview-grid">
             <div class="overview-item">
-              <div class="overview-label">团队ID</div>
+              <div class="overview-label">团队名称</div>
               <div class="overview-value">{{ teamIdLabel }}</div>
             </div>
             <div class="overview-item">
@@ -121,7 +121,8 @@
 import { computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { useCurrentUser } from "@/composables/useCurrentUser";
-import { getRoomChatHistory, sendRoomChatMessage } from "@/api/modules/study";
+import { getRoomChatHistory } from "@/api/modules/study";
+import { getTeamDetail } from "@/api/modules/team";
 import { apiConfig } from "@/config";
 
 export default {
@@ -152,11 +153,15 @@ export default {
       newMessage: "",
       ws: null,
       wsConnected: false,
+      teamInfo: null,
     };
   },
   computed: {
     teamIdLabel() {
-      return this.$route.params.teamId || "-";
+      if (this.teamInfo && this.teamInfo.name) {
+        return this.teamInfo.name;
+      }
+      return `Team ${this.$route.params.teamId || "-"}`;
     },
     teamIdValue() {
       const raw = this.$route.params.teamId;
@@ -192,6 +197,7 @@ export default {
     }
     if (this.teamIdValue) {
       this.loadChatHistory();
+      this.loadTeamInfo();
     }
     this.connectWebSocket();
   },
@@ -319,18 +325,16 @@ export default {
         return;
       }
       this.sendWs("chat", { content });
-      if (this.teamIdValue) {
-        try {
-          await sendRoomChatMessage(this.teamIdValue, {
-            user_id: this.currentUserId,
-            content,
-          });
-        } catch (error) {
-          console.error("发送消息失败", error);
-          ElMessage.error("发送消息失败");
-        }
-      }
       this.newMessage = "";
+    },
+    async loadTeamInfo() {
+      if (!this.teamIdValue) return;
+      try {
+        const res = await getTeamDetail(this.teamIdValue);
+        this.teamInfo = res.data?.data || res.data || {};
+      } catch (error) {
+        console.error("加载团队信息失败", error);
+      }
     },
     async loadChatHistory() {
       if (!this.teamIdValue) return;
