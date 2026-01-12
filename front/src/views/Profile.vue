@@ -3,12 +3,6 @@
     <div class="card">
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold">个人资料</h1>
-        <button
-          class="bg-[#2D5BFF] text-white font-medium py-2 px-4 rounded-lg text-sm hover:bg-opacity-90 transition-colors flex items-center gap-2"
-        >
-          <iconify-icon icon="mdi:pencil" width="16" height="16"></iconify-icon>
-          编辑资料
-        </button>
       </div>
 
       <div v-if="loading" class="py-10 text-center text-gray-500">
@@ -102,13 +96,6 @@
             </p>
             <div class="flex flex-wrap gap-3 mt-4">
               <button
-                class="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition"
-                disabled
-                title="功能开发中"
-              >
-                修改密码 (开发中)
-              </button>
-              <button
                 class="px-4 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
                 @click="handleLogout"
                 :disabled="loggingOut"
@@ -175,35 +162,6 @@
             />
           </div>
 
-          <!-- 最近成就 -->
-          <div class="mt-6">
-            <h3 class="font-bold text-lg mb-3">最近成就</h3>
-            <div v-if="achievements.length" class="space-y-2">
-              <div
-                v-for="achievement in achievements"
-                :key="achievement.id"
-                class="flex items-center gap-3 p-3 rounded-lg"
-                :class="achievementClassMap[achievement.type] || 'bg-gray-50'"
-              >
-                <iconify-icon
-                  :icon="achievementIconMap[achievement.type] || 'mdi:star'"
-                  width="20"
-                  height="20"
-                  class="text-blue-600"
-                ></iconify-icon>
-                <div>
-                  <div class="font-medium text-sm">{{ achievement.title }}</div>
-                  <div class="text-xs text-gray-600">
-                    {{ achievement.awarded_at }}
-                  </div>
-                  <div v-if="achievement.description" class="text-xs text-gray-500 mt-1">
-                    {{ achievement.description }}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div v-else class="text-sm text-gray-500">暂无成就记录</div>
-          </div>
         </div>
       </div>
     </div>
@@ -216,7 +174,6 @@ import { useRouter } from "vue-router";
 import {
   getUserProfile,
   getUserStudyStats,
-  getUserAchievements,
   getUserSkills,
 } from "@/api/modules/user";
 import { DEFAULT_USER_ID, useCurrentUser } from "@/composables/useCurrentUser";
@@ -227,25 +184,12 @@ const loading = ref(false);
 const error = ref("");
 const profile = reactive({});
 const studyStats = reactive({});
-const achievements = ref([]);
 const skills = reactive({
   primary: [],
   secondary: [],
 });
 const loggingOut = ref(false);
 const logoutError = ref("");
-
-const achievementIconMap = {
-  streak: "mdi:trophy",
-  project: "mdi:star",
-  team: "mdi:account-group",
-};
-
-const achievementClassMap = {
-  streak: "bg-yellow-50",
-  project: "bg-blue-50",
-  team: "bg-green-50",
-};
 
 const statusLabel = computed(() => {
   if (profile.status === "offline") return "离线";
@@ -339,16 +283,14 @@ async function fetchProfileData() {
   error.value = "";
   try {
     const userId = currentUser.value?.id || DEFAULT_USER_ID;
-    const [profileRes, statsRes, achievementsRes, skillsRes] = await Promise.all([
+    const [profileRes, statsRes, skillsRes] = await Promise.all([
       getUserProfile(userId),
       getUserStudyStats(userId),
-      getUserAchievements(userId),
       getUserSkills(userId),
     ]);
 
     Object.assign(profile, profileRes.data || {});
     Object.assign(studyStats, statsRes.data || {});
-    achievements.value = achievementsRes.data?.items || [];
     Object.assign(skills, skillsRes.data || { primary: [], secondary: [] });
   } catch (err) {
     console.error("加载个人资料失败:", err);
