@@ -84,6 +84,16 @@ func AutoMigrate() error {
 	}
 
 	log.Println("Database migration completed successfully")
+
+	// 兼容旧表结构：study_notes 曾存在 (user_id, task_id, origin) 的唯一索引，
+	// 会导致同一任务无法创建多篇笔记（与当前前端需求不一致）。这里自动移除该索引。
+	if DB.Migrator().HasIndex(&models.StudyNote{}, "idx_user_task_origin") {
+		if err := DB.Migrator().DropIndex(&models.StudyNote{}, "idx_user_task_origin"); err != nil {
+			return fmt.Errorf("failed to drop index idx_user_task_origin on study_notes: %w", err)
+		}
+		log.Println("Dropped legacy unique index idx_user_task_origin on study_notes")
+	}
+
 	return nil
 }
 

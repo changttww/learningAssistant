@@ -250,8 +250,8 @@
                           </span>
                           <!-- 笔记标签 -->
                           <button
-                            v-if="getTaskNote(task.id)"
-                            @click.stop="openNotebookModal(getTaskNote(task.id))"
+                            v-if="getTaskNotes(task.id).length"
+                            @click.stop="openRelatedNotesModal(task)"
                             class="text-xs px-2 py-1 rounded-md font-medium flex items-center gap-1 bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors ml-1"
                             title="点击查看关联笔记"
                           >
@@ -605,8 +605,8 @@
                   </span>
                    <!-- 笔记标签 -->
                   <button
-                    v-if="getTaskNote(task.id)"
-                    @click.stop="openNotebookModal(getTaskNote(task.id))"
+                    v-if="getTaskNotes(task.id).length"
+                    @click.stop="openRelatedNotesModal(task)"
                     class="text-xs px-2 py-1 rounded-md font-medium flex items-center gap-1 bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors"
                     title="点击查看关联笔记"
                   >
@@ -1072,6 +1072,84 @@
         <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
           <button @click="cancelDeleteTask" class="text-sm text-gray-700 bg-white border-2 border-gray-300 py-2 px-4 rounded-lg hover:bg-gray-50">取消</button>
           <button @click="confirmDeleteTask" class="text-sm text-white bg-gradient-to-r from-red-600 to-pink-600 py-2 px-4 rounded-lg hover:shadow-lg">确认</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 任务关联笔记列表弹窗 -->
+    <div
+      v-if="showRelatedNotesModal"
+      class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      @click="closeRelatedNotesModal"
+    >
+      <div
+        class="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden animate-modal-enter flex flex-col"
+        @click.stop
+      >
+        <div class="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-lg font-bold text-white">关联笔记</h3>
+              <p class="text-purple-100 text-sm truncate max-w-[360px]">
+                {{ relatedNotesTask?.title || '任务' }}
+              </p>
+            </div>
+            <button
+              @click="closeRelatedNotesModal"
+              class="w-8 h-8 rounded-lg flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+              aria-label="关闭"
+            >
+              <iconify-icon icon="mdi:close" width="22"></iconify-icon>
+            </button>
+          </div>
+        </div>
+
+        <div class="p-5 bg-gray-50 flex-1 overflow-y-auto">
+          <div v-if="relatedNotesLoading" class="py-10 text-center text-gray-500">
+            加载中...
+          </div>
+          <div v-else>
+            <div v-if="!relatedNotesItems.length" class="py-10 text-center text-gray-500">
+              暂无关联笔记
+            </div>
+
+            <div v-else class="space-y-3">
+              <button
+                v-for="note in relatedNotesItems"
+                :key="note.id"
+                type="button"
+                @click="openNoteFromRelatedList(note)"
+                class="w-full text-left bg-white border border-gray-200 rounded-xl p-4 hover:border-purple-300 hover:shadow-sm transition-all"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <div class="font-semibold text-gray-800 truncate">
+                      {{ note.title }}
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">
+                      最后更新：{{ note.lastUpdated || note.date || '-' }}
+                    </div>
+                  </div>
+                  <iconify-icon icon="mdi:chevron-right" width="18" height="18" class="text-gray-400 flex-shrink-0"></iconify-icon>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 border-t border-gray-200 bg-white flex justify-end gap-3">
+          <button
+            @click="closeRelatedNotesModal"
+            class="text-sm text-gray-700 bg-white border-2 border-gray-300 py-2 px-4 rounded-lg hover:bg-gray-50"
+          >
+            关闭
+          </button>
+          <button
+            @click="createNewNoteFromRelatedList"
+            class="text-sm text-white bg-gradient-to-r from-purple-600 to-pink-600 py-2 px-4 rounded-lg hover:shadow-lg"
+          >
+            新建关联笔记
+          </button>
         </div>
       </div>
     </div>
@@ -1956,6 +2034,12 @@ const currentNote = ref(null);
 const isNoteDirty = ref(false);
 const isNoteSaving = ref(false);
 
+// 任务关联笔记列表
+const showRelatedNotesModal = ref(false);
+const relatedNotesTask = ref(null);
+const relatedNotesItems = ref([]);
+const relatedNotesLoading = ref(false);
+
 const loadTaskCategories = async () => {
   try {
     const response = await getTaskCategories();
@@ -1984,20 +2068,22 @@ const loadNotes = async () => {
     const res = await getStudyNotes();
     if (res && (res.code === 0 || res.code === 200)) {
       const items = res.data || res.items || [];
-      notes.value = (items || []).map((n) => ({
-        id: n.id,
-        title: n.title,
-        content: n.content || "",
-        category: "学习",
-        date: n.created_at ? new Date(n.created_at).toLocaleString("zh-CN") : "",
-        lastUpdated: n.updated_at ? new Date(n.updated_at).toLocaleString("zh-CN") : "",
-        taskId: n.task_id || null,
-      }));
+      notes.value = (items || []).map(mapStudyNoteFromApi);
     }
   } catch (e) {
     console.error("加载笔记失败", e);
   }
 };
+
+const mapStudyNoteFromApi = (n) => ({
+  id: n.id,
+  title: n.title,
+  content: n.content || "",
+  category: "学习",
+  date: n.created_at ? new Date(n.created_at).toLocaleString("zh-CN") : "",
+  lastUpdated: n.updated_at ? new Date(n.updated_at).toLocaleString("zh-CN") : "",
+  taskId: n.task_id || null,
+});
 
 const editor = useEditor({
   content: "",
@@ -2467,6 +2553,11 @@ const addQuizToNote = async () => {
   
   isAddingToNote.value = true;
   try {
+    // 确保笔记列表已加载
+    if (notes.value.length === 0) {
+      await loadNotes();
+    }
+    
     // 构建测验总结内容
     let noteContent = `<h2>📝 智能测验总结 - ${quizTask.value.title}</h2>\n`;
     noteContent += `<p><strong>测验时间:</strong> ${new Date().toLocaleString('zh-CN')}</p>\n`;
@@ -2491,8 +2582,14 @@ const addQuizToNote = async () => {
       noteContent += `<p><strong>学习建议:</strong> ${quiz.value.essayQuestion.studySuggestion}</p>\n`;
     }
     
-    // 查找是否已有该任务的笔记
-    const existingNote = notes.value.find(n => n.taskId === quizTask.value.id);
+    // 查找是否已有该任务的笔记（使用宽松比较，处理类型不一致的情况）
+    const existingNote = notes.value.find(n => n.taskId && quizTask.value.id && String(n.taskId) === String(quizTask.value.id));
+    
+    console.log('[测验] 查找任务笔记:', {
+      taskId: quizTask.value.id,
+      notes: notes.value.map(n => ({ id: n.id, taskId: n.taskId })),
+      found: existingNote ? existingNote.id : null
+    });
     
     if (existingNote) {
       // 追加到现有笔记
@@ -2871,6 +2968,32 @@ const saveNote = async () => {
     return true;
   } catch (e) {
     console.error("保存笔记失败", e);
+
+  // 新建笔记遇到 409：如果后端带回 existing_note_id，自动打开已存在的同标题笔记
+  if (!currentNote.value?.id && e?.response?.status === 409) {
+    const existingId = e?.response?.data?.existing_note_id;
+    if (existingId) {
+      try {
+        let existing = notes.value.find((n) => Number(n.id) === Number(existingId));
+        if (!existing) {
+          const params = currentNote.value?.taskId ? { task_id: currentNote.value.taskId } : {};
+          const res = await getStudyNotes(params);
+          const items = res?.data || res?.items || [];
+          existing = (items || []).map(mapStudyNoteFromApi).find((n) => Number(n.id) === Number(existingId));
+        }
+        if (existing) {
+          currentNote.value = { ...existing };
+          showNotebookModal.value = true;
+          isNoteDirty.value = false;
+          ElMessage.warning("已为你打开已存在的同标题笔记");
+          return false;
+        }
+      } catch (inner) {
+        console.error("切换到已存在笔记失败", inner);
+      }
+    }
+  }
+
     ElMessage.error(e?.message || "保存失败，请稍后重试");
     return false;
   } finally {
@@ -2907,9 +3030,50 @@ const deleteCurrentNote = async () => {
   }
 };
 
+const closeRelatedNotesModal = () => {
+  showRelatedNotesModal.value = false;
+  relatedNotesTask.value = null;
+  relatedNotesItems.value = [];
+  relatedNotesLoading.value = false;
+};
+
+const openNoteFromRelatedList = (note) => {
+  closeRelatedNotesModal();
+  openNotebookModal(note);
+};
+
+const createNewNoteFromRelatedList = () => {
+  if (!relatedNotesTask.value) return;
+  const task = relatedNotesTask.value;
+  closeRelatedNotesModal();
+  openNewNoteForTask(task);
+};
+
+const getTaskNotes = (taskId) => {
+  return notes.value.filter((n) => n.taskId === taskId);
+};
+
+const openRelatedNotesModal = async (task) => {
+  relatedNotesTask.value = task;
+  showRelatedNotesModal.value = true;
+
+  // 先用本地缓存立即渲染，再刷新接口数据
+  relatedNotesItems.value = getTaskNotes(task.id);
+  relatedNotesLoading.value = true;
+  try {
+    const res = await getStudyNotes({ task_id: task.id });
+    const items = res?.data || res?.items || [];
+    relatedNotesItems.value = (items || []).map(mapStudyNoteFromApi);
+  } catch (e) {
+    console.error("加载关联笔记失败", e);
+    ElMessage.error(e?.message || "加载关联笔记失败");
+  } finally {
+    relatedNotesLoading.value = false;
+  }
+};
 
 const getTaskNote = (taskId) => {
-  return notes.value.find(n => n.taskId === taskId);
+  return getTaskNotes(taskId)[0];
 };
 
 const getRelatedTask = (taskId) => {

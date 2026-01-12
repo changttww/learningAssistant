@@ -60,14 +60,8 @@ func syncTasksToKnowledge(c *gin.Context) {
 				continue
 			}
 
-			// 使用标题作为内容（如果描述为空）
-			content := task.Description
-			if content == "" {
-				content = task.Title
-			}
-
-			// 忽略错误，继续处理下一个
-			_, _ = ragService.AddDocument(targetUserID, 1, task.ID, task.Title, content)
+			// 使用任务聚合方式同步知识点（任务+笔记）
+			_, _ = ragService.AddTaskKnowledge(targetUserID, task.ID)
 		}
 	}(uid)
 
@@ -147,7 +141,7 @@ func syncAllToKnowledge(c *gin.Context) {
 	go func(targetUserID uint64) {
 		db := database.GetDB()
 
-		// 同步任务 - 同步所有任务（不仅仅是已完成的）
+		// 同步任务 - 使用任务聚合方式（任务+笔记聚合为一个知识点）
 		var tasks []models.Task
 		db.Where("created_by = ? OR owner_user_id = ?", targetUserID, targetUserID).Find(&tasks)
 
@@ -156,24 +150,18 @@ func syncAllToKnowledge(c *gin.Context) {
 			if task.Title == "" && task.Description == "" {
 				continue
 			}
-			// 使用标题作为内容（如果描述为空）
-			content := task.Description
-			if content == "" {
-				content = task.Title
-			}
-			_, _ = ragService.AddDocument(targetUserID, 1, task.ID, task.Title, content)
+			_, _ = ragService.AddTaskKnowledge(targetUserID, task.ID)
 		}
 
-		// 同步笔记
+		// 同步独立笔记（不关联任务的笔记）
 		var notes []models.StudyNote
-		db.Where("user_id = ?", targetUserID).Find(&notes)
+		db.Where("user_id = ? AND task_id IS NULL", targetUserID).Find(&notes)
 
 		for _, note := range notes {
 			// 如果标题和内容都为空，跳过
 			if note.Title == "" && note.Content == "" {
 				continue
 			}
-			// 使用标题作为内容（如果内容为空）
 			content := note.Content
 			if content == "" {
 				content = note.Title

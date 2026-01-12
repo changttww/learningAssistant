@@ -63,28 +63,6 @@
               <span>已加入{{ studyGroupCount }}个学习小组</span>
             </div>
           </div>
-          <div class="mt-3 flex gap-2">
-            <button
-              class="bg-[#2D5BFF] text-white font-medium py-1.5 px-3 rounded-lg text-xs hover:bg-opacity-90 transition-colors flex items-center gap-1"
-            >
-              <iconify-icon
-                icon="mdi:pencil"
-                width="14"
-                height="14"
-              ></iconify-icon>
-              编辑个人资料
-            </button>
-            <button
-              class="bg-gray-100 text-gray-700 font-medium py-1.5 px-3 rounded-lg text-xs hover:bg-gray-200 transition-colors flex items-center gap-1"
-            >
-              <iconify-icon
-                icon="mdi:share"
-                width="14"
-                height="14"
-              ></iconify-icon>
-              分享主页
-            </button>
-          </div>
         </div>
         <div class="md:text-right">
           <div class="flex flex-col items-center md:items-end">
@@ -137,75 +115,13 @@
         </div>
       </div>
 
-      <!-- 任务热力图 + 本日任务双列布局 -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <!-- 任务热力图 - 占据2列 -->
-        <div class="card p-6 lg:col-span-2">
-          <TaskHeatmap />
-        </div>
-
-        <!-- 本日任务 - 右列 -->
-        <div class="card p-6 flex flex-col">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="font-bold text-lg text-gray-900">📋 本日任务</h2>
-            <router-link
-              to="/personal-tasks"
-              class="text-blue-600 hover:text-blue-700 hover:underline text-xs font-medium"
-              >全部→</router-link
-            >
-          </div>
-          <div class="space-y-2.5 flex-1 overflow-y-auto max-h-96 pr-2">
-            <div
-              v-if="todayTasks.length === 0"
-              class="text-gray-400 text-center py-8 text-sm"
-            >
-              ✨ 今日暂无任务
-            </div>
-            <div
-              v-for="task in todayTasks"
-              :key="task.id"
-              class="flex items-center justify-between p-2.5 bg-gradient-to-r from-gray-50 to-transparent rounded-lg hover:from-blue-50 hover:to-transparent transition-all duration-200 border border-transparent hover:border-blue-100"
-            >
-              <div class="flex items-center space-x-2 flex-1 min-w-0">
-                <span
-                  :class="[
-                    'w-1.5 h-1.5 rounded-full flex-shrink-0',
-                    task.status === 'completed'
-                      ? 'bg-green-500'
-                      : task.status === 'in-progress'
-                        ? 'bg-orange-500'
-                        : 'bg-gray-300',
-                  ]"
-                ></span>
-                <div class="flex-1 min-w-0">
-                  <div
-                    :class="[
-                      'font-medium text-xs truncate',
-                      task.status === 'completed'
-                        ? 'line-through text-gray-400'
-                        : 'text-gray-700',
-                    ]"
-                    :title="task.title"
-                  >
-                    {{ task.title }}
-                  </div>
-                </div>
-              </div>
-              <div
-                :class="[
-                  'px-1.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ml-2 flex-shrink-0',
-                  getStatusClass(task.status),
-                ]"
-              >
-                {{ getStatusText(task.status) }}
-              </div>
-            </div>
-          </div>
-        </div>
+      <!-- 任务热力图 -->
+      <div class="card p-6 mb-6">
+        <TaskHeatmap />
       </div>
 
-      <!-- 知识点分布、AI报告入口、技能雷达三列布局 -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <!-- 知识点分布、技能雷达两列布局 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <!-- 知识点分布 - 左列 -->
         <div class="card p-6">
           <div class="flex justify-between items-center mb-4">
@@ -216,43 +132,14 @@
               >查看知识库→</router-link
             >
           </div>
-          <div class="chart-container h-64" ref="knowledgeDistributionChart"></div>
-        </div>
-
-        <!-- AI 学习报告入口 - 中列 -->
-        <div class="card p-6 bg-gradient-to-br from-blue-50 to-purple-50">
-          <div class="flex items-center gap-2 mb-4">
-            <iconify-icon icon="mdi:robot" width="24" class="text-[#2D5BFF]"></iconify-icon>
-            <h2 class="font-bold text-lg text-gray-900">AI 学习报告</h2>
+          <!-- 空状态 -->
+          <div v-if="!knowledgeDistribution || knowledgeDistribution.length === 0" class="h-64 flex flex-col items-center justify-center text-gray-400">
+            <span class="text-4xl mb-2">📚</span>
+            <p class="text-sm">知识库中暂无条目</p>
+            <router-link to="/knowledge-base" class="mt-2 text-blue-500 text-xs hover:underline">去添加知识点</router-link>
           </div>
-          <p class="text-gray-600 text-sm mb-4">
-            让 AI 分析你的学习数据，生成个性化的学习报告和建议
-          </p>
-          <div class="space-y-3">
-            <div class="flex items-center gap-2 text-sm text-gray-700">
-              <iconify-icon icon="mdi:check-circle" class="text-green-500"></iconify-icon>
-              学习效率评分
-            </div>
-            <div class="flex items-center gap-2 text-sm text-gray-700">
-              <iconify-icon icon="mdi:check-circle" class="text-green-500"></iconify-icon>
-              能力雷达分析
-            </div>
-            <div class="flex items-center gap-2 text-sm text-gray-700">
-              <iconify-icon icon="mdi:check-circle" class="text-green-500"></iconify-icon>
-              个性化学习建议
-            </div>
-            <div class="flex items-center gap-2 text-sm text-gray-700">
-              <iconify-icon icon="mdi:check-circle" class="text-green-500"></iconify-icon>
-              薄弱点诊断
-            </div>
-          </div>
-          <router-link
-            to="/ai-report"
-            class="mt-4 w-full bg-[#2D5BFF] text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-opacity-90 transition-colors flex items-center justify-center gap-2"
-          >
-            <iconify-icon icon="mdi:sparkles"></iconify-icon>
-            生成 AI 报告
-          </router-link>
+          <!-- 图表 -->
+          <div v-else class="chart-container h-64" ref="knowledgeDistributionChart"></div>
         </div>
 
         <!-- 技能雷达 - 右列 -->
@@ -297,7 +184,7 @@
     useCurrentUser,
     DEFAULT_USER_ID,
   } from "@/composables/useCurrentUser";
-  import { getTaskBarStats, getTodayTasks } from "@/api/modules/task";
+  import { getTaskBarStats } from "@/api/modules/task";
   import { analyzeUserKnowledge, getSkillRadarData, getLearningTrends } from "@/api/modules/knowledge";
   import { generatePieChartData, getSubjectConfig } from "@/utils/subjectConfig";
   import TaskHeatmap from "@/components/TaskHeatmap.vue";
@@ -448,9 +335,6 @@
     },
     data() {
       return {
-        // 今日任务数据
-        todayTasks: [],
-        taskRefreshInterval: null,
         // 知识库分析数据
         knowledgeAnalysis: null,
         knowledgeDistribution: [],
@@ -471,11 +355,8 @@
       },
     },
     mounted() {
-      // 并行加载图表和任务数据，提高加载速度
-      Promise.all([
-        this.fetchKnowledgeAnalysis(),
-        this.fetchTodayTasks(),
-      ]).then(() => {
+      // 加载图表数据
+      this.fetchKnowledgeAnalysis().then(() => {
         // 将知识点总数同步给 setup 侧的 computed（来自知识库统计的分布数据）
         const totalFromDist = Array.isArray(this.knowledgeDistribution)
           ? this.knowledgeDistribution.reduce((sum, item) => sum + (Number(item?.count) || 0), 0)
@@ -493,28 +374,9 @@
           this.initCharts(); // 即使出错也初始化图表（使用默认数据）
         });
       });
-      
-      // 15秒自动刷新一次今日任务
-      this.taskRefreshInterval = setInterval(() => {
-        console.log("[首页] 自动刷新今日任务");
-        this.fetchTodayTasks();
-      }, 15000);
-      
-      // 监听任务创建、完成等事件
-      globalThis.addEventListener("taskUpdated", this.handleTaskUpdate);
-      globalThis.addEventListener("taskCreated", this.handleTaskUpdate);
-      globalThis.addEventListener("taskCompleted", this.handleTaskUpdate);
-      window.addEventListener("focus", this.handleWindowFocus);
     },
     beforeUnmount() {
-      // 清理定时器和事件监听
-      if (this.taskRefreshInterval) {
-        clearInterval(this.taskRefreshInterval);
-      }
-      globalThis.removeEventListener("taskUpdated", this.handleTaskUpdate);
-      globalThis.removeEventListener("taskCreated", this.handleTaskUpdate);
-      globalThis.removeEventListener("taskCompleted", this.handleTaskUpdate);
-      window.removeEventListener("focus", this.handleWindowFocus);
+      // 清理事件监听
     },
     methods: {
       unwrapArrayResponse(res) {
@@ -531,10 +393,8 @@
 
         const distribution =
           report.knowledge_distribution || report.KnowledgeDistribution || [];
-        this.knowledgeDistribution =
-          Array.isArray(distribution) && distribution.length > 0
-            ? distribution
-            : this.getDefaultDistribution();
+        // 不再使用默认数据，直接使用后端返回的数据（可能为空数组）
+        this.knowledgeDistribution = Array.isArray(distribution) ? distribution : [];
 
         // 关键：总知识点 = 分布 count 求和
         this.totalKnowledgePoints = Array.isArray(this.knowledgeDistribution)
@@ -587,8 +447,8 @@
           const report = this.unwrapReportResponse(res);
 
           if (!report) {
-            console.warn("[首页] 知识库分析返回空数据，使用默认数据");
-            this.knowledgeDistribution = this.getDefaultDistribution();
+            console.warn("[首页] 知识库分析返回空数据");
+            this.knowledgeDistribution = [];
             this.skillRadarData = this.skillRadarData?.length
               ? this.skillRadarData
               : this.getDefaultSkillRadar();
@@ -608,7 +468,7 @@
           });
         } catch (error) {
           console.error("[首页] 加载知识库分析失败:", error);
-          this.knowledgeDistribution = this.getDefaultDistribution();
+          this.knowledgeDistribution = [];
           this.skillRadarData = this.getDefaultSkillRadar();
           this.learningTrends = [];
         }
@@ -626,15 +486,14 @@
         ];
       },
 
-      // 默认技能雷达数据 - 面向学习场景（与后端分类保持一致）
+      // 默认技能雷达数据 - 五大能力维度（与后端分类保持一致）
       getDefaultSkillRadar() {
         return [
-          { skill: "数学能力", value: 65, max_value: 100, category: "数学" },
-          { skill: "语文能力", value: 70, max_value: 100, category: "语文" },
-          { skill: "英语能力", value: 60, max_value: 100, category: "英语" },
-          { skill: "理科思维", value: 55, max_value: 100, category: "物理" },
-          { skill: "编程能力", value: 50, max_value: 100, category: "编程" },
-          { skill: "综合素养", value: 75, max_value: 100, category: "通用" },
+          { skill: "理论素养", value: 50, max_value: 100, category: "理论素养" },
+          { skill: "逻辑思维", value: 55, max_value: 100, category: "逻辑思维" },
+          { skill: "实操应用", value: 60, max_value: 100, category: "实操应用" },
+          { skill: "创新思维", value: 40, max_value: 100, category: "创新思维" },
+          { skill: "沟通表达", value: 65, max_value: 100, category: "沟通表达" },
         ];
       },
 
@@ -659,45 +518,6 @@
           default:
             return "pending";
         }
-      },
-      async fetchTodayTasks() {
-        const userId = this.currentUserId || DEFAULT_USER_ID;
-        try {
-          console.log("[首页] 开始加载今日任务");
-          const startTime = performance.now();
-          
-          const res = await getTodayTasks(userId);
-          const payload = res?.data || {};
-          const merged = [
-            ...(payload.completed || []),
-            ...(payload.in_progress || []),
-            ...(payload.not_started || []),
-          ];
-
-          this.todayTasks = merged.map((task) => ({
-            id: task.id,
-            title: task.title || "未命名任务",
-            status: this.normalizeStatus(task.status),
-          }));
-          
-          const loadTime = (performance.now() - startTime).toFixed(2);
-          console.log(`[首页] 今日任务已加载: ${this.todayTasks.length} 个 (${loadTime}ms)`);
-        } catch (error) {
-          console.error("加载今日任务失败:", error);
-          this.todayTasks = [];
-        }
-      },
-
-      // 处理任务更新事件
-      handleTaskUpdate() {
-        console.log("[首页] 检测到任务变化，立即刷新");
-        this.fetchTodayTasks();
-      },
-
-      // 处理窗口获焦事件
-      handleWindowFocus() {
-        console.log("[首页] 窗口获得焦点，刷新今日任务");
-        this.fetchTodayTasks();
       },
 
       // 获取状态文本
@@ -971,21 +791,20 @@
         };
         skillRadarChart.setOption(skillRadarOption);
 
-        // 知识点分布图 - 使用知识库分析数据
-        const knowledgeDistributionChart = echarts.init(
-          this.$refs.knowledgeDistributionChart
-        );
-        
-        // 从knowledgeDistribution中提取数据
-        const distData = this.knowledgeDistribution && this.knowledgeDistribution.length > 0 
-          ? this.knowledgeDistribution 
-          : this.getDefaultDistribution();
-        
-        // 使用 subjectConfig 生成带渐变色的饼图数据
-        const pieData = generatePieChartData(distData);
-        
-        const knowledgeDistributionOption = {
-          tooltip: {
+        // 知识点分布图 - 仅当有数据时才初始化
+        if (this.knowledgeDistribution && this.knowledgeDistribution.length > 0 && this.$refs.knowledgeDistributionChart) {
+          const knowledgeDistributionChart = echarts.init(
+            this.$refs.knowledgeDistributionChart
+          );
+          
+          // 从knowledgeDistribution中提取数据
+          const distData = this.knowledgeDistribution;
+          
+          // 使用 subjectConfig 生成带渐变色的饼图数据
+          const pieData = generatePieChartData(distData);
+          
+          const knowledgeDistributionOption = {
+            tooltip: {
             trigger: "item",
             backgroundColor: 'rgba(255, 255, 255, 0.95)',
             borderColor: '#e5e7eb',
@@ -1063,6 +882,13 @@
           skillRadarChart.resize();
           knowledgeDistributionChart.resize();
         });
+        } else {
+          // 没有知识分布数据时，只监听其他图表的resize
+          window.addEventListener("resize", () => {
+            studyTimeChart.resize();
+            skillRadarChart.resize();
+          });
+        }
       },
     },
   };

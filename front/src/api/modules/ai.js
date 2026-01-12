@@ -77,23 +77,6 @@ export function submitQuizToKnowledge(data) {
 }
 
 /**
- * 生成 AI 学习分析报告
- * @param {Object} data - 报告配置
- * @param {number} data.days - 分析天数
- * @param {string} data.report_type - 报告类型：weekly/monthly/custom
- */
-export function generateAIReport(data) {
-  return request.post("/analysis/ai-report", data);
-}
-
-/**
- * 获取 AI 报告历史
- */
-export function getReportHistory() {
-  return request.get("/analysis/ai-report/history");
-}
-
-/**
  * 智能笔记增强
  * @param {Object} data - 笔记增强配置
  * @param {number} data.note_id - 笔记ID（可选）
@@ -153,8 +136,6 @@ export default {
   generateStudyPlan,
   generateRoomIdea,
   submitQuizToKnowledge,
-  generateAIReport,
-  getReportHistory,
   enhanceNote,
   generateNoteSummary,
   extractNoteKeywords,

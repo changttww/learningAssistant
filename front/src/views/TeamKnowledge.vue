@@ -273,11 +273,7 @@ export default {
       filterLevel: '',
       teamId: null,
       categories: [
-        '数学', '物理', '化学', '生物', '语文', '英语', '历史', '地理', '政治',
-        '编程', '计算机', '经济', '法律', '心理学', '艺术', '音乐', '体育',
-        '软件工程', '软件测试', '数据库工程', '软件开发框架', '版本控制', '操作系统与内核',
-        '计算机网络与接口', '软件架构', '编译原理与实现', '软件需求分析',
-        '通用', '其他'
+        '计算机', '人文社科', '数理逻辑', '自然科学', '经济管理', '艺术体育'
       ],
       stats: {
         mastered: 0,
@@ -481,20 +477,28 @@ export default {
     },
 
     getCategoryConfig(category) {
-      // 简化版配置，与 Personal KB 保持一致
+      // 6大学科分类体系配置
       const configs = {
-        '数学': { color: '#3b82f6', icon: '🔢', bgColor: '#eff6ff' },
-        '语文': { color: '#f59e0b', icon: '📖', bgColor: '#fffbeb' },
-        '英语': { color: '#ec4899', icon: '🗣️', bgColor: '#fdf2f8' },
-        '编程': { color: '#0ea5e9', icon: '💻', bgColor: '#f0f9ff' },
+        '计算机': { color: '#3b82f6', icon: '�', bgColor: '#dbeafe' },
+        '人文社科': { color: '#f59e0b', icon: '�', bgColor: '#fef3c7' },
+        '数理逻辑': { color: '#8b5cf6', icon: '🔢', bgColor: '#ede9fe' },
+        '自然科学': { color: '#10b981', icon: '🔬', bgColor: '#d1fae5' },
+        '经济管理': { color: '#ef4444', icon: '💰', bgColor: '#fee2e2' },
+        '艺术体育': { color: '#ec4899', icon: '🎨', bgColor: '#fce7f3' },
+        '未分类': { color: '#64748b', icon: '�', bgColor: '#f1f5f9' },
         '其他': { color: '#64748b', icon: '📁', bgColor: '#f1f5f9' },
       };
       
       if (configs[category]) return configs[category];
       
-      // 简单的一级 fallback
-      if ((category || '').includes('学')) return configs['数学'];
-      if ((category || '').includes('语') || (category || '').includes('文')) return configs['语文'];
+      // 模糊匹配（兼容旧数据）
+      const lowerCat = (category || '').toLowerCase();
+      if (lowerCat.includes('编程') || lowerCat.includes('代码')) return configs['计算机'];
+      if (lowerCat.includes('文') || lowerCat.includes('历史')) return configs['人文社科'];
+      if (lowerCat.includes('数') || lowerCat.includes('物理')) return configs['数理逻辑'];
+      if (lowerCat.includes('化') || lowerCat.includes('生物')) return configs['自然科学'];
+      if (lowerCat.includes('经济') || lowerCat.includes('管理')) return configs['经济管理'];
+      if (lowerCat.includes('艺') || lowerCat.includes('体育')) return configs['艺术体育'];
       
       return configs['其他'];
     },

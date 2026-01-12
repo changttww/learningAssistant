@@ -170,6 +170,21 @@ export function getKnowledgeGraph() {
 }
 
 /**
+ * 为单个知识点挖掘AI关系
+ * @param {number} entryId - 知识点ID
+ */
+export function mineKnowledgeRelations(entryId) {
+  return request.post("/knowledge-base/mine-relations", { entry_id: entryId });
+}
+
+/**
+ * 批量挖掘所有知识点的AI关系
+ */
+export function mineAllKnowledgeRelations() {
+  return request.post("/knowledge-base/mine-all-relations");
+}
+
+/**
  * RAG问答（带引用溯源）
  * @param {string} query - 用户问题
  * @param {number} limit - 最大引用数量

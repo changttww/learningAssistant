@@ -90,6 +90,7 @@
                 </div>
               </div>
               <button
+                v-if="tab.key === 'inProgress'"
                 class="mt-4 lg:mt-0 lg:ml-6 font-medium py-2 px-4 rounded-lg text-white"
                 :class="actionButtonClass(tab.key)"
               >

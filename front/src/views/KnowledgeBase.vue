@@ -270,11 +270,7 @@ export default {
       filterCategory: '',
       filterLevel: '',
       categories: [
-        '数学', '物理', '化学', '生物', '语文', '英语', '历史', '地理', '政治',
-        '编程', '计算机', '经济', '法律', '心理学', '艺术', '音乐', '体育',
-        '软件工程', '软件测试', '数据库工程', '软件开发框架', '版本控制', '操作系统与内核',
-        '计算机网络与接口', '软件架构', '编译原理与实现', '软件需求分析',
-        '通用', '其他'
+        '计算机', '人文社科', '数理逻辑', '自然科学', '经济管理', '艺术体育'
       ],
       stats: {
         mastered: 0,
@@ -363,7 +359,7 @@ export default {
         this.loading = true;
         try {
           console.log('[知识库] 搜索关键词:', query);
-          const res = await searchKnowledge(query, 50);
+          const res = await searchKnowledge(query, 200);
           console.log('[知识库] 搜索结果:', res);
           if (res && (res.code === 0 || res.code === undefined)) {
             const data = res.data || res;
@@ -498,31 +494,18 @@ export default {
       return classes[level] || 'level-0';
     },
 
-    // 获取分类的显示配置
+    // 获取分类的显示配置（6大学科分类体系）
     getCategoryConfig(category) {
       const configs = {
-        // 理科
-        '数学': { color: '#3b82f6', icon: '🔢', gradient: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', bgColor: '#eff6ff' },
-        '物理': { color: '#8b5cf6', icon: '⚛️', gradient: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', bgColor: '#f5f3ff' },
-        '化学': { color: '#06b6d4', icon: '🧪', gradient: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)', bgColor: '#ecfeff' },
-        '生物': { color: '#10b981', icon: '🧬', gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', bgColor: '#ecfdf5' },
-        // 文科
-        '语文': { color: '#f59e0b', icon: '📖', gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', bgColor: '#fffbeb' },
-        '英语': { color: '#ec4899', icon: '🗣️', gradient: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)', bgColor: '#fdf2f8' },
-        '历史': { color: '#92400e', icon: '🏛️', gradient: 'linear-gradient(135deg, #92400e 0%, #78350f 100%)', bgColor: '#fef3c7' },
-        '地理': { color: '#16a34a', icon: '🌍', gradient: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', bgColor: '#f0fdf4' },
-        '政治': { color: '#dc2626', icon: '⚖️', gradient: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', bgColor: '#fef2f2' },
-        // 技能
-        '编程': { color: '#0ea5e9', icon: '💻', gradient: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)', bgColor: '#f0f9ff' },
-        '计算机': { color: '#6366f1', icon: '🖥️', gradient: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', bgColor: '#eef2ff' },
-        '艺术': { color: '#f472b6', icon: '🎨', gradient: 'linear-gradient(135deg, #f472b6 0%, #ec4899 100%)', bgColor: '#fdf2f8' },
-        '音乐': { color: '#a855f7', icon: '🎵', gradient: 'linear-gradient(135deg, #a855f7 0%, #9333ea 100%)', bgColor: '#faf5ff' },
-        '体育': { color: '#f97316', icon: '⚽', gradient: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)', bgColor: '#fff7ed' },
-        // 通识
-        '学习方法': { color: '#14b8a6', icon: '💡', gradient: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)', bgColor: '#f0fdfa' },
-        '考试技巧': { color: '#eab308', icon: '📝', gradient: 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)', bgColor: '#fefce8' },
-        '阅读': { color: '#84cc16', icon: '📚', gradient: 'linear-gradient(135deg, #84cc16 0%, #65a30d 100%)', bgColor: '#f7fee7' },
-        '思维训练': { color: '#7c3aed', icon: '🧠', gradient: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)', bgColor: '#f5f3ff' },
+        // 6大学科分类
+        '计算机': { color: '#3b82f6', icon: '�', gradient: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', bgColor: '#dbeafe' },
+        '人文社科': { color: '#f59e0b', icon: '📚', gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', bgColor: '#fef3c7' },
+        '数理逻辑': { color: '#8b5cf6', icon: '🔢', gradient: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', bgColor: '#ede9fe' },
+        '自然科学': { color: '#10b981', icon: '🔬', gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', bgColor: '#d1fae5' },
+        '经济管理': { color: '#ef4444', icon: '💰', gradient: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', bgColor: '#fee2e2' },
+        '艺术体育': { color: '#ec4899', icon: '🎨', gradient: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)', bgColor: '#fce7f3' },
+        // 其他/未分类
+        '未分类': { color: '#64748b', icon: '�', gradient: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)', bgColor: '#f1f5f9' },
         '其他': { color: '#64748b', icon: '📁', gradient: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)', bgColor: '#f1f5f9' },
       };
       
@@ -531,22 +514,21 @@ export default {
         return configs[category];
       }
       
-      // 模糊匹配
+      // 模糊匹配（兼容旧数据）
       const lowerCat = (category || '').toLowerCase();
       const keywordMap = {
-        'math': '数学', '代数': '数学', '几何': '数学',
-        'physics': '物理', '力学': '物理',
-        'chemistry': '化学',
-        'biology': '生物', '生命': '生物',
-        'chinese': '语文', '文学': '语文',
-        'english': '英语', '外语': '英语',
-        'history': '历史',
-        'geography': '地理',
-        'programming': '编程', '代码': '编程', '开发': '编程',
-        'computer': '计算机',
-        'art': '艺术', '美术': '艺术',
-        'music': '音乐',
-        'sports': '体育', '运动': '体育',
+        // 计算机类
+        '编程': '计算机', '代码': '计算机', '开发': '计算机', 'programming': '计算机', 'computer': '计算机',
+        // 人文社科类
+        '文学': '人文社科', '历史': '人文社科', '语文': '人文社科', '英语': '人文社科', '政治': '人文社科', '哲学': '人文社科',
+        // 数理逻辑类
+        '数学': '数理逻辑', '物理': '数理逻辑', '逻辑': '数理逻辑', 'math': '数理逻辑', 'physics': '数理逻辑',
+        // 自然科学类
+        '化学': '自然科学', '生物': '自然科学', '地理': '自然科学', 'chemistry': '自然科学', 'biology': '自然科学',
+        // 经济管理类
+        '经济': '经济管理', '金融': '经济管理', '管理': '经济管理', '会计': '经济管理',
+        // 艺术体育类
+        '艺术': '艺术体育', '音乐': '艺术体育', '美术': '艺术体育', '体育': '艺术体育', '运动': '艺术体育',
       };
       
       for (const [keyword, subject] of Object.entries(keywordMap)) {

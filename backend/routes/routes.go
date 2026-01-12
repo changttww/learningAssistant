@@ -57,7 +57,6 @@ func SetupRoutes(r *gin.Engine) {
 
 		analysis := v1.Group("/analysis")
 		registerAnalysisRoutes(analysis)
-		registerAIAnalysisReportRoutes(analysis)
 
 		// AI相关路由
 		ai := v1.Group("/ai")
@@ -105,7 +104,6 @@ func SetupRoutes(r *gin.Engine) {
 
 		analysisLegacy := legacy.Group("/analysis")
 		registerAnalysisRoutes(analysisLegacy)
-		registerAIAnalysisReportRoutes(analysisLegacy)
 
 		// AI相关路由
 		aiLegacy := legacy.Group("/ai")

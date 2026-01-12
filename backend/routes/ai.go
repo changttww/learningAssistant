@@ -948,7 +948,7 @@ func callQwenAPI(apiKey, input string) (*ParseTaskResponse, error) {
 
 解析规则：
 1. title: 提取核心任务名称
-2. description: 生成简洁描述，说明任务的具体内容和目标，不超过50字
+2. description: 生成详细描述，说明任务的具体内容和目标
 3. startDate: 开始日期，默认今天 %s
 4. startTime: 开始时间，上午默认09:00，下午默认14:00，晚上默认19:00
 5. endDate: 结束日期，默认等于开始日期
@@ -1183,20 +1183,11 @@ func SubmitQuizToKnowledge(c *gin.Context) {
 
 	// 只有当用户明确选择加入知识库时才添加
 	if req.AddToKnowledge {
-		// 构建知识内容
-		var contentBuilder strings.Builder
-		contentBuilder.WriteString(fmt.Sprintf("主题: %s\n\n", req.Topic))
-
-		for i, q := range req.Questions {
-			contentBuilder.WriteString(fmt.Sprintf("问题 %d: %s\n", i+1, q.Question))
-			contentBuilder.WriteString(fmt.Sprintf("正确答案: %s\n", q.CorrectAnswer))
-			contentBuilder.WriteString(fmt.Sprintf("解析: %s\n\n", q.Explanation))
-		}
-
-		// 添加到知识库
-		if ragService != nil {
-			title := fmt.Sprintf("%s - 测验总结", req.Topic)
-			_, err := ragService.AddDocument(userID.(uint64), 3, req.TaskID, title, contentBuilder.String())
+		// 添加到知识库（使用任务聚合方式）
+		if ragService != nil && req.TaskID > 0 {
+			// 先保存测验记录到数据库（如果需要的话）
+			// 然后更新任务知识点（聚合任务+笔记+测验）
+			_, err := ragService.AddTaskKnowledge(userID.(uint64), req.TaskID)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "添加到知识库失败: " + err.Error()})
 				return

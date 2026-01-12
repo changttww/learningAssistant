@@ -1,10 +1,13 @@
 package routes
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
 
 	"learningAssistant-backend/database"
@@ -74,20 +77,60 @@ func handleCreateNote(c *gin.Context) {
 		return
 	}
 
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误", "message": "标题不能为空"})
+		return
+	}
+
+	// 同一用户不允许创建同标题笔记
+	var existing models.StudyNote
+	if err := database.GetDB().Model(&models.StudyNote{}).
+		Select("id").
+		Where("user_id = ? AND title = ?", userID.(uint64), title).
+		Limit(1).
+		First(&existing).Error; err != nil {
+		if err != gorm.ErrRecordNotFound {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询笔记失败"})
+			return
+		}
+	} else {
+		c.JSON(http.StatusConflict, gin.H{
+			"error":            "创建笔记失败",
+			"message":          "已存在同标题的笔记，不允许重复创建",
+			"existing_note_id": existing.ID,
+		})
+		return
+	}
+
 	note := models.StudyNote{
 		UserID:  userID.(uint64),
 		TaskID:  req.TaskID,
-		Title:   req.Title,
+		Title:   title,
 		Content: req.Content,
 	}
 
 	if err := database.GetDB().Create(&note).Error; err != nil {
+		// 如果数据库层面存在唯一约束，兜底把重复键映射成 409（避免误导成“标题重复”）
+		var mysqlErr *mysql.MySQLError
+		if errors.As(err, &mysqlErr) && mysqlErr.Number == 1062 {
+			c.JSON(http.StatusConflict, gin.H{
+				"error":   "创建笔记失败",
+				"message": "数据冲突，创建失败（可能已存在相同标题的笔记）",
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建笔记失败"})
 		return
 	}
 
-	// 自动将笔记添加到知识库
-	if ragService != nil && req.Content != "" {
+	// 自动更新任务知识点（如果笔记关联了任务）
+	if ragService != nil && req.TaskID != nil && *req.TaskID > 0 {
+		go func() {
+			_, _ = ragService.AddTaskKnowledge(userID.(uint64), *req.TaskID)
+		}()
+	} else if ragService != nil && req.Content != "" {
+		// 独立笔记（不关联任务）仍使用原方式添加
 		go func() {
 			_, _ = ragService.AddDocument(userID.(uint64), 2, note.ID, req.Title, req.Content)
 		}()
@@ -131,7 +174,33 @@ func handleUpdateNote(c *gin.Context) {
 
 	updates := map[string]interface{}{}
 	if req.Title != nil {
-		updates["title"] = *req.Title
+		newTitle := strings.TrimSpace(*req.Title)
+		if newTitle == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误", "message": "标题不能为空"})
+			return
+		}
+
+		// 同一用户不允许把标题改成已存在的标题（排除自己）
+		var existing models.StudyNote
+		if err := database.GetDB().Model(&models.StudyNote{}).
+			Select("id").
+			Where("user_id = ? AND title = ? AND id <> ?", userID.(uint64), newTitle, noteID).
+			Limit(1).
+			First(&existing).Error; err != nil {
+			if err != gorm.ErrRecordNotFound {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "查询笔记失败"})
+				return
+			}
+		} else {
+			c.JSON(http.StatusConflict, gin.H{
+				"error":            "更新笔记失败",
+				"message":          "已存在同标题的笔记，不允许使用该标题",
+				"existing_note_id": existing.ID,
+			})
+			return
+		}
+
+		updates["title"] = newTitle
 	}
 	if req.Content != nil {
 		updates["content"] = *req.Content
@@ -149,8 +218,13 @@ func handleUpdateNote(c *gin.Context) {
 	// 更新知识库中的对应条目（如果内容有变化）
 	if ragService != nil && req.Content != nil && *req.Content != "" {
 		go func() {
-			// 更新或创建知识库条目
-			_, _ = ragService.AddDocument(userID.(uint64), 2, note.ID, note.Title, note.Content)
+			// 如果笔记关联了任务，更新任务知识点
+			if note.TaskID != nil && *note.TaskID > 0 {
+				_, _ = ragService.AddTaskKnowledge(userID.(uint64), *note.TaskID)
+			} else {
+				// 独立笔记使用原方式更新
+				_, _ = ragService.AddDocument(userID.(uint64), 2, note.ID, note.Title, note.Content)
+			}
 		}()
 	}
 
@@ -174,7 +248,33 @@ func handleDeleteNote(c *gin.Context) {
 		return
 	}
 
-	if err := database.GetDB().Where("id = ? AND user_id = ?", noteID, userID.(uint64)).Delete(&models.StudyNote{}).Error; err != nil {
+	// 原子化删除：同时删除笔记和关联的知识库条目
+	if err := database.GetDB().Transaction(func(tx *gorm.DB) error {
+		// 1. 先删除基于该笔记的知识库条目的向量缓存
+		tx.Where("entry_id IN (?)",
+			tx.Model(&models.KnowledgeBaseEntry{}).Select("id").
+				Where("user_id = ? AND source_type = 2 AND source_id = ?", userID.(uint64), noteID)).
+			Delete(&models.KnowledgeVectorCache{})
+
+		// 2. 删除知识关系
+		tx.Where("user_id = ? AND (source_entry_id IN (?) OR target_entry_id IN (?))",
+			userID.(uint64),
+			tx.Model(&models.KnowledgeBaseEntry{}).Select("id").
+				Where("user_id = ? AND source_type = 2 AND source_id = ?", userID.(uint64), noteID),
+			tx.Model(&models.KnowledgeBaseEntry{}).Select("id").
+				Where("user_id = ? AND source_type = 2 AND source_id = ?", userID.(uint64), noteID)).
+			Delete(&models.KnowledgeRelation{})
+
+		// 3. 删除知识库条目（source_type=2 表示学习笔记）
+		tx.Where("user_id = ? AND source_type = 2 AND source_id = ?", userID.(uint64), noteID).
+			Delete(&models.KnowledgeBaseEntry{})
+
+		// 4. 删除笔记
+		if err := tx.Where("id = ? AND user_id = ?", noteID, userID.(uint64)).Delete(&models.StudyNote{}).Error; err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除失败"})
 		return
 	}
