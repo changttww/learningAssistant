@@ -3,6 +3,14 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
       <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-4">
+          <button 
+            @click="goBack" 
+            class="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <iconify-icon icon="mdi:arrow-left" width="20"></iconify-icon>
+            <span class="text-sm font-medium">返回团队任务</span>
+          </button>
+          <div class="h-4 w-px bg-gray-300"></div>
           <h1 class="text-2xl font-bold text-gray-800">团队日历</h1>
         </div>
         <div class="flex items-center gap-2">
@@ -253,6 +261,13 @@ export default {
     formatDate(dateStr) {
       if (!dateStr) return "无";
       return new Date(dateStr).toLocaleDateString('zh-CN');
+    },
+    goBack() {
+      if (this.teamId) {
+        this.$router.push({ name: 'TeamTasks', query: { teamId: this.teamId } });
+      } else {
+        this.$router.push({ name: 'TeamTasks' });
+      }
     }
   }
 };

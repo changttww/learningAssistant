@@ -2,6 +2,13 @@
   <div class="meeting-room">
     <header class="meeting-header">
       <div class="header-left">
+        <div class="flex items-center gap-3 mr-4">
+             <button @click="goBack" class="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors">
+               <iconify-icon icon="mdi:arrow-left" width="20"></iconify-icon>
+               <span class="text-sm font-medium">返回团队任务</span>
+             </button>
+             <div class="h-8 w-px bg-gray-300"></div>
+        </div>
         <div class="meeting-title">
           <div class="meeting-icon">
             <iconify-icon icon="mdi:video" width="20"></iconify-icon>
@@ -208,6 +215,13 @@ export default {
     this.clearEntryFlag();
   },
   methods: {
+    goBack() {
+      if (this.teamIdValue) {
+        this.$router.push({ name: 'TeamTasks', query: { teamId: this.teamIdValue } });
+      } else {
+        this.$router.push({ name: 'TeamTasks' });
+      }
+    },
     ensureEntry() {
       const currentId = String(this.$route.params.teamId || "");
       let allowed = "";

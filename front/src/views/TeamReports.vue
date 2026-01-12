@@ -4,10 +4,17 @@
     <header class="bg-white shadow-sm z-10 sticky top-0">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div class="flex items-center gap-4">
-          <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <iconify-icon icon="mdi:chart-box-outline" class="text-blue-600"></iconify-icon>
-            团队数据报告
-          </h1>
+          <div class="flex items-center gap-3">
+             <button @click="goBack" class="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors">
+               <iconify-icon icon="mdi:arrow-left" width="20"></iconify-icon>
+               <span class="text-sm font-medium">返回团队任务</span>
+             </button>
+             <div class="h-4 w-px bg-gray-300"></div>
+            <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <iconify-icon icon="mdi:chart-box-outline" class="text-blue-600"></iconify-icon>
+              团队数据报告
+            </h1>
+          </div>
         </div>
         <div class="flex items-center gap-4">
            <div class="text-sm text-gray-500 flex items-center gap-2">
@@ -215,6 +222,13 @@ export default {
     Object.values(this.charts).forEach(chart => chart && chart.dispose());
   },
   methods: {
+    goBack() {
+      if (this.teamId) {
+        this.$router.push({ name: 'TeamTasks', query: { teamId: this.teamId } });
+      } else {
+        this.$router.push({ name: 'TeamTasks' });
+      }
+    },
     formatTime(date) {
       return new Date(date).toLocaleTimeString();
     },
