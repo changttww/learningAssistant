@@ -91,8 +91,15 @@ func registerKnowledgeBaseRoutes(router *gin.RouterGroup) {
 	// 知识图谱
 	kb.GET("/graph", getKnowledgeGraph)
 
+	// AI关系挖掘
+	kb.POST("/mine-relations", mineKnowledgeRelations)        // 为单个知识点挖掘关系
+	kb.POST("/mine-all-relations", mineAllKnowledgeRelations) // 批量挖掘所有关系
+
 	// RAG 问答（带引用溯源）
 	kb.POST("/chat", ragChat)
+
+	// 数据清洗：批量重分类知识点
+	kb.POST("/reclassify", reclassifyKnowledgeEntries)
 }
 
 // addKnowledgeEntry 添加知识库条目
@@ -598,6 +605,40 @@ func createKnowledgeRelation(c *gin.Context) {
 		return
 	}
 
+	db := database.GetDB()
+
+	// 【防环检测】对于定向关系（前置/扩展），检查是否存在反向关系
+	if req.RelationType == 1 || req.RelationType == 3 {
+		var reverseCount int64
+		db.Model(&models.KnowledgeRelation{}).
+			Where("user_id = ? AND source_entry_id = ? AND target_entry_id = ? AND relation_type IN (1, 3)",
+				userID.(uint64), req.TargetEntryID, req.SourceEntryID).
+			Count(&reverseCount)
+
+		if reverseCount > 0 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "无法创建关系：已存在反向的定向关系，会形成互指环",
+				"code":  400,
+			})
+			return
+		}
+	}
+
+	// 检查是否已存在相同关系
+	var existingCount int64
+	db.Model(&models.KnowledgeRelation{}).
+		Where("user_id = ? AND source_entry_id = ? AND target_entry_id = ?",
+			userID.(uint64), req.SourceEntryID, req.TargetEntryID).
+		Count(&existingCount)
+
+	if existingCount > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "关系已存在",
+			"code":  400,
+		})
+		return
+	}
+
 	relation := &models.KnowledgeRelation{
 		UserID:        userID.(uint64),
 		SourceEntryID: req.SourceEntryID,
@@ -606,7 +647,6 @@ func createKnowledgeRelation(c *gin.Context) {
 		Strength:      req.Strength,
 	}
 
-	db := database.GetDB()
 	if err := db.Create(relation).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建关系失败"})
 		return
@@ -656,8 +696,134 @@ func getKnowledgeGraph(c *gin.Context) {
 	})
 }
 
+// mineKnowledgeRelations 为单个知识点挖掘关系
+// @Summary AI自动挖掘知识点关系
+// @Description 使用向量检索+AI推理，为指定知识点挖掘与其他知识点的逻辑关系
+// @Tags Knowledge Base
+// @Accept json
+// @Produce json
+// @Router /knowledge-base/mine-relations [post]
+func mineKnowledgeRelations(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
+		return
+	}
+
+	var req struct {
+		EntryID uint64 `json:"entry_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请提供知识点ID"})
+		return
+	}
+
+	// 初始化关系挖掘服务
+	apiKey := os.Getenv("QWEN_API_KEY")
+	if apiKey == "" {
+		apiKey = os.Getenv("DASHSCOPE_API_KEY")
+	}
+	embeddingService := rag.NewQwenEmbeddingService(apiKey)
+	miningService := rag.NewRelationMiningService(embeddingService)
+
+	// 执行关系挖掘
+	result, err := miningService.MineRelationsForEntry(userID.(uint64), req.EntryID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":  -1,
+			"error": "挖掘关系失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"data": result,
+		"msg":  fmt.Sprintf("成功挖掘 %d 个关系", result.RelationsFound),
+	})
+}
+
+// mineAllKnowledgeRelations 批量挖掘所有知识点的关系
+// @Summary 批量挖掘所有知识点关系
+// @Description 为用户的所有知识点执行AI关系挖掘，建立知识图谱的逻辑连线
+// @Tags Knowledge Base
+// @Accept json
+// @Produce json
+// @Router /knowledge-base/mine-all-relations [post]
+func mineAllKnowledgeRelations(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
+		return
+	}
+
+	// 初始化关系挖掘服务
+	apiKey := os.Getenv("QWEN_API_KEY")
+	if apiKey == "" {
+		apiKey = os.Getenv("DASHSCOPE_API_KEY")
+	}
+	embeddingService := rag.NewQwenEmbeddingService(apiKey)
+	miningService := rag.NewRelationMiningService(embeddingService)
+
+	// 异步执行批量挖掘
+	go func(uid uint64) {
+		totalRelations, err := miningService.MineAllRelations(uid)
+		if err != nil {
+			fmt.Printf("[RelationMining] 批量挖掘失败: %v\n", err)
+			return
+		}
+		fmt.Printf("[RelationMining] 用户 %d 批量挖掘完成，共发现 %d 个关系\n", uid, totalRelations)
+	}(userID.(uint64))
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"data": gin.H{
+			"status": "processing",
+		},
+		"msg": "批量关系挖掘已在后台开始，请稍后刷新知识图谱查看结果",
+	})
+}
+
+// reclassifyKnowledgeEntries 批量重分类知识点（数据清洗）
+// @Summary 批量重分类知识点
+// @Description 使用AI重新分类用户的所有知识点，修复分类错误
+// @Tags Knowledge Base
+// @Accept json
+// @Produce json
+// @Router /knowledge-base/reclassify [post]
+func reclassifyKnowledgeEntries(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
+		return
+	}
+
+	// 调用RAG服务的批量重分类方法
+	successCount, err := ragService.ReclassifyAllEntries(userID.(uint64))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":  -1,
+			"error": "重分类失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"data": gin.H{
+			"success_count": successCount,
+		},
+		"msg": fmt.Sprintf("成功重分类 %d 个知识点", successCount),
+	})
+}
+
 // ragChat RAG问答（带引用溯源）
-// 业界标准流程：Query理解 → 向量检索 → 上下文组装 → LLM生成 → 返回结果+引用
+// 优化版流程：
+// 第一步：Query理解 - AI判断问题所属领域，缩小检索范围
+// 第二步：漏斗式检索 - 分类过滤 → 向量检索 → 关键词补漏
+// 第三步：防幻觉生成 - 严格基于参考资料回答
+// 第四步：引用溯源 - 返回带编号的引用信息
 func ragChat(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -682,46 +848,97 @@ func ragChat(c *gin.Context) {
 	db := database.GetDB()
 	uid := userID.(uint64)
 
-	// 步骤1: 获取用户所有知识点（用于上下文）
-	var allEntries []models.KnowledgeBaseEntry
-	db.Where("user_id = ? AND status = 1", uid).
-		Order("level DESC, view_count DESC").
-		Limit(20). // 最多取20条作为候选
-		Find(&allEntries)
+	// ========== 第一步：Query Understanding（问题理解）==========
+	// 用AI判断用户问题属于哪个知识领域，缩小检索范围
+	queryCategory := classifyUserQuery(req.Query)
+	fmt.Printf("[RAG] 问题分类结果: %s, 原问题: %s\n", queryCategory, req.Query)
 
-	// 步骤2: 使用混合检索（向量 + BM25）- 业界标准方案
-	hybridResults, err := hybridSearchService.Search(uid, req.Query, req.Limit, 0.6) // 向量权重60%
-
-	// 将混合检索结果转换为 SearchResult 格式
-	// 只保留相似度 >= 35% 的结果，过滤掉不相关内容
+	// ========== 第二步：Funnel Retrieval（漏斗式检索）==========
 	var searchResults []rag.SearchResult
+
+	// 第一层：硬过滤 - 基于分类缩小范围
+	var candidateEntries []models.KnowledgeBaseEntry
+	if queryCategory != "" && queryCategory != "其他" && queryCategory != "未分类" {
+		// 有明确分类，先按分类过滤
+		db.Where("user_id = ? AND status = 1 AND category = ?", uid, queryCategory).
+			Order("level DESC, view_count DESC").
+			Find(&candidateEntries)
+		fmt.Printf("[RAG] 分类过滤后候选: %d 条\n", len(candidateEntries))
+	}
+
+	// 如果分类过滤结果太少，扩大到全库搜索
+	if len(candidateEntries) < 3 {
+		db.Where("user_id = ? AND status = 1", uid).
+			Order("level DESC, view_count DESC").
+			Find(&candidateEntries)
+		fmt.Printf("[RAG] 全库搜索候选: %d 条\n", len(candidateEntries))
+	}
+
+	// 第二层：软检索 - 向量相似度搜索（使用高阈值 0.60）
+	highThreshold := float32(0.60)
+	// minThreshold := float32(0.40) // 备用
+
+	hybridResults, err := hybridSearchService.Search(uid, req.Query, req.Limit*2, 0.6)
 	if err == nil && len(hybridResults) > 0 {
 		for _, hr := range hybridResults {
-			// 只添加相关性足够高的结果
-			if hr.FinalScore >= 0.35 {
-				searchResults = append(searchResults, rag.SearchResult{
-					Entry:      hr.Entry,
-					Similarity: hr.FinalScore,
-				})
+			// 使用高阈值过滤，只保留真正相关的内容
+			if hr.FinalScore >= highThreshold {
+				// 如果有分类过滤，进一步检查分类匹配
+				if queryCategory != "" && queryCategory != "其他" && queryCategory != "未分类" {
+					if hr.Entry.Category == queryCategory {
+						searchResults = append(searchResults, rag.SearchResult{
+							Entry:      hr.Entry,
+							Similarity: hr.FinalScore,
+						})
+					}
+				} else {
+					searchResults = append(searchResults, rag.SearchResult{
+						Entry:      hr.Entry,
+						Similarity: hr.FinalScore,
+					})
+				}
 			}
 		}
+		fmt.Printf("[RAG] 高阈值(%.2f)向量搜索结果: %d 条\n", highThreshold, len(searchResults))
 	}
 
-	// 降级: 如果混合检索无结果，使用智能关键词匹配
-	// 但不强行返回低相关性结果
-	if len(searchResults) == 0 {
+	// 第三层：关键词补漏 - 如果向量搜索结果不足，用关键词搜索补充
+	if len(searchResults) < 3 {
 		keywords := extractQueryKeywords(req.Query)
-		relevantEntries := smartKeywordSearch(db, uid, keywords, req.Limit)
-		for _, entry := range relevantEntries {
-			// 关键词匹配给较低的相似度，但仍显示
-			searchResults = append(searchResults, rag.SearchResult{
-				Entry:      entry,
-				Similarity: 0.4, // 关键词匹配默认 40%
-			})
+		keywordEntries := smartKeywordSearch(db, uid, keywords, req.Limit)
+
+		// 去重添加
+		existingIDs := make(map[uint64]bool)
+		for _, sr := range searchResults {
+			existingIDs[sr.Entry.ID] = true
 		}
+
+		for _, entry := range keywordEntries {
+			if !existingIDs[entry.ID] {
+				// 如果有分类过滤，优先匹配同分类的
+				if queryCategory != "" && queryCategory != "其他" && entry.Category == queryCategory {
+					searchResults = append(searchResults, rag.SearchResult{
+						Entry:      entry,
+						Similarity: 0.45, // 关键词+分类匹配
+					})
+				} else if len(searchResults) < req.Limit {
+					searchResults = append(searchResults, rag.SearchResult{
+						Entry:      entry,
+						Similarity: 0.35, // 纯关键词匹配，较低相似度
+					})
+				}
+				existingIDs[entry.ID] = true
+			}
+		}
+		fmt.Printf("[RAG] 关键词补漏后结果: %d 条\n", len(searchResults))
 	}
 
-	// 步骤3: 构建引用信息
+	// 限制结果数量
+	if len(searchResults) > req.Limit {
+		searchResults = searchResults[:req.Limit]
+	}
+
+	// ========== 第三步：构建引用信息 ==========
 	citations := make([]rag.Citation, 0, len(searchResults))
 	contextParts := make([]string, 0, len(searchResults))
 	for i, result := range searchResults {
@@ -733,21 +950,21 @@ func ragChat(c *gin.Context) {
 			Similarity: result.Similarity,
 		})
 		// 构建上下文片段（编号便于引用）
-		content := result.Entry.Summary
-		if content == "" {
-			content = truncateContent(result.Entry.Content, 300)
+		content := result.Entry.Content
+		if len([]rune(content)) > 500 {
+			content = string([]rune(content)[:500]) + "..."
 		}
 		contextParts = append(contextParts,
-			"["+strconv.Itoa(i+1)+"] 《"+result.Entry.Title+"》("+result.Entry.Category+")\n"+content)
+			fmt.Sprintf("[%d] 标题：%s\n分类：%s\n内容：%s",
+				i+1, result.Entry.Title, result.Entry.Category, content))
 	}
 
-	// 步骤4: 构建知识库概览（即使没有精确匹配，也让AI知道用户学了什么）
-	knowledgeOverview := buildKnowledgeOverview(allEntries)
-
-	// 步骤5: 调用AI生成回答（真正的RAG）
-	answer, err := generateEnhancedRAGAnswer(req.Query, contextParts, knowledgeOverview, len(allEntries))
+	// ========== 第四步：防幻觉生成（Grounded Generation）==========
+	answer, err := generateGroundedRAGAnswer(req.Query, contextParts, len(searchResults) > 0)
 	if err != nil || answer == "" {
 		// 降级：基于知识库生成结构化回答
+		var allEntries []models.KnowledgeBaseEntry
+		db.Where("user_id = ? AND status = 1", uid).Limit(20).Find(&allEntries)
 		answer = generateSmartFallbackAnswer(req.Query, searchResults, allEntries)
 	}
 
@@ -759,6 +976,204 @@ func ragChat(c *gin.Context) {
 			Query:     req.Query,
 		},
 	})
+}
+
+// classifyUserQuery 使用AI对用户问题进行分类（Query Understanding）
+func classifyUserQuery(query string) string {
+	apiKey := getQwenAPIKey()
+	if apiKey == "" {
+		// 无API Key时使用关键词规则降级
+		return fallbackQueryClassify(query)
+	}
+
+	// 构造分类Prompt
+	categories := []string{"计算机", "人文社科", "数理逻辑", "自然科学", "经济管理", "艺术体育", "其他"}
+	prompt := fmt.Sprintf(`请判断用户问题属于以下哪个知识库大类。
+
+可选分类：%s
+
+用户问题：%s
+
+【要求】
+1. 只返回一个分类名称，不要有任何其他文字
+2. 如果问题是通用性的（如"总结我学过的内容"），返回"其他"
+3. 根据问题的核心主题判断，不要被个别词汇误导
+
+分类结果：`, strings.Join(categories, "、"), query)
+
+	reqBody := QwenRequest{
+		Model: "qwen-turbo", // 用轻量模型，快速分类
+		Messages: []QwenMessage{
+			{Role: "user", Content: prompt},
+		},
+	}
+
+	jsonData, _ := json.Marshal(reqBody)
+	apiURL := qwenChatURL()
+
+	httpReq, _ := http.NewRequest("POST", apiURL, bytes.NewBuffer(jsonData))
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		fmt.Printf("[RAG] Query分类请求失败: %v\n", err)
+		return fallbackQueryClassify(query)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var qwenResp QwenResponse
+	if err := json.Unmarshal(body, &qwenResp); err != nil {
+		return fallbackQueryClassify(query)
+	}
+
+	if len(qwenResp.Choices) == 0 {
+		return fallbackQueryClassify(query)
+	}
+
+	result := strings.TrimSpace(qwenResp.Choices[0].Message.Content)
+	// 验证结果是否在枚举中
+	for _, cat := range categories {
+		if result == cat {
+			return result
+		}
+	}
+	return "其他"
+}
+
+// fallbackQueryClassify 降级的问题分类（基于关键词）
+func fallbackQueryClassify(query string) string {
+	q := strings.ToLower(query)
+
+	// 通用问题检测
+	if strings.Contains(q, "总结") || strings.Contains(q, "学过") ||
+		strings.Contains(q, "概览") || strings.Contains(q, "有哪些") {
+		return "其他"
+	}
+
+	// 计算机类
+	if strings.Contains(q, "编程") || strings.Contains(q, "代码") ||
+		strings.Contains(q, "算法") || strings.Contains(q, "数据库") ||
+		strings.Contains(q, "python") || strings.Contains(q, "java") ||
+		strings.Contains(q, "前端") || strings.Contains(q, "后端") {
+		return "计算机"
+	}
+
+	// 人文社科
+	if strings.Contains(q, "文学") || strings.Contains(q, "历史") ||
+		strings.Contains(q, "哲学") || strings.Contains(q, "政治") ||
+		strings.Contains(q, "语文") || strings.Contains(q, "英语") {
+		return "人文社科"
+	}
+
+	// 数理逻辑
+	if strings.Contains(q, "数学") || strings.Contains(q, "物理") ||
+		strings.Contains(q, "公式") || strings.Contains(q, "定理") {
+		return "数理逻辑"
+	}
+
+	// 自然科学
+	if strings.Contains(q, "化学") || strings.Contains(q, "生物") ||
+		strings.Contains(q, "地理") {
+		return "自然科学"
+	}
+
+	// 经济管理
+	if strings.Contains(q, "经济") || strings.Contains(q, "金融") ||
+		strings.Contains(q, "管理") || strings.Contains(q, "会计") {
+		return "经济管理"
+	}
+
+	// 艺术体育
+	if strings.Contains(q, "艺术") || strings.Contains(q, "音乐") ||
+		strings.Contains(q, "体育") || strings.Contains(q, "设计") {
+		return "艺术体育"
+	}
+
+	return "其他"
+}
+
+// generateGroundedRAGAnswer 防幻觉的RAG回答生成
+// 严格要求AI只能基于参考资料回答，无相关资料时诚实拒绝
+func generateGroundedRAGAnswer(query string, contextParts []string, hasRelevantKnowledge bool) (string, error) {
+	apiKey := getQwenAPIKey()
+	if apiKey == "" {
+		return "", nil
+	}
+
+	var prompt string
+	if hasRelevantKnowledge {
+		// 有相关知识点时的Prompt
+		prompt = fmt.Sprintf(`你是"智学空间"的AI助教。请严格基于以下【参考资料】回答用户问题。
+
+【参考资料】
+%s
+
+【用户问题】
+%s
+
+【回答要求】
+1. 引用标注：回答时，必须在相关内容后标注信息来源，如"...根据[1]的内容..."或"...[1]"
+2. 拒绝编造：如果【参考资料】中没有包含问题答案的相关信息，请直接回答："抱歉，我的知识库中暂时没有收录相关内容。建议您补充相关知识点到知识库。"
+3. 严禁使用你自己的训练数据编造答案，只能使用上面提供的参考资料
+4. 保持客观：回答要简洁有条理，使用中文，可适当使用Markdown格式
+5. 如果参考资料只是部分相关，请明确说明哪些内容来自知识库，哪些是你的补充建议
+
+请回答：`, strings.Join(contextParts, "\n\n"), query)
+	} else {
+		// 无相关知识点时的Prompt
+		prompt = fmt.Sprintf(`你是"智学空间"的AI助教。用户问了一个问题，但在他的个人知识库中没有找到相关内容。
+
+【用户问题】
+%s
+
+【回答要求】
+1. 首先明确告知：「抱歉，在您的知识库中暂时没有收录与"[问题关键词]"相关的内容。」
+2. 然后可以简要提供一些通用的学习建议（2-3句话即可）
+3. 最后建议用户将相关知识添加到知识库，以便下次查询
+4. 不要长篇大论，保持简洁
+
+请回答：`, query)
+	}
+
+	reqBody := QwenRequest{
+		Model: "qwen-plus",
+		Messages: []QwenMessage{
+			{Role: "user", Content: prompt},
+		},
+	}
+
+	jsonData, _ := json.Marshal(reqBody)
+	apiURL := qwenChatURL()
+
+	httpReq, _ := http.NewRequest("POST", apiURL, bytes.NewBuffer(jsonData))
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var qwenResp QwenResponse
+	if err := json.Unmarshal(body, &qwenResp); err != nil {
+		return "", err
+	}
+
+	if qwenResp.Error != nil {
+		return "", fmt.Errorf("AI API error: %s", qwenResp.Error.Message)
+	}
+
+	if len(qwenResp.Choices) == 0 {
+		return "", nil
+	}
+
+	return qwenResp.Choices[0].Message.Content, nil
 }
 
 // extractQueryKeywords 从问题中提取关键词

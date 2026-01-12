@@ -2553,6 +2553,11 @@ const addQuizToNote = async () => {
   
   isAddingToNote.value = true;
   try {
+    // 确保笔记列表已加载
+    if (notes.value.length === 0) {
+      await loadNotes();
+    }
+    
     // 构建测验总结内容
     let noteContent = `<h2>📝 智能测验总结 - ${quizTask.value.title}</h2>\n`;
     noteContent += `<p><strong>测验时间:</strong> ${new Date().toLocaleString('zh-CN')}</p>\n`;
@@ -2577,8 +2582,14 @@ const addQuizToNote = async () => {
       noteContent += `<p><strong>学习建议:</strong> ${quiz.value.essayQuestion.studySuggestion}</p>\n`;
     }
     
-    // 查找是否已有该任务的笔记
-    const existingNote = notes.value.find(n => n.taskId === quizTask.value.id);
+    // 查找是否已有该任务的笔记（使用宽松比较，处理类型不一致的情况）
+    const existingNote = notes.value.find(n => n.taskId && quizTask.value.id && String(n.taskId) === String(quizTask.value.id));
+    
+    console.log('[测验] 查找任务笔记:', {
+      taskId: quizTask.value.id,
+      notes: notes.value.map(n => ({ id: n.id, taskId: n.taskId })),
+      found: existingNote ? existingNote.id : null
+    });
     
     if (existingNote) {
       // 追加到现有笔记

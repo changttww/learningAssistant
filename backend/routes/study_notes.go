@@ -124,8 +124,13 @@ func handleCreateNote(c *gin.Context) {
 		return
 	}
 
-	// 自动将笔记添加到知识库
-	if ragService != nil && req.Content != "" {
+	// 自动更新任务知识点（如果笔记关联了任务）
+	if ragService != nil && req.TaskID != nil && *req.TaskID > 0 {
+		go func() {
+			_, _ = ragService.AddTaskKnowledge(userID.(uint64), *req.TaskID)
+		}()
+	} else if ragService != nil && req.Content != "" {
+		// 独立笔记（不关联任务）仍使用原方式添加
 		go func() {
 			_, _ = ragService.AddDocument(userID.(uint64), 2, note.ID, req.Title, req.Content)
 		}()
@@ -213,8 +218,13 @@ func handleUpdateNote(c *gin.Context) {
 	// 更新知识库中的对应条目（如果内容有变化）
 	if ragService != nil && req.Content != nil && *req.Content != "" {
 		go func() {
-			// 更新或创建知识库条目
-			_, _ = ragService.AddDocument(userID.(uint64), 2, note.ID, note.Title, note.Content)
+			// 如果笔记关联了任务，更新任务知识点
+			if note.TaskID != nil && *note.TaskID > 0 {
+				_, _ = ragService.AddTaskKnowledge(userID.(uint64), *note.TaskID)
+			} else {
+				// 独立笔记使用原方式更新
+				_, _ = ragService.AddDocument(userID.(uint64), 2, note.ID, note.Title, note.Content)
+			}
 		}()
 	}
 
@@ -238,7 +248,33 @@ func handleDeleteNote(c *gin.Context) {
 		return
 	}
 
-	if err := database.GetDB().Where("id = ? AND user_id = ?", noteID, userID.(uint64)).Delete(&models.StudyNote{}).Error; err != nil {
+	// 原子化删除：同时删除笔记和关联的知识库条目
+	if err := database.GetDB().Transaction(func(tx *gorm.DB) error {
+		// 1. 先删除基于该笔记的知识库条目的向量缓存
+		tx.Where("entry_id IN (?)",
+			tx.Model(&models.KnowledgeBaseEntry{}).Select("id").
+				Where("user_id = ? AND source_type = 2 AND source_id = ?", userID.(uint64), noteID)).
+			Delete(&models.KnowledgeVectorCache{})
+
+		// 2. 删除知识关系
+		tx.Where("user_id = ? AND (source_entry_id IN (?) OR target_entry_id IN (?))",
+			userID.(uint64),
+			tx.Model(&models.KnowledgeBaseEntry{}).Select("id").
+				Where("user_id = ? AND source_type = 2 AND source_id = ?", userID.(uint64), noteID),
+			tx.Model(&models.KnowledgeBaseEntry{}).Select("id").
+				Where("user_id = ? AND source_type = 2 AND source_id = ?", userID.(uint64), noteID)).
+			Delete(&models.KnowledgeRelation{})
+
+		// 3. 删除知识库条目（source_type=2 表示学习笔记）
+		tx.Where("user_id = ? AND source_type = 2 AND source_id = ?", userID.(uint64), noteID).
+			Delete(&models.KnowledgeBaseEntry{})
+
+		// 4. 删除笔记
+		if err := tx.Where("id = ? AND user_id = ?", noteID, userID.(uint64)).Delete(&models.StudyNote{}).Error; err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除失败"})
 		return
 	}

@@ -42,25 +42,45 @@
           <div class="message-content">
             <div class="message-text" v-html="formatMessage(msg.content)"></div>
             
-            <!-- 引用来源 -->
+            <!-- 引用来源卡片 - 优化展示 -->
             <div v-if="msg.citations && msg.citations.length > 0" class="citations">
-              <div class="citations-title">📚 参考来源：</div>
-              <div class="citation-list">
+              <div class="citations-header">
+                <span class="citations-title">📚 参考来源</span>
+                <span class="citations-badge">{{ msg.citations.length }} 条知识点</span>
+              </div>
+              <div class="citation-cards">
                 <div 
-                  v-for="cite in msg.citations" 
+                  v-for="(cite, idx) in msg.citations" 
                   :key="cite.id" 
-                  class="citation-item"
+                  class="citation-card"
                   @click="showCitationDetail(cite)"
                 >
-                  <div class="citation-main">
-                    <span class="citation-title">{{ cite.title }}</span>
-                    <span class="citation-category" v-if="cite.category">{{ cite.category }}</span>
+                  <div class="citation-index">[{{ idx + 1 }}]</div>
+                  <div class="citation-info">
+                    <div class="citation-title">{{ cite.title }}</div>
+                    <div class="citation-meta">
+                      <span class="citation-category">{{ cite.category || '未分类' }}</span>
+                      <span class="citation-score" :class="getSimilarityClass(cite.similarity)">
+                        {{ (cite.similarity * 100).toFixed(0) }}% 匹配
+                      </span>
+                    </div>
+                    <div class="citation-summary" v-if="cite.summary">
+                      {{ truncateSummary(cite.summary, 60) }}
+                    </div>
                   </div>
-                  <div class="citation-similarity">
-                    相似度: {{ (cite.similarity * 100).toFixed(0) }}%
-                  </div>
+                  <div class="citation-arrow">→</div>
                 </div>
               </div>
+              <!-- 无相关知识点提示 -->
+              <div v-if="msg.noRelevantKnowledge" class="no-knowledge-tip">
+                💡 提示：您可以将相关知识添加到知识库，以便下次查询
+              </div>
+            </div>
+            
+            <!-- 无引用时的提示 -->
+            <div v-else-if="msg.role === 'assistant' && !loading" class="no-citations">
+              <span class="no-citations-icon">📭</span>
+              <span class="no-citations-text">本回答基于通用知识生成，建议添加相关内容到知识库</span>
             </div>
           </div>
         </div>
@@ -187,18 +207,25 @@ export default {
         const data = res.data || res;
         const result = data.data || data;
         
+        // 判断是否有相关知识点（基于引用数量和相似度）
+        const citations = result.citations || [];
+        const hasRelevantKnowledge = citations.length > 0 && 
+          citations.some(c => c.similarity >= 0.5);
+        
         // 添加助手回复
         this.messages.push({
           role: 'assistant',
           content: result.answer || '抱歉，我无法回答这个问题。',
-          citations: result.citations || []
+          citations: citations,
+          noRelevantKnowledge: !hasRelevantKnowledge && citations.length === 0
         });
       } catch (error) {
         console.error('问答失败:', error);
         this.messages.push({
           role: 'assistant',
           content: '抱歉，处理您的问题时出现错误，请稍后重试。',
-          citations: []
+          citations: [],
+          noRelevantKnowledge: true
         });
       } finally {
         this.loading = false;
@@ -218,6 +245,20 @@ export default {
 
     showCitationDetail(cite) {
       this.selectedCitation = cite;
+    },
+
+    // 根据相似度返回样式类
+    getSimilarityClass(similarity) {
+      if (similarity >= 0.7) return 'high';
+      if (similarity >= 0.5) return 'medium';
+      return 'low';
+    },
+
+    // 截断摘要
+    truncateSummary(text, maxLen) {
+      if (!text) return '';
+      if (text.length <= maxLen) return text;
+      return text.substring(0, maxLen) + '...';
     },
 
     scrollToBottom() {
@@ -518,67 +559,179 @@ export default {
   margin: 16px 0;
 }
 
-/* 引用来源 */
+/* 引用来源卡片 - 优化版 */
 .citations {
-  margin-top: 12px;
-  padding: 12px;
-  background: #fefce8;
-  border-radius: 12px;
-  border: 1px solid #fef08a;
+  margin-top: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+  border-radius: 16px;
+  border: 1px solid #fde047;
 }
 
-.citations-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #854d0e;
-  margin-bottom: 8px;
-}
-
-.citation-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.citation-item {
+.citations-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.citations-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #854d0e;
+}
+
+.citations-badge {
+  font-size: 12px;
+  padding: 4px 10px;
+  background: #fef08a;
+  color: #a16207;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.citation-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.citation-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
   background: white;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.citation-item:hover {
-  background: #fef9c3;
+.citation-card:hover {
+  border-color: #fbbf24;
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.15);
+  transform: translateX(4px);
 }
 
-.citation-main {
+.citation-index {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 8px;
+}
+
+.citation-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.citation-info .citation-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.citation-meta {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.citation-title {
-  font-size: 13px;
-  color: #1e293b;
-  font-weight: 500;
+  margin-bottom: 4px;
 }
 
 .citation-category {
   font-size: 11px;
-  padding: 2px 6px;
+  padding: 2px 8px;
   background: #e0f2fe;
   color: #0369a1;
-  border-radius: 4px;
+  border-radius: 6px;
+  font-weight: 500;
 }
 
-.citation-similarity {
+.citation-score {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.citation-score.high {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.citation-score.medium {
+  background: #fef3c7;
+  color: #a16207;
+}
+
+.citation-score.low {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.citation-summary {
   font-size: 12px;
-  color: #65a30d;
-  font-weight: 500;
+  color: #64748b;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.citation-arrow {
+  flex-shrink: 0;
+  color: #94a3b8;
+  font-size: 16px;
+  transition: transform 0.2s;
+}
+
+.citation-card:hover .citation-arrow {
+  transform: translateX(4px);
+  color: #3b82f6;
+}
+
+/* 无知识点提示 */
+.no-knowledge-tip {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #3b82f6;
+  text-align: center;
+}
+
+/* 无引用提示 */
+.no-citations {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: #f1f5f9;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.no-citations-icon {
+  font-size: 16px;
+}
+
+.no-citations-text {
+  font-size: 13px;
+  color: #64748b;
 }
 
 /* 加载动画 */

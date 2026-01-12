@@ -172,9 +172,17 @@ export function parseTaskWithAI(input) {
 
 /**
  * 获取任务指导和相关资源
+ * @param {Object|string} titleOrParams - 任务标题或包含 title, description, category 的对象
+ * @param {string} [description] - 任务描述（当第一个参数为字符串时使用）
+ * @param {string} [category] - 任务分类（当第一个参数为字符串时使用）
  */
-export function getTaskGuidance(title, description, category) {
-  return request.post("/tasks/ai/guidance", { title, description, category }, { timeout: 60000 });
+export function getTaskGuidance(titleOrParams, description, category) {
+  // 支持对象参数和独立参数两种调用方式
+  if (typeof titleOrParams === 'object' && titleOrParams !== null) {
+    const { title, description: desc, category: cat } = titleOrParams;
+    return request.post("/tasks/ai/guidance", { title, description: desc, category: cat }, { timeout: 60000 });
+  }
+  return request.post("/tasks/ai/guidance", { title: titleOrParams, description, category }, { timeout: 60000 });
 }
 
 /**

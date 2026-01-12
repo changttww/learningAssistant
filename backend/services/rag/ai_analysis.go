@@ -189,12 +189,83 @@ func (a *AIAnalysisService) analyzeKnowledgeDistribution(entries []models.Knowle
 	return distribution
 }
 
-// generateSkillRadar 生成技能雷达数据 - 基于分类统计
+// generateSkillRadar 生成技能雷达数据 - 直接基于Subject字段（能力维度）统计
 func (a *AIAnalysisService) generateSkillRadar(entries []models.KnowledgeBaseEntry) []SkillRadarData {
-	dims := a.getSkillRadarDims()
-	bucket := a.buildSkillRadarBucket(dims, entries)
-	return a.buildSkillRadarResult(dims, bucket)
+	// 定义固定的5个能力维度
+	dims := []struct {
+		Key   string
+		Label string
+	}{
+		{Key: "理论素养", Label: "理论素养"},
+		{Key: "逻辑思维", Label: "逻辑思维"},
+		{Key: "实操应用", Label: "实操应用"},
+		{Key: "创新思维", Label: "创新思维"},
+		{Key: "沟通表达", Label: "沟通表达"},
+	}
+
+	// 初始化统计桶
+	type stat struct {
+		totalLevel int
+		count      int
+		mastered   int
+		learning   int
+	}
+	bucket := make(map[string]*stat, len(dims))
+	for _, d := range dims {
+		bucket[d.Key] = &stat{}
+	}
+
+	// 直接按 Subject 字段统计
+	for _, entry := range entries {
+		subject := strings.TrimSpace(entry.Subject)
+		if subject == "" {
+			subject = "理论素养" // 默认
+		}
+
+		st, ok := bucket[subject]
+		if !ok {
+			// 如果Subject不在枚举范围内，归入"理论素养"
+			st = bucket["理论素养"]
+		}
+
+		st.totalLevel += int(entry.Level)
+		st.count++
+		if entry.Level == 4 {
+			st.mastered++
+		} else if entry.Level > 0 {
+			st.learning++
+		}
+	}
+
+	// 构建结果
+	var results []SkillRadarData
+	for _, d := range dims {
+		st := bucket[d.Key]
+		avgLevel := float64(0)
+		if st.count > 0 {
+			avgLevel = float64(st.totalLevel) / float64(st.count)
+		}
+		// 将平均等级（0-4）映射到百分比（0-100）
+		// 同时考虑数量因素，给予一定的基础分
+		baseScore := float64(st.count) * 5 // 每个知识点贡献5分基础分
+		levelScore := avgLevel * 20        // 平均等级贡献（0-80）
+		totalScore := baseScore + levelScore
+		if totalScore > 100 {
+			totalScore = 100
+		}
+
+		results = append(results, SkillRadarData{
+			Skill:    d.Label,
+			Value:    int(totalScore),
+			MaxValue: 100,
+			Category: d.Key,
+		})
+	}
+
+	return results
 }
+
+// 以下为旧版雷达图辅助函数（保留但不再使用）
 
 type skillRadarDim struct {
 	Key        string

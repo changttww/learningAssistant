@@ -680,11 +680,56 @@ func deleteTask(c *gin.Context) {
 		return
 	}
 
-	// 原子化删除：同时删除与该任务关联的用户笔记
+	// 原子化删除：同时删除与该任务关联的用户笔记和知识库条目
 	if err := database.GetDB().Transaction(func(tx *gorm.DB) error {
+		// 1. 先查出该任务关联的所有笔记ID
+		var noteIDs []uint64
+		tx.Model(&models.StudyNote{}).Where("task_id = ? AND user_id = ?", taskID, userID.(uint64)).Pluck("id", &noteIDs)
+
+		// 2. 删除基于这些笔记的知识库条目（source_type=2 表示学习笔记）
+		if len(noteIDs) > 0 {
+			// 先删除向量缓存
+			tx.Where("entry_id IN (?)",
+				tx.Model(&models.KnowledgeBaseEntry{}).Select("id").
+					Where("user_id = ? AND source_type = 2 AND source_id IN ?", userID.(uint64), noteIDs)).
+				Delete(&models.KnowledgeVectorCache{})
+			// 删除知识关系
+			tx.Where("user_id = ? AND (source_entry_id IN (?) OR target_entry_id IN (?))",
+				userID.(uint64),
+				tx.Model(&models.KnowledgeBaseEntry{}).Select("id").
+					Where("user_id = ? AND source_type = 2 AND source_id IN ?", userID.(uint64), noteIDs),
+				tx.Model(&models.KnowledgeBaseEntry{}).Select("id").
+					Where("user_id = ? AND source_type = 2 AND source_id IN ?", userID.(uint64), noteIDs)).
+				Delete(&models.KnowledgeRelation{})
+			// 删除知识库条目
+			tx.Where("user_id = ? AND source_type = 2 AND source_id IN ?", userID.(uint64), noteIDs).
+				Delete(&models.KnowledgeBaseEntry{})
+		}
+
+		// 3. 删除基于任务本身的知识库条目（source_type=1 表示任务笔记）
+		// 先删除向量缓存
+		tx.Where("entry_id IN (?)",
+			tx.Model(&models.KnowledgeBaseEntry{}).Select("id").
+				Where("user_id = ? AND source_type = 1 AND source_id = ?", userID.(uint64), taskID)).
+			Delete(&models.KnowledgeVectorCache{})
+		// 删除知识关系
+		tx.Where("user_id = ? AND (source_entry_id IN (?) OR target_entry_id IN (?))",
+			userID.(uint64),
+			tx.Model(&models.KnowledgeBaseEntry{}).Select("id").
+				Where("user_id = ? AND source_type = 1 AND source_id = ?", userID.(uint64), taskID),
+			tx.Model(&models.KnowledgeBaseEntry{}).Select("id").
+				Where("user_id = ? AND source_type = 1 AND source_id = ?", userID.(uint64), taskID)).
+			Delete(&models.KnowledgeRelation{})
+		// 删除知识库条目
+		tx.Where("user_id = ? AND source_type = 1 AND source_id = ?", userID.(uint64), taskID).
+			Delete(&models.KnowledgeBaseEntry{})
+
+		// 4. 删除笔记
 		if err := tx.Unscoped().Where("task_id = ? AND user_id = ?", taskID, userID.(uint64)).Delete(&models.StudyNote{}).Error; err != nil {
 			return err
 		}
+
+		// 5. 删除任务
 		if err := tx.Unscoped().Delete(&task).Error; err != nil {
 			return err
 		}
@@ -763,10 +808,10 @@ func completeTask(c *gin.Context) {
 		_, _ = points.AwardTaskCompletion(uid, tid)
 	}(rewardUserID, task.ID)
 
-	// 自动将任务添加到知识库
+	// 自动将任务知识点添加到知识库（聚合任务+笔记）
 	if ragService != nil {
 		go func() {
-			_, _ = ragService.AddDocument(userID.(uint64), 1, taskID, task.Title, task.Description)
+			_, _ = ragService.AddTaskKnowledge(userID.(uint64), taskID)
 		}()
 	}
 
@@ -873,10 +918,10 @@ func completeTaskWithNote(c *gin.Context) {
 		}(rewardUserID, task.ID)
 	}
 
-	// 自动将任务添加到知识库
+	// 自动将任务知识点添加到知识库（聚合任务+笔记）
 	if ragService != nil {
 		go func() {
-			_, _ = ragService.AddDocument(userID.(uint64), 1, taskID, task.Title, task.Description)
+			_, _ = ragService.AddTaskKnowledge(userID.(uint64), taskID)
 		}()
 	}
 
