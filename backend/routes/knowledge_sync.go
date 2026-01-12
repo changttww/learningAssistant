@@ -49,6 +49,7 @@ func syncTasksToKnowledge(c *gin.Context) {
 		// 获取用户所有任务（不仅仅是已完成的）
 		var tasks []models.Task
 		if err := db.Where("created_by = ? OR owner_user_id = ?", targetUserID, targetUserID).
+			Order("id desc").
 			Find(&tasks).Error; err != nil {
 			// 异步任务中的错误只能打印日志
 			return
@@ -94,7 +95,7 @@ func syncNotesToKnowledge(c *gin.Context) {
 
 		// 获取用户所有笔记
 		var notes []models.StudyNote
-		if err := db.Where("user_id = ?", targetUserID).Find(&notes).Error; err != nil {
+		if err := db.Where("user_id = ?", targetUserID).Order("id desc").Find(&notes).Error; err != nil {
 			return
 		}
 
@@ -143,7 +144,7 @@ func syncAllToKnowledge(c *gin.Context) {
 
 		// 同步任务 - 使用任务聚合方式（任务+笔记聚合为一个知识点）
 		var tasks []models.Task
-		db.Where("created_by = ? OR owner_user_id = ?", targetUserID, targetUserID).Find(&tasks)
+		db.Where("created_by = ? OR owner_user_id = ?", targetUserID, targetUserID).Order("id desc").Find(&tasks)
 
 		for _, task := range tasks {
 			// 如果标题和描述都为空，跳过
@@ -155,7 +156,7 @@ func syncAllToKnowledge(c *gin.Context) {
 
 		// 同步独立笔记（不关联任务的笔记）
 		var notes []models.StudyNote
-		db.Where("user_id = ? AND task_id IS NULL", targetUserID).Find(&notes)
+		db.Where("user_id = ? AND task_id IS NULL", targetUserID).Order("id desc").Find(&notes)
 
 		for _, note := range notes {
 			// 如果标题和内容都为空，跳过
@@ -231,7 +232,7 @@ func syncTeamKnowledge(c *gin.Context) {
 
 		// 拉取团队任务
 		var tasks []models.Task
-		if err := db.Where("owner_team_id = ?", targetTeamID).Find(&tasks).Error; err != nil {
+		if err := db.Where("owner_team_id = ?", targetTeamID).Order("id desc").Find(&tasks).Error; err != nil {
 			return
 		}
 
