@@ -63,28 +63,6 @@
               <span>已加入{{ studyGroupCount }}个学习小组</span>
             </div>
           </div>
-          <div class="mt-3 flex gap-2">
-            <button
-              class="bg-[#2D5BFF] text-white font-medium py-1.5 px-3 rounded-lg text-xs hover:bg-opacity-90 transition-colors flex items-center gap-1"
-            >
-              <iconify-icon
-                icon="mdi:pencil"
-                width="14"
-                height="14"
-              ></iconify-icon>
-              编辑个人资料
-            </button>
-            <button
-              class="bg-gray-100 text-gray-700 font-medium py-1.5 px-3 rounded-lg text-xs hover:bg-gray-200 transition-colors flex items-center gap-1"
-            >
-              <iconify-icon
-                icon="mdi:share"
-                width="14"
-                height="14"
-              ></iconify-icon>
-              分享主页
-            </button>
-          </div>
         </div>
         <div class="md:text-right">
           <div class="flex flex-col items-center md:items-end">

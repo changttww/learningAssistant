@@ -139,22 +139,6 @@
           </div>
         </div>
 
-        <div class="form-options">
-          <label class="checkbox-wrapper">
-            <input
-              v-model="registerForm.acceptTerms"
-              type="checkbox"
-              class="checkbox"
-            />
-            <span class="checkbox-label">
-              我已阅读并同意
-              <a href="#" class="link">用户协议</a>
-              与
-              <a href="#" class="link">隐私政策</a>
-            </span>
-          </label>
-        </div>
-
         <button type="submit" class="register-btn" :disabled="loading">
           <iconify-icon
             v-if="loading"
@@ -211,7 +195,6 @@
           email: "",
           password: "",
           confirmPassword: "",
-          acceptTerms: false,
         },
         showPassword: false,
         showConfirmPassword: false,
@@ -220,10 +203,6 @@
     },
     methods: {
       validateForm() {
-        if (!this.registerForm.acceptTerms) {
-          alert("请先阅读并同意用户协议与隐私政策");
-          return false;
-        }
         if (this.registerForm.password !== this.registerForm.confirmPassword) {
           alert("两次输入的密码不一致");
           return false;
@@ -410,35 +389,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-
-  .form-options {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 14px;
-  }
-
-  .checkbox-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #4b5563;
-  }
-
-  .checkbox-label {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-
-  .link {
-    color: #2563eb;
-    text-decoration: none;
-  }
-
-  .link:hover {
-    text-decoration: underline;
   }
 
   .register-btn {

@@ -77,7 +77,6 @@
             />
             <span class="checkbox-label">记住我</span>
           </label>
-          <a href="#" class="forgot-link">忘记密码？</a>
         </div>
 
         <button type="submit" class="login-btn" :disabled="loading">
@@ -91,23 +90,6 @@
           <span>{{ loading ? "登录中..." : "登录" }}</span>
         </button>
       </form>
-
-      <!-- 分割线 -->
-      <div class="divider">
-        <span>或</span>
-      </div>
-
-      <!-- 第三方登录 -->
-      <div class="social-login">
-        <button class="social-btn github">
-          <iconify-icon icon="mdi:github" width="20" height="20"></iconify-icon>
-          <span>GitHub登录</span>
-        </button>
-        <button class="social-btn google">
-          <iconify-icon icon="mdi:google" width="20" height="20"></iconify-icon>
-          <span>Google登录</span>
-        </button>
-      </div>
 
       <!-- 注册链接 -->
       <div class="register-link">
@@ -349,16 +331,6 @@
     color: #374151;
   }
 
-  .forgot-link {
-    font-size: 14px;
-    color: #667eea;
-    text-decoration: none;
-  }
-
-  .forgot-link:hover {
-    text-decoration: underline;
-  }
-
   .login-btn {
     width: 100%;
     background: #667eea;
@@ -384,66 +356,6 @@
   .login-btn:disabled {
     opacity: 0.7;
     cursor: not-allowed;
-  }
-
-  .divider {
-    text-align: center;
-    margin: 24px 0;
-    position: relative;
-  }
-
-  .divider::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: #e5e7eb;
-  }
-
-  .divider span {
-    background: white;
-    padding: 0 16px;
-    color: #9ca3af;
-    font-size: 14px;
-  }
-
-  .social-login {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 24px;
-  }
-
-  .social-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 10px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    background: white;
-    color: #374151;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .social-btn:hover {
-    background: #f9fafb;
-    transform: translateY(-1px);
-  }
-
-  .social-btn.github:hover {
-    border-color: #24292e;
-    color: #24292e;
-  }
-
-  .social-btn.google:hover {
-    border-color: #ea4335;
-    color: #ea4335;
   }
 
   .register-link {
@@ -525,8 +437,5 @@
       font-size: 24px;
     }
 
-    .social-login {
-      flex-direction: column;
-    }
   }
 </style>
