@@ -290,8 +290,9 @@ func (r *DefaultRAGService) AddDocument(userID uint64, sourceType int8, sourceID
 	return entry, nil
 }
 
-// AddTaskKnowledge 添加/更新任务知识点（聚合任务及其所有笔记为一个知识点）
-// 一个任务对应一个知识点，内容包含：任务描述 + 所有相关笔记 + 测验答案
+// AddTaskKnowledge 添加/更新任务知识点
+// 简化版：只保存摘要和关联的任务/笔记ID，不再拼接完整内容
+// 详细内容通过跳转到任务或笔记页面查看
 func (r *DefaultRAGService) AddTaskKnowledge(userID uint64, taskID uint64) (*models.KnowledgeBaseEntry, error) {
 	db := database.GetDB()
 
@@ -306,82 +307,68 @@ func (r *DefaultRAGService) AddTaskKnowledge(userID uint64, taskID uint64) (*mod
 		return nil, fmt.Errorf("无权访问该任务")
 	}
 
-	// 2. 获取任务关联的所有笔记
+	// 2. 获取任务关联的所有笔记ID
 	var notes []models.StudyNote
-	db.Where("task_id = ? AND user_id = ?", taskID, userID).Find(&notes)
+	db.Where("task_id = ? AND user_id = ?", taskID, userID).Select("id", "title").Find(&notes)
 
-	// 3. 获取任务关联的测验记录
-	var quizRecords []models.TaskQuizRecord
-	db.Where("task_id = ? AND user_id = ?", taskID, userID).Find(&quizRecords)
-
-	// 4. 聚合内容
-	var contentBuilder strings.Builder
-
-	// 任务描述
-	if task.Description != "" {
-		contentBuilder.WriteString("【任务描述】\n")
-		contentBuilder.WriteString(stripHTMLTags(task.Description))
-		contentBuilder.WriteString("\n\n")
-	}
-
-	// 笔记内容
-	if len(notes) > 0 {
-		contentBuilder.WriteString("【学习笔记】\n")
-		for i, note := range notes {
-			if note.Content != "" {
-				if i > 0 {
-					contentBuilder.WriteString("\n---\n")
-				}
-				if note.Title != "" {
-					contentBuilder.WriteString(fmt.Sprintf("# %s\n", stripHTMLTags(note.Title)))
-				}
-				contentBuilder.WriteString(stripHTMLTags(note.Content))
-			}
-		}
-		contentBuilder.WriteString("\n\n")
-	}
-
-	// 测验答案
-	if len(quizRecords) > 0 {
-		contentBuilder.WriteString("【测验答案】\n")
-		for _, quiz := range quizRecords {
-			// 解析测验内容和答案
-			var answers []map[string]interface{}
-			if err := json.Unmarshal(quiz.Answers, &answers); err == nil {
-				for _, ans := range answers {
-					if q, ok := ans["question"].(string); ok {
-						contentBuilder.WriteString(fmt.Sprintf("问：%s\n", q))
-					}
-					if a, ok := ans["answer"].(string); ok {
-						contentBuilder.WriteString(fmt.Sprintf("答：%s\n", a))
-					}
-				}
-			}
+	// 收集笔记ID列表
+	noteIDs := make([]uint64, 0, len(notes))
+	noteTitles := make([]string, 0, len(notes))
+	for _, note := range notes {
+		noteIDs = append(noteIDs, note.ID)
+		if note.Title != "" {
+			noteTitles = append(noteTitles, stripHTMLTags(note.Title))
 		}
 	}
+	noteIDsJSON, _ := json.Marshal(noteIDs)
 
-	aggregatedContent := contentBuilder.String()
-
-	// 如果没有任何内容，使用任务标题
-	if aggregatedContent == "" {
-		aggregatedContent = task.Title
-	}
-
-	// 5. 清理并生成知识点数据
+	// 3. 构建用于AI分析的简短内容（只用于生成摘要和分类，不存储完整内容）
 	cleanTitle := stripHTMLTags(task.Title)
-	cleanContent := stripHTMLTags(aggregatedContent)
+	cleanDesc := stripHTMLTags(task.Description)
 
-	summary := generateSummary(cleanContent)
-	keywords := extractKeywords(cleanContent)
-	category, subCategory, subject := classifyContent(cleanTitle, cleanContent)
+	// 简短内容：任务标题 + 描述摘要 + 笔记标题
+	var briefContent strings.Builder
+	briefContent.WriteString(cleanTitle)
+	if cleanDesc != "" {
+		// 只取描述的前200字用于分析
+		descRunes := []rune(cleanDesc)
+		if len(descRunes) > 200 {
+			briefContent.WriteString("\n")
+			briefContent.WriteString(string(descRunes[:200]))
+		} else {
+			briefContent.WriteString("\n")
+			briefContent.WriteString(cleanDesc)
+		}
+	}
+	if len(noteTitles) > 0 {
+		briefContent.WriteString("\n关联笔记: ")
+		briefContent.WriteString(strings.Join(noteTitles, ", "))
+	}
+
+	contentForAnalysis := briefContent.String()
+
+	// 4. 生成知识点数据
+	summary := generateSummary(contentForAnalysis)
+	keywords := extractKeywords(contentForAnalysis)
+	category, subCategory, subject := classifyContent(cleanTitle, contentForAnalysis)
 	displayConfig := GetDisplayConfigForCategory(category)
 
-	// 6. 检查是否已存在该任务的知识条目（按 task_id 查找）
+	// 5. 简化的存储内容（只存必要信息用于搜索）
+	// 不再拼接完整的笔记内容，详情通过跳转查看
+	storedContent := cleanTitle
+	if cleanDesc != "" {
+		descRunes := []rune(cleanDesc)
+		if len(descRunes) > 300 {
+			storedContent += "\n" + string(descRunes[:300]) + "..."
+		} else {
+			storedContent += "\n" + cleanDesc
+		}
+	}
+
+	// 6. 检查是否已存在该任务的知识条目
 	var existingEntry models.KnowledgeBaseEntry
-	// 使用 task_id 字段查找，如果不存在则使用 source_type=1 AND source_id=taskID
 	result := db.Where("user_id = ? AND task_id = ?", userID, taskID).First(&existingEntry)
 	if result.Error != nil {
-		// 兼容旧数据：尝试用 source_type + source_id 查找
 		result = db.Where("user_id = ? AND source_type = 1 AND source_id = ?", userID, taskID).First(&existingEntry)
 	}
 
@@ -389,7 +376,7 @@ func (r *DefaultRAGService) AddTaskKnowledge(userID uint64, taskID uint64) (*mod
 		// 已存在，更新内容
 		updates := map[string]interface{}{
 			"title":         cleanTitle,
-			"content":       cleanContent,
+			"content":       storedContent,
 			"summary":       summary,
 			"keywords":      keywords,
 			"category":      category,
@@ -398,7 +385,8 @@ func (r *DefaultRAGService) AddTaskKnowledge(userID uint64, taskID uint64) (*mod
 			"display_color": displayConfig.Color,
 			"display_icon":  displayConfig.Icon,
 			"subject":       subject,
-			"task_id":       taskID, // 确保 task_id 字段被设置
+			"task_id":       taskID,
+			"note_ids":      noteIDsJSON,
 		}
 		if err := db.Model(&existingEntry).Updates(updates).Error; err != nil {
 			return nil, fmt.Errorf("更新知识库条目失败: %w", err)
@@ -406,7 +394,7 @@ func (r *DefaultRAGService) AddTaskKnowledge(userID uint64, taskID uint64) (*mod
 
 		// 更新向量缓存
 		if vector, err := r.embeddingService.GenerateEmbedding(cleanTitle + " " + summary); err == nil {
-			contentHash := md5Hash(cleanContent)
+			contentHash := md5Hash(storedContent)
 			db.Unscoped().Where("entry_id = ?", existingEntry.ID).Delete(&models.KnowledgeVectorCache{})
 			cache := &models.KnowledgeVectorCache{
 				EntryID:     existingEntry.ID,
@@ -428,8 +416,9 @@ func (r *DefaultRAGService) AddTaskKnowledge(userID uint64, taskID uint64) (*mod
 		SourceType:   1, // 任务知识点
 		SourceID:     taskID,
 		TaskID:       &taskIDPtr,
+		NoteIDs:      noteIDsJSON,
 		Title:        cleanTitle,
-		Content:      cleanContent,
+		Content:      storedContent,
 		Summary:      summary,
 		Keywords:     keywords,
 		Category:     category,
@@ -447,7 +436,7 @@ func (r *DefaultRAGService) AddTaskKnowledge(userID uint64, taskID uint64) (*mod
 
 	// 生成向量并缓存
 	if vector, err := r.embeddingService.GenerateEmbedding(cleanTitle + " " + summary); err == nil {
-		contentHash := md5Hash(cleanContent)
+		contentHash := md5Hash(storedContent)
 		cache := &models.KnowledgeVectorCache{
 			EntryID:     entry.ID,
 			ContentHash: contentHash,

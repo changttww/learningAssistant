@@ -124,10 +124,13 @@
           </span>
         </div>
         <h3 class="knowledge-title">{{ item.title }}</h3>
-        <p class="knowledge-summary">{{ truncateText(item.summary || item.content, 120) }}</p>
+        <p class="knowledge-summary">{{ truncateText(item.summary || '点击查看详情', 120) }}</p>
         <div class="card-footer">
           <span class="knowledge-date">
             {{ formatDate(item.created_at) }}
+          </span>
+          <span class="source-count" v-if="item.task_id || getRelatedNoteIds(item).length > 0">
+            📎 {{ getSourceCountText(item) }}
           </span>
         </div>
         <div class="card-actions">
@@ -204,13 +207,76 @@
               创建: {{ formatDate(selectedItem.created_at) }}
             </span>
           </div>
-          <div class="detail-content">
-            <h4>内容</h4>
-            <div class="content-text">{{ selectedItem.content }}</div>
+          
+          <!-- 摘要（主要展示内容） -->
+          <div class="detail-summary">
+            <h4>📝 知识摘要</h4>
+            <p class="summary-text">{{ selectedItem.summary || '暂无摘要' }}</p>
           </div>
-          <div class="detail-summary" v-if="selectedItem.summary">
-            <h4>摘要</h4>
-            <p>{{ selectedItem.summary }}</p>
+
+          <!-- 关联来源 -->
+          <div class="detail-sources">
+            <h4>📎 关联来源</h4>
+            <div class="source-links">
+              <!-- 关联任务 -->
+              <div v-if="selectedItem.task_id" class="source-item">
+                <span class="source-icon">📋</span>
+                <span class="source-label">关联任务：</span>
+                <button class="link-btn" @click="goToTask(selectedItem.task_id)">
+                  查看任务详情 →
+                </button>
+              </div>
+              
+              <!-- 关联笔记列表 -->
+              <div v-if="getRelatedNoteIds(selectedItem).length > 0" class="source-item notes-source">
+                <span class="source-icon">📓</span>
+                <span class="source-label">关联笔记 ({{ getRelatedNoteIds(selectedItem).length }})：</span>
+                <div class="note-links">
+                  <button 
+                    v-for="(noteId, idx) in getRelatedNoteIds(selectedItem)" 
+                    :key="noteId"
+                    class="link-btn note-link"
+                    @click="goToNote(noteId)"
+                  >
+                    笔记 {{ idx + 1 }} →
+                  </button>
+                </div>
+              </div>
+              
+              <!-- 单个笔记来源 -->
+              <div v-else-if="selectedItem.note_id" class="source-item">
+                <span class="source-icon">📓</span>
+                <span class="source-label">关联笔记：</span>
+                <button class="link-btn" @click="goToNote(selectedItem.note_id)">
+                  查看笔记详情 →
+                </button>
+              </div>
+              
+              <!-- 无关联来源 -->
+              <div v-if="!selectedItem.task_id && !selectedItem.note_id && getRelatedNoteIds(selectedItem).length === 0" class="source-item empty">
+                <span class="source-icon">📌</span>
+                <span class="source-label">手动添加的知识点</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 智能标签（用分类、子分类、能力维度代替关键词） -->
+          <div class="detail-tags" v-if="selectedItem.category || selectedItem.sub_category || selectedItem.subject">
+            <h4>🏷️ 智能标签</h4>
+            <div class="tags-list">
+              <!-- 一级分类 -->
+              <span v-if="selectedItem.category" class="smart-tag tag-category">
+                {{ selectedItem.category }}
+              </span>
+              <!-- 二级分类 -->
+              <span v-if="selectedItem.sub_category" class="smart-tag tag-subcategory">
+                {{ selectedItem.sub_category }}
+              </span>
+              <!-- 能力维度 -->
+              <span v-if="selectedItem.subject" class="smart-tag tag-subject">
+                {{ selectedItem.subject }}
+              </span>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -593,6 +659,71 @@ export default {
       } finally {
         this.syncing = false;
       }
+    },
+
+    // 解析关联的笔记ID列表
+    getRelatedNoteIds(item) {
+      if (!item || !item.note_ids) return [];
+      // note_ids 可能是 JSON 字符串或数组
+      if (Array.isArray(item.note_ids)) {
+        return item.note_ids.filter(id => id);
+      }
+      try {
+        const parsed = typeof item.note_ids === 'string' ? JSON.parse(item.note_ids) : item.note_ids;
+        return Array.isArray(parsed) ? parsed.filter(id => id) : [];
+      } catch (e) {
+        console.warn('[知识库] 解析 note_ids 失败:', e);
+        return [];
+      }
+    },
+
+    // 解析关键词
+    parseKeywords(keywords) {
+      if (!keywords) return [];
+      if (Array.isArray(keywords)) return keywords;
+      try {
+        const parsed = typeof keywords === 'string' ? JSON.parse(keywords) : keywords;
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    },
+
+    // 跳转到任务详情
+    goToTask(taskId) {
+      if (!taskId) return;
+      this.closeDetail();
+      // 跳转到个人任务页面，并携带任务ID参数用于打开详情
+      this.$router.push({ 
+        path: '/personal-tasks', 
+        query: { openTask: taskId } 
+      });
+    },
+
+    // 跳转到笔记详情
+    goToNote(noteId) {
+      if (!noteId) return;
+      this.closeDetail();
+      // 跳转到个人任务页面，并携带笔记ID参数用于打开笔记
+      this.$router.push({ 
+        path: '/personal-tasks', 
+        query: { openNote: noteId } 
+      });
+    },
+
+    // 获取关联来源数量文本
+    getSourceCountText(item) {
+      const parts = [];
+      if (item.task_id) {
+        parts.push('1任务');
+      }
+      const noteCount = this.getRelatedNoteIds(item).length;
+      if (noteCount > 0) {
+        parts.push(`${noteCount}笔记`);
+      } else if (item.note_id) {
+        parts.push('1笔记');
+      }
+      return parts.join(' + ') || '';
     }
   }
 };
@@ -1021,6 +1152,14 @@ export default {
   color: #9ca3af;
 }
 
+.source-count {
+  font-size: 11px;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
 .knowledge-category {
   display: flex;
   align-items: center;
@@ -1266,6 +1405,146 @@ export default {
   color: #666;
   line-height: 1.6;
   margin: 0;
+}
+
+.summary-text {
+  background: #f0f9ff;
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #374151;
+}
+
+/* 关联来源样式 */
+.detail-sources {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.detail-sources h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0 0 12px 0;
+}
+
+.source-links {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.source-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #666;
+}
+
+.source-item.notes-source {
+  flex-wrap: wrap;
+}
+
+.source-item.empty {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.source-icon {
+  font-size: 16px;
+}
+
+.source-label {
+  color: #666;
+}
+
+.link-btn {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.link-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.note-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  width: 100%;
+  padding-left: 24px;
+}
+
+.note-link {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.note-link:hover {
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* 智能标签样式 */
+.detail-tags {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.detail-tags h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin: 0 0 12px 0;
+}
+
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.smart-tag {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid;
+}
+
+/* 一级分类 - 蓝色 */
+.tag-category {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
+/* 二级分类 - 紫色 */
+.tag-subcategory {
+  background: #ede9fe;
+  color: #6d28d9;
+  border-color: #c4b5fd;
+}
+
+/* 能力维度 - 绿色 */
+.tag-subject {
+  background: #d1fae5;
+  color: #047857;
+  border-color: #6ee7b7;
 }
 
 .warning-text {
