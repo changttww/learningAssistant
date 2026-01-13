@@ -1274,7 +1274,7 @@ export default {
         this.teamNameInput = "";
         this.showJoinModal = false;
         await this.loadAllTeams();
-        const msg = res.data?.msg || "加入成功";
+        const msg = res.msg || res.data?.msg || "加入成功";
         alert(msg);
       } catch (error) {
         console.error("加入团队失败", error);
