@@ -30,19 +30,19 @@ func registerNoteEnhanceRoutes(router *gin.RouterGroup) {
 
 // NoteEnhanceRequest 笔记增强请求
 type NoteEnhanceRequest struct {
-	NoteID  uint64 `json:"note_id"`  // 笔记ID（可选，如果提供则从数据库读取）
-	Content string `json:"content"`  // 笔记内容
-	Title   string `json:"title"`    // 笔记标题
-	Type    string `json:"type"`     // 增强类型：all/summary/keywords/mindmap/questions/polish
+	NoteID  uint64 `json:"note_id"` // 笔记ID（可选，如果提供则从数据库读取）
+	Content string `json:"content"` // 笔记内容
+	Title   string `json:"title"`   // 笔记标题
+	Type    string `json:"type"`    // 增强类型：all/summary/keywords/mindmap/questions/polish
 }
 
 // NoteEnhanceResponse 笔记增强响应
 type NoteEnhanceResponse struct {
-	Summary    *NoteSummary    `json:"summary,omitempty"`
-	Keywords   *NoteKeywords   `json:"keywords,omitempty"`
-	Mindmap    *NoteMindmap    `json:"mindmap,omitempty"`
-	Questions  *NoteQuestions  `json:"questions,omitempty"`
-	Polish     *NotePolish     `json:"polish,omitempty"`
+	Summary   *NoteSummary   `json:"summary,omitempty"`
+	Keywords  *NoteKeywords  `json:"keywords,omitempty"`
+	Mindmap   *NoteMindmap   `json:"mindmap,omitempty"`
+	Questions *NoteQuestions `json:"questions,omitempty"`
+	Polish    *NotePolish    `json:"polish,omitempty"`
 }
 
 // NoteSummary 笔记摘要
@@ -55,10 +55,10 @@ type NoteSummary struct {
 
 // NoteKeywords 关键词提取
 type NoteKeywords struct {
-	MainKeywords   []KeywordItem `json:"main_keywords"`   // 主要关键词
-	RelatedConcepts []string     `json:"related_concepts"` // 相关概念
-	Category       string        `json:"category"`         // 自动分类
-	Tags           []string      `json:"tags"`             // 推荐标签
+	MainKeywords    []KeywordItem `json:"main_keywords"`    // 主要关键词
+	RelatedConcepts []string      `json:"related_concepts"` // 相关概念
+	Category        string        `json:"category"`         // 自动分类
+	Tags            []string      `json:"tags"`             // 推荐标签
 }
 
 // KeywordItem 关键词项
@@ -83,24 +83,24 @@ type MindmapNode struct {
 
 // NoteQuestions 知识点问题
 type NoteQuestions struct {
-	ReviewQuestions []ReviewQuestion `json:"review_questions"` // 复习问题
-	ThinkingQuestions []string       `json:"thinking_questions"` // 思考题
+	ReviewQuestions   []ReviewQuestion `json:"review_questions"`   // 复习问题
+	ThinkingQuestions []string         `json:"thinking_questions"` // 思考题
 }
 
 // ReviewQuestion 复习问题
 type ReviewQuestion struct {
-	Question   string   `json:"question"`
-	Answer     string   `json:"answer"`
-	Difficulty string   `json:"difficulty"` // easy/medium/hard
-	Type       string   `json:"type"`       // concept/application/analysis
+	Question   string `json:"question"`
+	Answer     string `json:"answer"`
+	Difficulty string `json:"difficulty"` // easy/medium/hard
+	Type       string `json:"type"`       // concept/application/analysis
 }
 
 // NotePolish 笔记润色
 type NotePolish struct {
-	PolishedContent string     `json:"polished_content"` // 润色后的内容
-	Improvements    []string   `json:"improvements"`     // 改进说明
-	Structure       []Section  `json:"structure"`        // 优化后的结构
-	Suggestions     []string   `json:"suggestions"`      // 进一步建议
+	PolishedContent string    `json:"polished_content"` // 润色后的内容
+	Improvements    []string  `json:"improvements"`     // 改进说明
+	Structure       []Section `json:"structure"`        // 优化后的结构
+	Suggestions     []string  `json:"suggestions"`      // 进一步建议
 }
 
 // Section 章节
@@ -526,7 +526,7 @@ func generateAIPolish(apiKey, title, content string) (*NotePolish, error) {
 // callQwenForNoteEnhance 调用千问 API
 func callQwenForNoteEnhance(apiKey, prompt string) (string, error) {
 	reqBody := QwenRequest{
-		Model: "qwen-plus",
+		Model: qwenChatModel(),
 		Messages: []QwenMessage{
 			{Role: "user", Content: prompt},
 		},
@@ -724,7 +724,7 @@ func truncateText(s string, maxLen int) string {
 func generateBasicPolish(title, content string) *NotePolish {
 	// 简单的格式化处理
 	polished := content
-	
+
 	// 分段处理
 	paragraphs := strings.Split(content, "\n")
 	var structure []Section

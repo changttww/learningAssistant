@@ -1019,7 +1019,7 @@ func classifyUserQuery(query string) string {
 分类结果：`, strings.Join(categories, "、"), query)
 
 	reqBody := QwenRequest{
-		Model: "qwen-turbo", // 用轻量模型，快速分类
+		Model: qwenFastModel(), // 用轻量模型，快速分类
 		Messages: []QwenMessage{
 			{Role: "user", Content: prompt},
 		},
@@ -1156,7 +1156,7 @@ func generateGroundedRAGAnswer(query string, contextParts []string, hasRelevantK
 	}
 
 	reqBody := QwenRequest{
-		Model: "qwen-plus",
+		Model: qwenChatModel(),
 		Messages: []QwenMessage{
 			{Role: "user", Content: prompt},
 		},
@@ -1323,7 +1323,7 @@ func generateEnhancedRAGAnswer(query string, contextParts []string, knowledgeOve
 请回答：`
 
 	reqBody := QwenRequest{
-		Model: "qwen-plus",
+		Model: qwenChatModel(),
 		Messages: []QwenMessage{
 			{Role: "user", Content: prompt},
 		},

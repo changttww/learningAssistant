@@ -380,7 +380,7 @@ func callQwenForGuidance(apiKey, title, description, category string) (*TaskGuid
 5. timeAdvice: 给出合理的时间分配建议`, title, description, category)
 
 	reqBody := QwenRequest{
-		Model: "qwen-plus",
+		Model: qwenChatModel(),
 		Messages: []QwenMessage{
 			{Role: "user", Content: prompt},
 		},
@@ -441,7 +441,7 @@ func callQwenForChat(apiKey, message string, history []QwenMessage) (string, err
 	messages = append(messages, QwenMessage{Role: "user", Content: message})
 
 	reqBody := QwenRequest{
-		Model:    "qwen-plus",
+		Model:    qwenChatModel(),
 		Messages: messages,
 	}
 
@@ -524,7 +524,7 @@ func callQwenForStudyPlan(apiKey string, req StudyPlanRequest) (*StudyPlanRespon
 	)
 
 	reqBody := QwenRequest{
-		Model: "qwen-plus",
+		Model: qwenChatModel(),
 		Messages: []QwenMessage{
 			{Role: "user", Content: prompt},
 		},
@@ -613,7 +613,7 @@ func callQwenForRoomIdea(apiKey, prompt string) (*RoomIdeaResponse, error) {
 	}, "\n")
 
 	reqBody := QwenRequest{
-		Model: "qwen-plus",
+		Model: qwenChatModel(),
 		Messages: []QwenMessage{
 			{Role: "user", Content: fmt.Sprintf(template, seed)},
 		},
@@ -755,7 +755,7 @@ func callQwenForQuiz(apiKey string, req QuizGenerateRequest) (*QuizResponse, err
 		}())
 
 	reqBody := QwenRequest{
-		Model: "qwen-plus",
+		Model: qwenChatModel(),
 		Messages: []QwenMessage{
 			{Role: "user", Content: prompt},
 		},
@@ -957,7 +957,7 @@ func callQwenAPI(apiKey, input string) (*ParseTaskResponse, error) {
 		today, tomorrow, dayAfterTomorrow, input, today)
 
 	reqBody := QwenRequest{
-		Model: "qwen-plus",
+		Model: qwenChatModel(),
 		Messages: []QwenMessage{
 			{Role: "user", Content: prompt},
 		},
