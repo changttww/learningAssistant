@@ -21,5 +21,28 @@ func getQwenBaseURL() string {
 
 // qwenChatURL 返回通义聊天补全接口地址
 func qwenChatURL() string {
-	return getQwenBaseURL() + "/compatible-mode/v1/chat/completions"
+	path := strings.TrimSpace(os.Getenv("QWEN_CHAT_COMPLETIONS_PATH"))
+	if path == "" {
+		path = "/compatible-mode/v1/chat/completions"
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return getQwenBaseURL() + path
+}
+
+func qwenChatModel() string {
+	model := strings.TrimSpace(os.Getenv("QWEN_CHAT_MODEL"))
+	if model == "" {
+		model = "qwen-plus"
+	}
+	return model
+}
+
+func qwenFastModel() string {
+	model := strings.TrimSpace(os.Getenv("QWEN_FAST_MODEL"))
+	if model == "" {
+		model = "qwen-turbo"
+	}
+	return model
 }
