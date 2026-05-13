@@ -29,8 +29,20 @@ func handleGetRoomChatHistory(c *gin.Context) {
 	}
 
 	db := database.GetDB()
+	session, hasCollaborationSession := getCollaborationSessionByRoom(db, roomID)
+	if teamRoom, hasTeamRoom := getTeamChatRoomByRoom(db, roomID); hasTeamRoom {
+		userID, ok := currentUserID(c)
+		if !ok || teamRoom.TeamID == nil || !canAccessTeam(db, *teamRoom.TeamID, userID) {
+			c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "无权限访问团队聊天室"})
+			return
+		}
+	}
 	var chats []models.ChatMessage
-	if err := db.Where("room_id = ?", roomID).
+	query := db.Where("room_id = ?", roomID)
+	if hasCollaborationSession {
+		query = query.Where("session_id = ?", session.ID)
+	}
+	if err := query.
 		Order("sent_at DESC").
 		Limit(limit).
 		Find(&chats).Error; err != nil {
@@ -46,13 +58,7 @@ func handleGetRoomChatHistory(c *gin.Context) {
 
 	result := make([]map[string]interface{}, 0, len(chats))
 	for _, msg := range chats {
-		result = append(result, map[string]interface{}{
-			"id":           msg.ID,
-			"user_id":      msg.UserID,
-			"display_name": nameMap[msg.UserID],
-			"content":      msg.Content,
-			"sent_at":      msg.SentAt,
-		})
+		result = append(result, buildChatMessageResponse(msg, nameMap[msg.UserID]))
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"code": 200,
@@ -77,18 +83,42 @@ func handlePostRoomChat(c *gin.Context) {
 		return
 	}
 	req.Content = strings.TrimSpace(req.Content)
+	if req.UserID == 0 {
+		if uid, ok := currentUserID(c); ok {
+			req.UserID = uid
+		}
+	}
 	if req.UserID == 0 || req.Content == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "用户ID或内容不能为空"})
 		return
 	}
 
 	db := database.GetDB()
+	session, hasCollaborationSession := getCollaborationSessionByRoom(db, roomID)
+	sessionID := uint64(0)
+	if teamRoom, hasTeamRoom := getTeamChatRoomByRoom(db, roomID); hasTeamRoom {
+		if teamRoom.TeamID == nil || !canAccessTeam(db, *teamRoom.TeamID, req.UserID) {
+			c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "无权限访问团队聊天室"})
+			return
+		}
+	}
+	if hasCollaborationSession {
+		if session.Status == models.TaskCollaborationStatusDismissed {
+			c.JSON(http.StatusConflict, gin.H{"code": 409, "message": "协作会话已结束"})
+			return
+		}
+		if !canAccessCollaborationSession(db, &session, req.UserID) {
+			c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "无权限访问协作会话"})
+			return
+		}
+		sessionID = session.ID
+	}
 	chat := models.ChatMessage{
-		SessionID: 0,
+		SessionID: sessionID,
 		RoomID:    roomID,
 		UserID:    req.UserID,
 		Content:   req.Content,
-		MsgType:   0,
+		MsgType:   models.ChatMessageTypeText,
 		SentAt:    time.Now(),
 	}
 	if err := db.Create(&chat).Error; err != nil {
@@ -100,13 +130,7 @@ func handlePostRoomChat(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code": 200,
 		"data": gin.H{
-			"message": map[string]interface{}{
-				"id":           chat.ID,
-				"user_id":      chat.UserID,
-				"display_name": name,
-				"content":      chat.Content,
-				"sent_at":      chat.SentAt,
-			},
+			"message": buildChatMessageResponse(chat, name),
 		},
 	})
 }

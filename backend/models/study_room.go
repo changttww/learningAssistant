@@ -10,6 +10,7 @@ type StudyRoom struct {
 	TeamID             *uint64    `json:"team_id"`
 	Description        string     `gorm:"type:varchar(256)" json:"description"`
 	Tags               string     `gorm:"type:varchar(128)" json:"tags"`
+	RoomKind           string     `gorm:"type:varchar(32);default:study;index" json:"room_kind"`
 	MaxMembers         int        `gorm:"default:0" json:"max_members"`
 	IsPrivate          bool       `gorm:"default:false" json:"is_private"`
 	AccessCode         string     `gorm:"type:varchar(256)" json:"-"`
@@ -50,7 +51,7 @@ type ChatMessage struct {
 	RoomID    uint64    `json:"room_id"`
 	UserID    uint64    `json:"user_id"`
 	Content   string    `gorm:"type:text;not null" json:"content"`
-	MsgType   int8      `gorm:"default:0;comment:0=text,1=image,2=file,3=system" json:"msg_type"`
+	MsgType   int8      `gorm:"default:0;comment:0=text,1=image,2=file,3=system,4=knowledge_card" json:"msg_type"`
 	SentAt    time.Time `gorm:"precision:3;autoCreateTime" json:"sent_at"`
 }
 

@@ -11,11 +11,11 @@
         </div>
         <div class="meeting-title">
           <div class="meeting-icon">
-            <iconify-icon icon="mdi:video" width="20"></iconify-icon>
+            <iconify-icon icon="mdi:forum" width="20"></iconify-icon>
           </div>
           <div>
-            <div class="title-text">快速会议室</div>
-            <div class="title-sub">团队私有 · 仅限当前团队成员进入</div>
+            <div class="title-text">团队聊天室</div>
+            <div class="title-sub">团队私有 · 持久沟通空间</div>
           </div>
         </div>
       </div>
@@ -36,10 +36,10 @@
         <div class="meeting-card">
           <div class="card-header">
             <div>
-              <h2>会议概览</h2>
-              <p class="muted">团队专属的临时会议空间，支持实时聊天与在线成员。</p>
+              <h2>聊天室概览</h2>
+              <p class="muted">团队专属的持久沟通空间，消息会长期保留。</p>
             </div>
-            <div class="pill">私有会议</div>
+            <div class="pill">团队沟通</div>
           </div>
           <div class="overview-grid">
             <div class="overview-item">
@@ -47,8 +47,8 @@
               <div class="overview-value">{{ teamIdLabel }}</div>
             </div>
             <div class="overview-item">
-              <div class="overview-label">会议类型</div>
-              <div class="overview-value">团队内部</div>
+              <div class="overview-label">空间类型</div>
+              <div class="overview-value">持久聊天室</div>
             </div>
             <div class="overview-item">
               <div class="overview-label">当前在线</div>
@@ -56,11 +56,11 @@
             </div>
           </div>
           <div class="notice-card">
-            <h3>会议提醒</h3>
+            <h3>沟通提醒</h3>
             <ul>
-              <li>本会议室不会出现在公共自习室列表。</li>
-              <li>仅支持团队成员进入与聊天。</li>
-              <li>需要讨论时可直接在右侧发消息。</li>
+              <li>本聊天室不会出现在公共自习室列表。</li>
+              <li>仅团队成员可进入与聊天。</li>
+              <li>团队日常同步可以直接在右侧发消息。</li>
             </ul>
           </div>
         </div>
@@ -81,13 +81,13 @@
               </div>
               <span class="status-tag" :class="member.statusClass">{{ member.statusText }}</span>
             </div>
-            <div class="empty-state" v-if="!members.length">等待成员进入会议室...</div>
+            <div class="empty-state" v-if="!members.length">等待成员进入聊天室...</div>
           </div>
         </div>
 
         <div class="meeting-card chat-card">
           <div class="card-header">
-            <h2>会议聊天</h2>
+            <h2>团队聊天</h2>
           </div>
           <div class="chat-messages" ref="messagesContainer">
             <div class="chat-group" v-for="(group, index) in groupedMessages" :key="index">
@@ -113,7 +113,7 @@
             <input
               v-model="newMessage"
               type="text"
-              placeholder="输入会议消息..."
+              placeholder="输入团队消息..."
               @keydown.enter="sendMessage"
             />
             <button :disabled="!newMessage.trim()" @click="sendMessage">发送</button>
@@ -129,7 +129,7 @@ import { computed, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { useCurrentUser } from "@/composables/useCurrentUser";
 import { getRoomChatHistory } from "@/api/modules/study";
-import { getTeamDetail } from "@/api/modules/team";
+import { ensureTeamChatRoom, getTeamDetail } from "@/api/modules/team";
 import { apiConfig } from "@/config";
 
 export default {
@@ -144,7 +144,7 @@ export default {
     });
 
     const currentUserName = computed(
-      () => profile.value?.display_name || "会议成员"
+      () => profile.value?.display_name || "团队成员"
     );
     const currentUserId = computed(() => profile.value?.id || 1);
 
@@ -161,6 +161,7 @@ export default {
       ws: null,
       wsConnected: false,
       teamInfo: null,
+      room: null,
     };
   },
   computed: {
@@ -174,6 +175,9 @@ export default {
       const raw = this.$route.params.teamId;
       const numeric = Number(raw);
       return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
+    },
+    roomIdValue() {
+      return Number(this.room?.id || 0);
     },
     onlineCount() {
       return this.members.length;
@@ -199,20 +203,12 @@ export default {
     },
   },
   mounted() {
-    if (!this.ensureEntry()) {
-      return;
-    }
-    if (this.teamIdValue) {
-      this.loadChatHistory();
-      this.loadTeamInfo();
-    }
-    this.connectWebSocket();
+    this.bootstrapTeamChat();
   },
   beforeUnmount() {
     if (this.ws) {
       this.ws.close();
     }
-    this.clearEntryFlag();
   },
   methods: {
     goBack() {
@@ -222,26 +218,20 @@ export default {
         this.$router.push({ name: 'TeamTasks' });
       }
     },
-    ensureEntry() {
-      const currentId = String(this.$route.params.teamId || "");
-      let allowed = "";
-      try {
-        allowed = sessionStorage.getItem("team:quickMeeting") || "";
-      } catch (error) {
-        console.warn("无法读取会议室访问标记", error);
+    async bootstrapTeamChat() {
+      if (!this.teamIdValue) {
+        this.$router.push({ name: "TeamTasks" });
+        return;
       }
-      if (!currentId || !allowed || allowed !== currentId) {
-        alert("该会议室仅可从团队任务入口进入");
-        this.$router.push("/team-tasks");
-        return false;
-      }
-      return true;
-    },
-    clearEntryFlag() {
+      await this.loadTeamInfo();
       try {
-        sessionStorage.removeItem("team:quickMeeting");
+        const res = await ensureTeamChatRoom(this.teamIdValue);
+        this.room = res?.data?.room || res?.data?.data?.room || res?.room;
+        await this.loadChatHistory();
+        this.connectWebSocket();
       } catch (error) {
-        console.warn("无法清理会议室访问标记", error);
+        console.error("进入团队聊天室失败", error);
+        ElMessage.error("进入团队聊天室失败");
       }
     },
     wsUrl() {
@@ -252,10 +242,10 @@ export default {
         user_id: this.currentUserId,
         display_name: this.currentUserName,
       });
-      return `${protocol}//${host}/api/study/rooms/${this.teamIdValue}/ws?${params.toString()}`;
+      return `${protocol}//${host}/api/study/rooms/${this.roomIdValue}/ws?${params.toString()}`;
     },
     connectWebSocket() {
-      if (!this.teamIdValue) return;
+      if (!this.roomIdValue) return;
       try {
         this.ws = new WebSocket(this.wsUrl());
       } catch (error) {
@@ -312,7 +302,7 @@ export default {
         name: m.display_name || "成员",
         avatarType: (index % 6) + 1,
         statusText: "在线",
-        statusLabel: "会议中",
+        statusLabel: "聊天室在线",
         statusClass: "tag-focus",
       }));
     },
@@ -326,7 +316,7 @@ export default {
           name: data.display_name || "成员",
           avatarType: (this.members.length % 6) + 1,
           statusText: "在线",
-          statusLabel: "会议中",
+          statusLabel: "聊天室在线",
           statusClass: "tag-focus",
         });
       }
@@ -351,9 +341,9 @@ export default {
       }
     },
     async loadChatHistory() {
-      if (!this.teamIdValue) return;
+      if (!this.roomIdValue) return;
       try {
-        const res = await getRoomChatHistory(this.teamIdValue, { limit: 100 });
+        const res = await getRoomChatHistory(this.roomIdValue, { limit: 100 });
         const items = res?.data?.messages || [];
         this.messages = items
           .slice()

@@ -19,6 +19,13 @@ export function getTeamDetail(teamId) {
 }
 
 /**
+ * 获取或创建团队持久聊天室
+ */
+export function ensureTeamChatRoom(teamId) {
+  return request.post(`/teams/${teamId}/chat-room`);
+}
+
+/**
  * 创建团队
  */
 export function createTeam(data) {

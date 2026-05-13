@@ -142,6 +142,12 @@ func (h *studyRoomHub) handleWebSocket(c *gin.Context) {
 	if displayName == "" {
 		displayName = "学习者"
 	}
+	if room, ok := getTeamChatRoomByRoom(database.GetDB(), roomID); ok {
+		if room.TeamID == nil || !canAccessTeam(database.GetDB(), *room.TeamID, userID) {
+			c.JSON(http.StatusForbidden, gin.H{"code": 403, "message": "无权限访问团队聊天室"})
+			return
+		}
+	}
 
 	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -382,14 +388,28 @@ func (h *studyRoomHub) handleEvent(client *studyClient, env wsEnvelope) {
 		if content == "" {
 			return
 		}
+		sessionID := uint64(0)
+		if room, ok := getTeamChatRoomByRoom(database.GetDB(), h.roomID); ok {
+			if room.TeamID == nil || !canAccessTeam(database.GetDB(), *room.TeamID, client.userID) {
+				client.send <- wsEnvelope{Type: "error", Data: mustMarshal(map[string]string{"message": "无权限访问团队聊天室"})}
+				return
+			}
+		}
+		if session, ok := getCollaborationSessionByRoom(database.GetDB(), h.roomID); ok {
+			if session.Status == models.TaskCollaborationStatusDismissed || !canAccessCollaborationSession(database.GetDB(), &session, client.userID) {
+				client.send <- wsEnvelope{Type: "error", Data: mustMarshal(map[string]string{"message": "协作会话已结束或无权限发送消息"})}
+				return
+			}
+			sessionID = session.ID
+		}
 		now := time.Now()
 		db := database.GetDB()
 		chat := models.ChatMessage{
-			SessionID: 0,
+			SessionID: sessionID,
 			RoomID:    h.roomID,
 			UserID:    client.userID,
 			Content:   content,
-			MsgType:   0,
+			MsgType:   models.ChatMessageTypeText,
 			SentAt:    now,
 		}
 		if err := db.Create(&chat).Error; err != nil {
@@ -401,6 +421,9 @@ func (h *studyRoomHub) handleEvent(client *studyClient, env wsEnvelope) {
 			"user_id":      client.userID,
 			"display_name": client.displayName,
 			"content":      content,
+			"message_type": "text",
+			"msg_type":     chat.MsgType,
+			"session_id":   chat.SessionID,
 			"sent_at":      sentAt,
 		}
 		h.broadcast(wsEnvelope{Type: "chat", Data: mustMarshal(msg)}, 0)

@@ -40,6 +40,8 @@ Thumbs.db
 
 # Log files
 *.log
+*.db
+*.db-*
 
 # Uploads directory
 uploads/

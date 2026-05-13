@@ -45,6 +45,44 @@ export function getTaskDetail(taskId) {
   return request.get(`/tasks/${taskId}`);
 }
 
+export function createTaskCollaborationSession(taskId) {
+  return request.post(`/tasks/${taskId}/collaboration-sessions`);
+}
+
+export function listTaskCollaborationSessions(taskId) {
+  return request.get(`/tasks/${taskId}/collaboration-sessions`);
+}
+
+export function getTaskCollaborationSession(sessionId) {
+  return request.get(`/tasks/collaboration-sessions/${sessionId}`);
+}
+
+export function dismissTaskCollaborationSession(sessionId) {
+  return request.post(`/tasks/collaboration-sessions/${sessionId}/dismiss`);
+}
+
+export function shareKnowledgeToCollaborationSession(sessionId, knowledgeEntryId) {
+  return request.post(`/tasks/collaboration-sessions/${sessionId}/knowledge-cards`, {
+    knowledge_entry_id: knowledgeEntryId,
+  });
+}
+
+export function getCollaborationSharedKnowledge(sessionId, knowledgeEntryId) {
+  return request.get(`/tasks/collaboration-sessions/${sessionId}/knowledge-cards/${knowledgeEntryId}`);
+}
+
+export function generateTaskCollaborationMinutes(sessionId) {
+  return request.post(`/tasks/collaboration-sessions/${sessionId}/minutes/generate`, {}, { timeout: 60000 });
+}
+
+export function saveTaskCollaborationMinutes(sessionId, minutes) {
+  return request.post(`/tasks/collaboration-sessions/${sessionId}/minutes/save`, { minutes });
+}
+
+export function saveTaskCollaborationTeamKnowledge(sessionId, data) {
+  return request.post(`/tasks/collaboration-sessions/${sessionId}/team-knowledge`, data);
+}
+
 /**
  * 创建任务
  */

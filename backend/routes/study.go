@@ -80,7 +80,8 @@ type studyRoomListItem struct {
 func handleListStudyRooms(c *gin.Context) {
 	db := database.GetDB()
 	var rooms []models.StudyRoom
-	if err := db.Order("created_at DESC").
+	if err := db.Where("room_kind = '' OR room_kind = ? OR room_kind IS NULL", "study").
+		Order("created_at DESC").
 		Find(&rooms).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
@@ -236,6 +237,7 @@ func handleCreateStudyRoom(c *gin.Context) {
 		TeamID:            req.TeamID,
 		Description:       description,
 		Tags:              strings.Join(tags, ","),
+		RoomKind:          "study",
 		MaxMembers:        maxMembers,
 		IsPrivate:         roomType == "private",
 		Status:            1,
