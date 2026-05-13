@@ -499,6 +499,13 @@
                       >
                         {{ isTaskExpanded(task.id) ? "收起详情" : "查看详情" }}
                       </button>
+                      <button
+                        @click="startTaskCollaboration(task)"
+                        class="collab-btn"
+                        :disabled="collaborationLoadingMap[task.id]"
+                      >
+                        {{ collaborationLoadingMap[task.id] ? "处理中..." : collaborationActionLabel(task) }}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -575,10 +582,49 @@
                         <span class="text-xs text-gray-500">{{
                           sub.status
                         }}</span>
+                        <button
+                          class="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded hover:bg-indigo-100 disabled:opacity-50"
+                          :disabled="collaborationLoadingMap[sub.id]"
+                          @click="startTaskCollaboration(sub)"
+                        >
+                          {{ collaborationLoadingMap[sub.id] ? "处理中" : collaborationActionLabel(sub) }}
+                        </button>
                       </div>
                     </li>
                   </ul>
                   <p v-else class="text-xs text-gray-400">暂无子任务</p>
+                </div>
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-sm font-semibold text-gray-700">协作会话</h4>
+                    <button
+                      class="text-xs text-blue-600 hover:text-blue-800"
+                      @click="loadTaskCollaborationSessions(task.id)"
+                    >
+                      {{ sessionHistoryLoadingMap[task.id] ? "刷新中..." : "查看历史" }}
+                    </button>
+                  </div>
+                  <ul
+                    v-if="sessionHistoryMap[task.id]?.length"
+                    class="space-y-2 text-sm mb-3"
+                  >
+                    <li
+                      v-for="session in sessionHistoryMap[task.id]"
+                      :key="session.id"
+                      class="bg-indigo-50 border border-indigo-100 p-2 rounded flex items-center justify-between"
+                    >
+                      <span>
+                        会话 #{{ session.id }} · {{ session.status_label || "进行中" }}
+                      </span>
+                      <button
+                        class="text-xs text-indigo-700 hover:text-indigo-900"
+                        @click="openCollaborationSession(session)"
+                      >
+                        查看
+                      </button>
+                    </li>
+                  </ul>
+                  <p v-else class="text-xs text-gray-400">点击查看历史可载入过往协作会话</p>
                 </div>
                 <div>
                   <div class="flex items-center justify-between mb-2">
@@ -776,15 +822,15 @@
           <div class="grid grid-cols-2 gap-3">
             <button
               class="py-3 bg-blue-50 hover:bg-blue-100 rounded-lg flex flex-col items-center justify-center transition-colors"
-              @click="openQuickMeeting"
+              @click="openTeamChat"
             >
               <iconify-icon
-                icon="mdi:video"
+                icon="mdi:forum"
                 width="24"
                 height="24"
                 style="color: #2d5bff"
               ></iconify-icon>
-              <span class="mt-2 text-sm text-gray-700">快速会议室</span>
+              <span class="mt-2 text-sm text-gray-700">团队聊天室</span>
             </button>
             <button
               class="py-3 bg-orange-50 hover:bg-orange-100 rounded-lg flex flex-col items-center justify-center transition-colors"
@@ -1026,6 +1072,8 @@ import {
   getTaskDetail,
   addTaskComment,
   parseTaskWithAI,
+  createTaskCollaborationSession,
+  listTaskCollaborationSessions,
 } from "@/api/modules/task";
 import {
   getTeamList,
@@ -1066,6 +1114,9 @@ export default {
       },
       expandedTaskIds: [],
       taskDetailCache: {},
+      collaborationLoadingMap: {},
+      sessionHistoryMap: {},
+      sessionHistoryLoadingMap: {},
       newCommentMap: {},
       naturalLanguageInput: "",
       isParsing: false,
@@ -1311,20 +1362,10 @@ export default {
         this.loadingMembers = false;
       }
     },
-    openQuickMeeting() {
+    openTeamChat() {
       if (!this.selectedTeam?.id) {
-        alert("请先选择一个团队再进入会议室");
+        alert("请先选择一个团队再进入团队聊天室");
         return;
-      }
-      if (window?.sessionStorage) {
-        try {
-          sessionStorage.setItem(
-            "team:quickMeeting",
-            String(this.selectedTeam.id)
-          );
-        } catch (error) {
-          console.warn("无法写入会议室访问标记", error);
-        }
       }
       this.$router.push({
         name: "TeamMeetingRoom",
@@ -1495,6 +1536,77 @@ export default {
         this.toggleTaskDetails(taskId);
       }
     },
+    async startTaskCollaboration(task) {
+      if (!task?.id) return;
+      this.collaborationLoadingMap = {
+        ...this.collaborationLoadingMap,
+        [task.id]: true,
+      };
+      try {
+        const res = await createTaskCollaborationSession(task.id);
+        const session = res?.data?.session || res?.data?.data?.session || res?.session;
+        if (!session?.id) {
+          throw new Error("协作会话创建失败");
+        }
+        this.$router.push({
+          name: "TaskCollaborationSession",
+          params: { sessionId: session.id },
+          query: {
+            teamId: this.selectedTeam?.id || task.owner_team_id || undefined,
+            taskId: task.id,
+          },
+        });
+      } catch (error) {
+        console.error("创建协作会话失败:", error);
+        alert(error.message || "创建协作会话失败");
+      } finally {
+        this.collaborationLoadingMap = {
+          ...this.collaborationLoadingMap,
+          [task.id]: false,
+        };
+      }
+    },
+    activeCollaborationSession(task) {
+      const sessions = this.sessionHistoryMap[task?.id] || [];
+      return sessions.find((session) => Number(session.status) === 1 || session.is_active);
+    },
+    collaborationActionLabel(task) {
+      return this.activeCollaborationSession(task) ? "进入协作" : "一键协作";
+    },
+    async loadTaskCollaborationSessions(taskId) {
+      if (!taskId) return;
+      this.sessionHistoryLoadingMap = {
+        ...this.sessionHistoryLoadingMap,
+        [taskId]: true,
+      };
+      try {
+        const res = await listTaskCollaborationSessions(taskId);
+        const sessions =
+          res?.data?.sessions || res?.data?.data?.sessions || res?.sessions || [];
+        this.sessionHistoryMap = {
+          ...this.sessionHistoryMap,
+          [taskId]: Array.isArray(sessions) ? sessions : [],
+        };
+      } catch (error) {
+        console.error("加载协作会话历史失败:", error);
+      } finally {
+        this.sessionHistoryLoadingMap = {
+          ...this.sessionHistoryLoadingMap,
+          [taskId]: false,
+        };
+      }
+    },
+    openCollaborationSession(session) {
+      if (!session?.id) return;
+      this.$router.push({
+        name: "TaskCollaborationSession",
+        params: { sessionId: session.id },
+        query: {
+          teamId: this.selectedTeam?.id || session.team_id || undefined,
+          taskId: session.task_id || undefined,
+        },
+      });
+    },
     resetNewTaskForm() {
       this.newTaskForm.title = "";
       this.newTaskForm.description = "";
@@ -1630,6 +1742,9 @@ export default {
           });
 
           this.tasks = visibleTasks.map((item) => this.normalizeFetchedTask(item));
+          this.tasks.forEach((task) => {
+            this.loadTaskCollaborationSessions(task.id);
+          });
         } else {
           this.tasks = [];
         }
@@ -2500,7 +2615,8 @@ export default {
 
 .ghost-btn,
 .success-btn,
-.info-btn {
+.info-btn,
+.collab-btn {
   padding: 6px 14px;
   font-size: 12px;
   font-weight: 600;
@@ -2534,6 +2650,15 @@ export default {
 
 .info-btn:hover {
   background: #c7d2fe;
+}
+
+.collab-btn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.collab-btn:hover:not(:disabled) {
+  background: #fde68a;
 }
 
 .task-card :is(h4, p, span) {

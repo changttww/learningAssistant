@@ -21,12 +21,14 @@ type ServerConfig struct {
 
 // DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Host     string `json:"host"`
-	Port     string `json:"port"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Database string `json:"database"`
-	Charset  string `json:"charset"`
+	Driver     string `json:"driver"`
+	Host       string `json:"host"`
+	Port       string `json:"port"`
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	Database   string `json:"database"`
+	Charset    string `json:"charset"`
+	SQLitePath string `json:"sqlite_path"`
 }
 
 var AppConfig *Config
@@ -44,12 +46,14 @@ func LoadConfig() {
 			Mode: getEnv("GIN_MODE", "debug"),
 		},
 		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnv("DB_PORT", "3306"),
-			Username: getEnv("DB_USERNAME", "root"),
-			Password: getEnv("DB_PASSWORD", ""),
-			Database: getEnv("DB_DATABASE", "learning_assistant"),
-			Charset:  getEnv("DB_CHARSET", "utf8mb4"),
+			Driver:     getEnv("DB_DRIVER", "mysql"),
+			Host:       getEnv("DB_HOST", "localhost"),
+			Port:       getEnv("DB_PORT", "3306"),
+			Username:   getEnv("DB_USERNAME", "root"),
+			Password:   getEnv("DB_PASSWORD", ""),
+			Database:   getEnv("DB_DATABASE", "learning_assistant"),
+			Charset:    getEnv("DB_CHARSET", "utf8mb4"),
+			SQLitePath: getEnv("DB_SQLITE_PATH", "learning_assistant.db"),
 		},
 	}
 }

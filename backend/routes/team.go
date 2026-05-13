@@ -20,6 +20,7 @@ func registerTeamRoutes(r *gin.RouterGroup) {
 
 	r.GET("", listTeams)
 	r.GET("/", listTeams)
+	registerTeamChatRoutes(r)
 	r.GET("/:id", getTeamDetail) // 新增团队详情接口
 	r.POST("", createTeam)
 	r.POST("/", createTeam)

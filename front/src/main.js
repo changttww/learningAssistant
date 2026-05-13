@@ -11,6 +11,7 @@ import PersonalTasks from "./views/PersonalTasks.vue";
 import TeamTasks from "./views/TeamTasks.vue";
 import TeamConstellation from "./views/TeamConstellation.vue";
 import TeamMeetingRoom from "./views/TeamMeetingRoom.vue";
+import TaskCollaborationSession from "./views/TaskCollaborationSession.vue";
 import TeamCalendar from "./views/TeamCalendar.vue";
 import TeamDocs from "./views/TeamKnowledge.vue";
 import TeamReports from "./views/TeamReports.vue";
@@ -56,7 +57,13 @@ const routes = [
     path: "/team-tasks/meeting/:teamId",
     name: "TeamMeetingRoom",
     component: TeamMeetingRoom,
-    meta: { title: "快速会议室", requiresAuth: true, permissions: ["team:view"] },
+    meta: { title: "团队聊天室", requiresAuth: true, permissions: ["team:view"] },
+  },
+  {
+    path: "/team-tasks/collaboration/:sessionId",
+    name: "TaskCollaborationSession",
+    component: TaskCollaborationSession,
+    meta: { title: "任务协作会话", requiresAuth: true, permissions: ["team:view"] },
   },
   {
     path: "/team-tasks/calendar/:teamId",

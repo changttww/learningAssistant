@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"gorm.io/driver/mysql"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
@@ -21,18 +22,12 @@ var DB *gorm.DB
 func InitDatabase() {
 	var err error
 
-	// 构建数据库连接字符串
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=%s&parseTime=True&loc=Local",
-		config.AppConfig.Database.Username,
-		config.AppConfig.Database.Password,
-		config.AppConfig.Database.Host,
-		config.AppConfig.Database.Port,
-		config.AppConfig.Database.Database,
-		config.AppConfig.Database.Charset,
-	)
+	dialector, err := buildDialector()
+	if err != nil {
+		log.Fatal("Failed to build database dialector:", err)
+	}
 
-	// 连接数据库
-	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
+	DB, err = gorm.Open(dialector, &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 
@@ -100,6 +95,25 @@ func AutoMigrate() error {
 // GetDB 获取数据库实例
 func GetDB() *gorm.DB {
 	return DB
+}
+
+func buildDialector() (gorm.Dialector, error) {
+	switch strings.ToLower(strings.TrimSpace(config.AppConfig.Database.Driver)) {
+	case "", "mysql":
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=%s&parseTime=True&loc=Local",
+			config.AppConfig.Database.Username,
+			config.AppConfig.Database.Password,
+			config.AppConfig.Database.Host,
+			config.AppConfig.Database.Port,
+			config.AppConfig.Database.Database,
+			config.AppConfig.Database.Charset,
+		)
+		return mysql.Open(dsn), nil
+	case "sqlite", "sqlite3":
+		return sqlite.Open(config.AppConfig.Database.SQLitePath), nil
+	default:
+		return nil, fmt.Errorf("unsupported database driver %q", config.AppConfig.Database.Driver)
+	}
 }
 
 func shouldSeedDemoData() bool {

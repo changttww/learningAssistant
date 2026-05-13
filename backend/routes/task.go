@@ -117,6 +117,7 @@ func registerTaskRoutes(r *gin.RouterGroup) {
 	r.GET("/", getTaskList) // 兼容两种路径
 	r.GET("/personal", getPersonalTasks)
 	r.GET("/team", getTeamTasks)
+	registerTaskCollaborationRoutes(r)
 	r.GET("/:id", getTaskDetail)
 	r.PUT("/:id", updateTask)
 	r.DELETE("/:id", deleteTask)
