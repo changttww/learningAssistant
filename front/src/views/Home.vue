@@ -115,6 +115,24 @@
         </div>
       </div>
 
+      <div class="ai-report-card mb-4">
+        <div class="ai-report-main">
+          <div class="ai-report-icon">
+            <iconify-icon icon="mdi:chart-box-outline" width="26" height="26"></iconify-icon>
+          </div>
+          <div>
+            <div class="ai-report-title">AI 学习报告</div>
+            <div class="ai-report-desc">
+              AI 已根据你的任务、知识点和学习趋势生成本周分析
+            </div>
+          </div>
+        </div>
+        <router-link to="/ai-report" class="ai-report-action">
+          查看 AI 学习报告
+          <iconify-icon icon="mdi:arrow-right" width="16" height="16"></iconify-icon>
+        </router-link>
+      </div>
+
       <!-- 任务热力图 -->
       <div class="card p-6 mb-6">
         <TaskHeatmap />
@@ -928,5 +946,83 @@
   .stat-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  .ai-report-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    border: 1px solid rgba(45, 91, 255, 0.14);
+    border-radius: 0.75rem;
+    background:
+      linear-gradient(135deg, rgba(45, 91, 255, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%),
+      #ffffff;
+    box-shadow: 0 2px 10px rgba(45, 91, 255, 0.06);
+  }
+
+  .ai-report-main {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .ai-report-icon {
+    width: 46px;
+    height: 46px;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    color: #2d5bff;
+    background: rgba(45, 91, 255, 0.1);
+  }
+
+  .ai-report-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .ai-report-desc {
+    margin-top: 4px;
+    font-size: 13px;
+    color: #4b5563;
+    line-height: 1.5;
+  }
+
+  .ai-report-action {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 10px;
+    color: #ffffff;
+    background: #2d5bff;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+
+  .ai-report-action:hover {
+    background: #2448cc;
+    box-shadow: 0 6px 14px rgba(45, 91, 255, 0.22);
+  }
+
+  @media (max-width: 640px) {
+    .ai-report-card {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .ai-report-action {
+      width: 100%;
+    }
   }
 </style>

@@ -23,6 +23,7 @@ import NotificationHistory from "./views/NotificationHistory.vue";
 import KnowledgeBase from "./views/KnowledgeBase.vue";
 import KnowledgeGraph from "./views/KnowledgeGraph.vue";
 import KnowledgeChat from "./views/KnowledgeChat.vue";
+import AIReport from "./views/AIReport.vue";
 
 // 导入路由守卫
 import { beforeEach, afterEach, onError } from "./router/guards.js";
@@ -148,6 +149,15 @@ const routes = [
     component: KnowledgeChat,
     meta: {
       title: "知识问答",
+      requiresAuth: true,
+    },
+  },
+  {
+    path: "/ai-report",
+    name: "AIReport",
+    component: AIReport,
+    meta: {
+      title: "AI 学习报告",
       requiresAuth: true,
     },
   },

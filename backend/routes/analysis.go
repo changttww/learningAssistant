@@ -458,11 +458,9 @@ func handleEfficiencyAnalysis(c *gin.Context) {
 		log.Printf("[analysis] LLM failed: %v", llmErr)
 		var aErr aiError
 		if errors.As(llmErr, &aErr) && aErr.Status != 0 {
-			c.JSON(aErr.Status, gin.H{"code": aErr.Status, "message": aErr.Message})
-			return
+			log.Printf("[analysis] using local fallback after AI status error: %s", aErr.Message)
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "AI分析失败，请稍后重试", "error": llmErr.Error()})
-		return
+		analysisView = buildLocalEfficiencyAnalysis(ctxData, payload.Model, prompt, llmErr)
 	}
 
 	log.Printf(
@@ -996,6 +994,145 @@ func mapLLMToView(analysis llmAnalysis, modelUsed, prompt string) efficiencyAnal
 		Recommendations: recs,
 		TaskInsights:    taskInsights,
 		ReviewPlan:      reviewPlan,
+	}
+}
+
+func buildLocalEfficiencyAnalysis(ctx analysisContext, modelUsed, prompt string, cause error) efficiencyAnalysisView {
+	totalMinutes := 0
+	studyTrend := make([]trendPointView, 0, len(ctx.Daily))
+	for _, item := range ctx.Daily {
+		totalMinutes += item.TotalMinutes
+		hours := round1(float64(item.TotalMinutes) / 60.0)
+		focusScore := clampInt(55+item.TotalMinutes/3+item.SessionCount*4, 50, 95)
+		studyTrend = append(studyTrend, trendPointView{
+			Date:       item.Date,
+			StudyHours: hours,
+			FocusScore: focusScore,
+		})
+	}
+
+	weeklyStudyHours := round1(float64(totalMinutes) / 60.0)
+	focusScore := 70
+	if len(studyTrend) > 0 {
+		sum := 0
+		for _, item := range studyTrend {
+			sum += item.FocusScore
+		}
+		focusScore = clampInt(sum/len(studyTrend), 0, 100)
+	}
+
+	strengths := []string{}
+	risks := []string{}
+	if ctx.Profile.StreakDays >= 7 {
+		strengths = append(strengths, fmt.Sprintf("已经连续学习 %d 天，学习节奏比较稳定", ctx.Profile.StreakDays))
+	}
+	if ctx.TaskStats.CompletionRate >= 75 {
+		strengths = append(strengths, "任务完成率较高，适合在答辩前继续保持当前推进节奏")
+	} else {
+		risks = append(risks, "任务完成率偏低，建议优先处理临近截止的任务")
+	}
+	if len(ctx.Sessions) == 0 {
+		risks = append(risks, "最近缺少有效学习会话记录，报告准确度会受影响")
+	}
+	if len(strengths) == 0 {
+		strengths = append(strengths, "已有学习数据可用于生成阶段性复盘")
+	}
+
+	recs := []recommendationView{
+		{
+			Title:  "优先处理高优先级任务",
+			Detail: "先完成进度不足且接近截止的任务，再整理截图、笔记和答辩话术。",
+			Impact: "high",
+		},
+		{
+			Title:  "固定一次复盘时段",
+			Detail: "每天保留 20-30 分钟复盘当天产出，把任务讨论、笔记和 AI 纪要沉淀到知识库。",
+			Impact: "medium",
+		},
+		{
+			Title:  "演示前做端到端自测",
+			Detail: "按“首页数据看板 -> AI 学习报告 -> 团队协作 -> 知识沉淀”的顺序完整走一遍。",
+			Impact: "medium",
+		},
+	}
+
+	taskInsights := make([]taskInsightView, 0, len(ctx.TaskSamples))
+	for _, task := range ctx.TaskSamples {
+		if len(taskInsights) >= 5 {
+			break
+		}
+		advice := "保持推进，并在完成后补充笔记或复盘记录。"
+		risk := ""
+		if task.Status != "done" && task.Priority >= 2 {
+			advice = "该任务优先级较高，建议安排到今天的专注时段完成关键部分。"
+			risk = "高优先级任务未完成，可能影响答辩演示完整度。"
+		}
+		taskInsights = append(taskInsights, taskInsightView{
+			TaskTitle: task.Title,
+			Status:    task.Status,
+			Advice:    advice,
+			Risk:      risk,
+		})
+	}
+
+	reviewItems := []reviewItemView{}
+	for _, task := range ctx.TaskSamples {
+		if len(reviewItems) >= 5 {
+			break
+		}
+		priority := "medium"
+		if task.Priority >= 3 {
+			priority = "high"
+		} else if task.Priority <= 1 {
+			priority = "low"
+		}
+		due := ""
+		if task.DueDate != nil {
+			due = *task.DueDate
+		}
+		reviewItems = append(reviewItems, reviewItemView{
+			Subject:  task.Title,
+			Priority: priority,
+			Progress: 0,
+			DueDate:  due,
+		})
+	}
+
+	notes := ""
+	if cause != nil {
+		notes = "AI 服务暂不可用，已使用本地学习数据生成演示报告：" + cause.Error()
+	}
+
+	return efficiencyAnalysisView{
+		Source:      "local_fallback",
+		Model:       modelUsed,
+		GeneratedAt: time.Now().Format(time.RFC3339),
+		Summary: analysisSummaryView{
+			WeeklyStudyHours:   weeklyStudyHours,
+			FocusScore:         focusScore,
+			TaskCompletionRate: ctx.TaskStats.CompletionRate,
+			StreakDays:         ctx.Profile.StreakDays,
+			StrengthHighlights: strengths,
+			RiskHighlights:     risks,
+		},
+		StudyTrend:      studyTrend,
+		Recommendations: recs,
+		TaskInsights:    taskInsights,
+		ReviewPlan: reviewPlanView{
+			Summary:     "根据近期任务和学习记录，建议优先复习高优先级任务、整理知识库材料，并在答辩前完成一次完整流程演示。",
+			ReviewItems: reviewItems,
+			Reminders: []reminderView{
+				{Content: "演示前检查后端 8080、前端页面和 AI 报告入口", Time: "答辩前"},
+				{Content: "准备一组稳定演示数据，避免空报告", Time: "今天"},
+			},
+			KnowledgeMap: knowledgeMapView{
+				Mastered: clampInt(ctx.TaskStats.CompletionRate, 0, 100),
+				Learning: clampInt(ctx.TaskStats.InProgress*15, 0, 100),
+				ToLearn:  clampInt(ctx.TaskStats.Pending*15, 0, 100),
+			},
+		},
+		Prompt: prompt,
+		Notes:  notes,
 	}
 }
 
